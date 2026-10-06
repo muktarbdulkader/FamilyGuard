@@ -25,6 +25,9 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         
+        // Register the child monitoring plugin
+        flutterEngine.plugins.add(ChildMonitoringPlugin())
+        
         permissionHelper = PermissionHelper(this)
         appScannerHelper = AppScannerHelper(this)
         appDiscoveryHelper = AppDiscoveryHelper(this)

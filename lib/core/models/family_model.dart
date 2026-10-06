@@ -1,4 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
+
+/// Enum for app rule types
+enum AppRuleType {
+  allowed,
+  blocked,
+  askParent,
+  timeLimit,
+  timeWindow,
+}
 
 /// Model representing a family unit with parent and child members
 class FamilyModel {
@@ -279,5 +289,90 @@ class AppUsageModel {
       return 0.0;
     }
     return (todayMinutes / dailyLimitMinutes).clamp(0.0, 1.0);
+  }
+}
+
+/// Model for app control rules
+class AppRule {
+  final String appPackageName;
+  final AppRuleType type;
+  final int? dailyLimitMinutes; // For time limit rules
+  final TimeOfDay? allowedStartTime; // For time window rules
+  final TimeOfDay? allowedEndTime; // For time window rules
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  const AppRule({
+    required this.appPackageName,
+    required this.type,
+    this.dailyLimitMinutes,
+    this.allowedStartTime,
+    this.allowedEndTime,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'appPackageName': appPackageName,
+      'type': type.toString().split('.').last,
+      'dailyLimitMinutes': dailyLimitMinutes,
+      'allowedStartTime': allowedStartTime != null
+          ? '${allowedStartTime!.hour}:${allowedStartTime!.minute}'
+          : null,
+      'allowedEndTime': allowedEndTime != null
+          ? '${allowedEndTime!.hour}:${allowedEndTime!.minute}'
+          : null,
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
+    };
+  }
+
+  factory AppRule.fromJson(Map<String, dynamic> json) {
+    return AppRule(
+      appPackageName: json['appPackageName'] as String,
+      type: AppRuleType.values.firstWhere(
+        (e) => e.toString().split('.').last == json['type'],
+        orElse: () => AppRuleType.allowed,
+      ),
+      dailyLimitMinutes: json['dailyLimitMinutes'] as int?,
+      allowedStartTime: json['allowedStartTime'] != null
+          ? _parseTimeOfDay(json['allowedStartTime'] as String)
+          : null,
+      allowedEndTime: json['allowedEndTime'] != null
+          ? _parseTimeOfDay(json['allowedEndTime'] as String)
+          : null,
+      createdAt: DateTime.parse(json['createdAt'] as String),
+      updatedAt: DateTime.parse(json['updatedAt'] as String),
+    );
+  }
+
+  static TimeOfDay _parseTimeOfDay(String timeString) {
+    final parts = timeString.split(':');
+    return TimeOfDay(
+      hour: int.parse(parts[0]),
+      minute: int.parse(parts[1]),
+    );
+  }
+
+  /// Create copy with updated fields
+  AppRule copyWith({
+    String? appPackageName,
+    AppRuleType? type,
+    int? dailyLimitMinutes,
+    TimeOfDay? allowedStartTime,
+    TimeOfDay? allowedEndTime,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return AppRule(
+      appPackageName: appPackageName ?? this.appPackageName,
+      type: type ?? this.type,
+      dailyLimitMinutes: dailyLimitMinutes ?? this.dailyLimitMinutes,
+      allowedStartTime: allowedStartTime ?? this.allowedStartTime,
+      allowedEndTime: allowedEndTime ?? this.allowedEndTime,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
   }
 }

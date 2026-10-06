@@ -2,83 +2,164 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Users collection - users can read/write their own data
+    // Helper functions for authentication and authorization
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isParentInFamily(familyId) {
+      return exists(/databases/$(database)/documents/families/$(familyId)) &&
+             get(/databases/$(database)/documents/families/$(familyId)).data.parentIds.hasAny([request.auth.uid]);
+    }
+    
+    function isChildInFamily(familyId) {
+      return exists(/databases/$(database)/documents/families/$(familyId)) &&
+             get(/databases/$(database)/documents/families/$(familyId)).data.childIds.hasAny([request.auth.uid]);
+    }
+    
+    function isFamilyMember(familyId) {
+      return isParentInFamily(familyId) || isChildInFamily(familyId);
+    }
+    
+    // Users collection
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
     }
     
     // Families collection
     match /families/{familyId} {
-      // Allow read/write if user is the parent of the family
-      allow read, write: if request.auth != null && 
-        (request.auth.uid == resource.data.parentId || 
-         request.auth.uid in resource.data.childrenIds);
+      allow read: if isAuthenticated() && isFamilyMember(familyId);
+      allow write: if isAuthenticated() && isParentInFamily(familyId);
       
-      // Allow create if user is authenticated (for new families)
-      allow create: if request.auth != null && 
-        request.auth.uid == request.resource.data.parentId;
-      
-      // Children subcollection
+      // Children subcollection within families
       match /children/{childId} {
-        // Parents can read/write all children data
-        // Children can only read/write their own data
-        allow read, write: if request.auth != null && 
-          (request.auth.uid == get(/databases/$(database)/documents/families/$(familyId)).data.parentId ||
-           request.auth.uid == childId);
+        allow read: if isAuthenticated() && isFamilyMember(familyId);
+        allow write: if isAuthenticated() && isParentInFamily(familyId);
         
-        // Apps subcollection
-        match /apps/{appId} {
-          // Parents can read/write all app rules
-          // Children can only read their own app rules
-          allow read: if request.auth != null && 
-            (request.auth.uid == get(/databases/$(database)/documents/families/$(familyId)).data.parentId ||
-             request.auth.uid == childId);
-          allow write: if request.auth != null && 
-            request.auth.uid == get(/databases/$(database)/documents/families/$(familyId)).data.parentId;
-        }
-        
-        // Requests subcollection
+        // App requests subcollection - CRITICAL SECURITY RULES
         match /requests/{requestId} {
-          // Parents can read/write all requests
-          // Children can read/write only their own requests
-          allow read: if request.auth != null && 
-            (request.auth.uid == get(/databases/$(database)/documents/families/$(familyId)).data.parentId ||
-             request.auth.uid == childId);
-          allow create: if request.auth != null && request.auth.uid == childId;
-          allow update: if request.auth != null && 
-            (request.auth.uid == get(/databases/$(database)/documents/families/$(familyId)).data.parentId ||
-             (request.auth.uid == childId && 
-              request.resource.data.status == resource.data.status)); // Children can't change status
+          // Children can create requests and read their own requests
+          allow create: if isAuthenticated() && 
+                       request.auth.uid == childId &&
+                       isChildInFamily(familyId) &&
+                       // Validate request structure
+                       request.resource.data.keys().hasAll(['packageName', 'appName', 'status', 'createdAt', 'expiresAt', 'requestNonce']) &&
+                       request.resource.data.status == 'pending' &&
+                       request.resource.data.familyId == familyId &&
+                       request.resource.data.childId == childId &&
+                       // Prevent future timestamps
+                       request.resource.data.createdAt <= request.time &&
+                       // Reasonable expiry time (max 10 minutes)
+                       request.resource.data.expiresAt <= request.time + duration.value(600, 's') &&
+                       // Prevent long app names (potential abuse)
+                       request.resource.data.appName.size() <= 50 &&
+                       request.resource.data.packageName.size() <= 100;
+          
+          // Children can read their own requests
+          allow read: if isAuthenticated() && 
+                     (request.auth.uid == childId || isParentInFamily(familyId));
+          
+          // Children can cancel their own pending requests
+          allow update: if isAuthenticated() && 
+                       request.auth.uid == childId &&
+                       isChildInFamily(familyId) &&
+                       // Only allow changing status to cancelled
+                       resource.data.status == 'pending' &&
+                       request.resource.data.status == 'cancelled' &&
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'decidedAt']) &&
+                       request.resource.data.decidedAt <= request.time;
+          
+          // PARENTS CANNOT DIRECTLY MODIFY REQUESTS
+          // All approvals/denials must go through Cloud Functions
+          // This prevents parents from bypassing security checks
+          
+          // Delete not allowed for anyone
+          allow delete: if false;
         }
-        
-        // Locations subcollection
-        match /locations/{locationId} {
-          // Parents can read all locations
-          // Children can only write their own location
-          allow read: if request.auth != null && 
-            request.auth.uid == get(/databases/$(database)/documents/families/$(familyId)).data.parentId;
-          allow write: if request.auth != null && request.auth.uid == childId;
-        }
+      }
+      
+      // App rules subcollection
+      match /appRules/{ruleId} {
+        allow read: if isAuthenticated() && isFamilyMember(familyId);
+        allow write: if isAuthenticated() && isParentInFamily(familyId);
+      }
+      
+      // Parent requests subcollection (for parent notifications)
+      match /parentRequests/{requestId} {
+        allow read, write: if isAuthenticated() && isParentInFamily(familyId);
       }
     }
     
-    // Family invites collection
-    match /family_invites/{inviteCode} {
-      // Anyone can read valid invites (to join family)
-      allow read: if request.auth != null && 
-        resource.data.expiresAt > request.time && 
-        !resource.data.isUsed;
-      
-      // Only parents can create invites
-      allow create: if request.auth != null;
-      
-      // Only system can update (mark as used)
-      allow update: if request.auth != null;
+    // Notifications collection (for FCM processing)
+    match /notifications/{notificationId} {
+      // Only Cloud Functions can write notifications
+      allow read: if isAuthenticated();
+      allow write: if false; // Only Cloud Functions
     }
     
-    // Deny all other access
+    // Audit logs (read-only for users, write-only for Cloud Functions)
+    match /auditLogs/{logId} {
+      allow read: if false; // Admins only (implement admin check if needed)
+      allow write: if false; // Only Cloud Functions
+    }
+    
+    // Temporary permissions (local to child devices)
+    // These are synced locally and not stored in Firestore for security
+    
+    // App usage data
+    match /families/{familyId}/children/{childId}/usageData/{packageName} {
+      allow read: if isAuthenticated() && 
+                 (request.auth.uid == childId || isParentInFamily(familyId));
+      allow write: if isAuthenticated() && request.auth.uid == childId;
+    }
+    
+    // Default deny rule for any unmatched documents
     match /{document=**} {
       allow read, write: if false;
     }
   }
 }
+
+/*
+SECURITY DESIGN PRINCIPLES:
+
+1. REQUEST CREATION SECURITY:
+   - Only children can create requests for themselves
+   - Strict validation of request structure and data
+   - Prevent timestamp manipulation and excessive expiry times
+   - Rate limiting through validation (could add counters)
+
+2. REQUEST MODIFICATION SECURITY:
+   - Children can only cancel their own pending requests
+   - Parents CANNOT directly approve/deny requests in Firestore
+   - All approvals/denials MUST go through Cloud Functions
+   - This ensures server-side validation and audit logging
+
+3. FAMILY AUTHORIZATION:
+   - Users can only access families they belong to
+   - Parents have write access, children have limited write access
+   - Family membership verified through family document
+
+4. AUDIT AND COMPLIANCE:
+   - All approval/denial actions logged by Cloud Functions
+   - Request tampering prevented through strict rules
+   - No direct database manipulation of critical operations
+
+5. DATA INTEGRITY:
+   - Request structure validation prevents malformed data
+   - Timestamp validation prevents backdating or future dating
+   - Size limits prevent potential DoS through large data
+
+6. ANTI-TAMPERING MEASURES:
+   - Children cannot modify granted minutes or approval status
+   - Parents cannot bypass Cloud Function validation
+   - Authorization tokens generated server-side only
+   - Replay attack prevention in Cloud Functions
+
+This security model ensures that:
+- Children cannot approve their own requests
+- Parents cannot bypass validation logic
+- All critical operations are audited
+- Request data integrity is maintained
+- Family boundaries are enforced
+*/

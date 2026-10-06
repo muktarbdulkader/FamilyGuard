@@ -1,8 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'core/providers/router_provider.dart';
+import 'core/services/notification_service.dart';
 import 'firebase_options.dart';
+
+/// Background message handler for FCM
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  return firebaseMessagingBackgroundHandler(message);
+}
 
 /// Main entry point of the Flutter Parental Control App
 /// Initializes Firebase and sets up the app with Riverpod state management
@@ -14,6 +23,12 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  
+  // Set up background message handler
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  
+  // Initialize notification service
+  await NotificationService.instance.initialize();
   
   // Run app with Riverpod provider scope for state management
   runApp(
