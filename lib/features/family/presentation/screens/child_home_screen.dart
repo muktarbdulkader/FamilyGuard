@@ -197,6 +197,17 @@ class ChildHomeScreen extends ConsumerWidget {
                       },
                     ),
                     
+                    _StatusItem(
+                      icon: Icons.apps,
+                      title: 'My Apps',
+                      subtitle: 'View installed apps and their rules',
+                      status: 'Scan Available',
+                      statusColor: Colors.blue,
+                      onTap: () {
+                        context.push(AppRoutes.childApps);
+                      },
+                    ),
+                    
                     const SizedBox(height: 32),
                     
                     // Help section

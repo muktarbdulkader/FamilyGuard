@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/app_model.dart';
@@ -194,7 +194,7 @@ class AppScannerService {
       // TODO: Send FCM notification to parent (will be implemented in request/approval system)
     } catch (e) {
       // Don't fail the main operation if notification fails
-      print('Failed to notify parent of new apps: $e');
+      debugPrint('Failed to notify parent of new apps: $e');
     }
   }
 
@@ -219,7 +219,7 @@ class AppScannerService {
       await _channel.invokeMethod('stopAppInstallationMonitoring');
     } catch (e) {
       // Don't throw error for stop operation
-      print('Failed to stop app installation monitoring: $e');
+      debugPrint('Failed to stop app installation monitoring: $e');
     }
   }
 

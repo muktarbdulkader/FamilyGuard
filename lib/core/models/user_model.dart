@@ -1,23 +1,21 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-/// User model representing a user in the family control system
+/// User model representing authenticated users in the system
 class UserModel {
   final String uid;
   final String email;
-  final String role; // 'parent' or 'child'
-  final String? familyId;
-  final String? displayName;
+  final String displayName;
+  final UserRole role;
   final DateTime createdAt;
-  final DateTime? lastSeen;
+  final DateTime updatedAt;
 
   const UserModel({
     required this.uid,
     required this.email,
+    required this.displayName,
     required this.role,
-    this.familyId,
-    this.displayName,
     required this.createdAt,
-    this.lastSeen,
+    required this.updatedAt,
   });
 
   /// Create UserModel from Firestore document
@@ -26,11 +24,10 @@ class UserModel {
     return UserModel(
       uid: doc.id,
       email: data['email'] ?? '',
-      role: data['role'] ?? '',
-      familyId: data['familyId'],
-      displayName: data['displayName'],
+      displayName: data['displayName'] ?? '',
+      role: UserRole.fromString(data['role'] ?? ''),
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      lastSeen: (data['lastSeen'] as Timestamp?)?.toDate(),
+      updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
 
@@ -39,72 +36,68 @@ class UserModel {
     return UserModel(
       uid: json['uid'] ?? '',
       email: json['email'] ?? '',
-      role: json['role'] ?? '',
-      familyId: json['familyId'],
-      displayName: json['displayName'],
-      createdAt: DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
-      lastSeen: json['lastSeen'] != null ? DateTime.parse(json['lastSeen']) : null,
+      displayName: json['displayName'] ?? '',
+      role: UserRole.fromString(json['role'] ?? ''),
+      createdAt: DateTime.parse(json['createdAt']),
+      updatedAt: DateTime.parse(json['updatedAt']),
     );
   }
 
-  /// Convert UserModel to Firestore document
+  /// Convert to Firestore document
   Map<String, dynamic> toFirestore() {
     return {
+      'uid': uid,
       'email': email,
-      'role': role,
-      'familyId': familyId,
       'displayName': displayName,
+      'role': role.value,
       'createdAt': Timestamp.fromDate(createdAt),
-      'lastSeen': lastSeen != null ? Timestamp.fromDate(lastSeen!) : null,
+      'updatedAt': Timestamp.fromDate(updatedAt),
     };
   }
 
-  /// Convert UserModel to JSON
+  /// Convert to JSON
   Map<String, dynamic> toJson() {
     return {
       'uid': uid,
       'email': email,
-      'role': role,
-      'familyId': familyId,
       'displayName': displayName,
+      'role': role.value,
       'createdAt': createdAt.toIso8601String(),
-      'lastSeen': lastSeen?.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
     };
   }
 
-  /// Copy UserModel with updated fields
+  /// Copy with updated fields
   UserModel copyWith({
     String? uid,
     String? email,
-    String? role,
-    String? familyId,
     String? displayName,
+    UserRole? role,
     DateTime? createdAt,
-    DateTime? lastSeen,
+    DateTime? updatedAt,
   }) {
     return UserModel(
       uid: uid ?? this.uid,
       email: email ?? this.email,
-      role: role ?? this.role,
-      familyId: familyId ?? this.familyId,
       displayName: displayName ?? this.displayName,
+      role: role ?? this.role,
       createdAt: createdAt ?? this.createdAt,
-      lastSeen: lastSeen ?? this.lastSeen,
+      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 
+  /// Check if user has a valid role assigned
+  bool get hasRole => role != UserRole.none;
+
   /// Check if user is a parent
-  bool get isParent => role == 'parent';
+  bool get isParent => role == UserRole.parent;
 
   /// Check if user is a child
-  bool get isChild => role == 'child';
-
-  /// Check if user is part of a family
-  bool get hasFamily => familyId != null && familyId!.isNotEmpty;
+  bool get isChild => role == UserRole.child;
 
   @override
   String toString() {
-    return 'UserModel(uid: $uid, email: $email, role: $role, familyId: $familyId)';
+    return 'UserModel(uid: $uid, email: $email, role: $role)';
   }
 
   @override
@@ -113,15 +106,50 @@ class UserModel {
     return other is UserModel &&
         other.uid == uid &&
         other.email == email &&
-        other.role == role &&
-        other.familyId == familyId;
+        other.displayName == displayName &&
+        other.role == role;
   }
 
   @override
   int get hashCode {
     return uid.hashCode ^
         email.hashCode ^
-        role.hashCode ^
-        familyId.hashCode;
+        displayName.hashCode ^
+        role.hashCode;
   }
+}
+
+/// User role enumeration
+enum UserRole {
+  none(''),
+  parent('parent'),
+  child('child');
+
+  const UserRole(this.value);
+  final String value;
+
+  static UserRole fromString(String value) {
+    switch (value.toLowerCase()) {
+      case 'parent':
+        return UserRole.parent;
+      case 'child':
+        return UserRole.child;
+      default:
+        return UserRole.none;
+    }
+  }
+
+  String get displayName {
+    switch (this) {
+      case UserRole.parent:
+        return 'Parent';
+      case UserRole.child:
+        return 'Child';
+      case UserRole.none:
+        return 'No Role';
+    }
+  }
+
+  @override
+  String toString() => value;
 }

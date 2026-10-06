@@ -7,6 +7,38 @@ import 'package:geolocator/geolocator.dart';
 class PermissionService {
   static const MethodChannel _channel = MethodChannel('family_guardian/permissions');
 
+  /// Start the monitoring foreground service
+  /// This creates a persistent notification showing monitoring is active
+  Future<bool> startMonitoringService() async {
+    try {
+      final bool started = await _channel.invokeMethod('startMonitoringService');
+      return started;
+    } catch (e) {
+      throw PermissionException('Failed to start monitoring service: $e');
+    }
+  }
+
+  /// Stop the monitoring foreground service
+  Future<bool> stopMonitoringService() async {
+    try {
+      final bool stopped = await _channel.invokeMethod('stopMonitoringService');
+      return stopped;
+    } catch (e) {
+      // Don't throw error for stopping service
+      return false;
+    }
+  }
+
+  /// Check if monitoring service is running
+  Future<bool> isMonitoringServiceRunning() async {
+    try {
+      final bool isRunning = await _channel.invokeMethod('isMonitoringServiceRunning');
+      return isRunning;
+    } catch (e) {
+      return false;
+    }
+  }
+
   /// Check if Usage Access permission is granted
   Future<bool> hasUsageStatsPermission() async {
     try {
@@ -42,25 +74,6 @@ class PermissionService {
       await _channel.invokeMethod('openOverlaySettings');
     } catch (e) {
       throw PermissionException('Failed to open overlay settings');
-    }
-  }
-
-  /// Check if Accessibility Service is enabled
-  Future<bool> hasAccessibilityPermission() async {
-    try {
-      final bool hasPermission = await _channel.invokeMethod('hasAccessibilityPermission');
-      return hasPermission;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  /// Open Accessibility Service settings page
-  Future<void> openAccessibilitySettings() async {
-    try {
-      await _channel.invokeMethod('openAccessibilitySettings');
-    } catch (e) {
-      throw PermissionException('Failed to open accessibility settings');
     }
   }
 
@@ -126,43 +139,6 @@ class PermissionService {
     await Geolocator.openLocationSettings();
   }
 
-  /// Check if device admin permission is granted
-  Future<bool> hasDeviceAdminPermission() async {
-    try {
-      final bool hasPermission = await _channel.invokeMethod('hasDeviceAdminPermission');
-      return hasPermission;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  /// Request device admin permission
-  Future<void> requestDeviceAdminPermission() async {
-    try {
-      await _channel.invokeMethod('requestDeviceAdminPermission');
-    } catch (e) {
-      throw PermissionException('Failed to request device admin permission');
-    }
-  }
-
-  /// Create persistent notification for monitoring status
-  Future<void> createMonitoringNotification() async {
-    try {
-      await _channel.invokeMethod('createMonitoringNotification');
-    } catch (e) {
-      throw PermissionException('Failed to create monitoring notification');
-    }
-  }
-
-  /// Remove monitoring notification
-  Future<void> removeMonitoringNotification() async {
-    try {
-      await _channel.invokeMethod('removeMonitoringNotification');
-    } catch (e) {
-      // Don't throw error for removal failure
-    }
-  }
-
   /// Check if battery optimization is disabled (important for background services)
   Future<bool> isBatteryOptimizationDisabled() async {
     try {
@@ -180,6 +156,20 @@ class PermissionService {
     } catch (e) {
       throw PermissionException('Failed to open battery optimization settings');
     }
+  }
+
+  /// Create persistent notification for monitoring status
+  /// DEPRECATED: Use startMonitoringService() instead
+  @Deprecated('Use startMonitoringService() for foreground service notification')
+  Future<void> createMonitoringNotification() async {
+    await startMonitoringService();
+  }
+
+  /// Remove monitoring notification
+  /// DEPRECATED: Use stopMonitoringService() instead
+  @Deprecated('Use stopMonitoringService() to stop foreground service')
+  Future<void> removeMonitoringNotification() async {
+    await stopMonitoringService();
   }
 
   /// Get all permission statuses
@@ -204,6 +194,52 @@ class PermissionService {
     } else {
       return PermissionStatus.none;
     }
+  }
+
+  /// Get comprehensive permission report for debugging
+  Future<Map<String, dynamic>> getPermissionReport() async {
+    final hasUsageStats = await hasUsageStatsPermission();
+    final hasOverlay = await hasOverlayPermission();
+    final hasNotification = await hasNotificationPermission();
+    final locationStatus = await getLocationPermissionStatus();
+    final batteryOptDisabled = await isBatteryOptimizationDisabled();
+    final monitoringServiceRunning = await isMonitoringServiceRunning();
+
+    return {
+      'usageStats': {
+        'granted': hasUsageStats,
+        'description': 'Required for app usage monitoring and time limits',
+        'settingsRequired': true,
+      },
+      'overlay': {
+        'granted': hasOverlay,
+        'description': 'Required for app blocking and time limit warnings',
+        'settingsRequired': true,
+      },
+      'notifications': {
+        'granted': hasNotification,
+        'description': 'Required for monitoring status and safety alerts',
+        'settingsRequired': false,
+      },
+      'location': {
+        'status': locationStatus.name,
+        'granted': locationStatus == LocationPermissionStatus.always || 
+                  locationStatus == LocationPermissionStatus.whileInUse,
+        'description': 'Required for family safety and location sharing',
+        'settingsRequired': false,
+      },
+      'batteryOptimization': {
+        'disabled': batteryOptDisabled,
+        'description': 'Recommended for reliable background monitoring',
+        'settingsRequired': true,
+        'required': false,
+      },
+      'monitoringService': {
+        'running': monitoringServiceRunning,
+        'description': 'Persistent notification showing monitoring is active',
+        'required': true,
+      }
+    };
   }
 }
 

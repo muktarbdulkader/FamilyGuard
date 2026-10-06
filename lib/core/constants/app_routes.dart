@@ -16,6 +16,10 @@ class AppRoutes {
   static const String childHome = '/child-home';
   static const String childPermissions = '/child-permissions';
   static const String childStatus = '/child-status';
+  static const String childApps = '/child-apps';
+  static const String joinFamily = '/join-family';
+  static const String permissionOnboarding = '/permission-onboarding';
+  static const String monitoringStatus = '/monitoring-status';
   
   // Family routes
   static const String familyPairing = '/family-pairing';

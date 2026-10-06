@@ -1,10 +1,7 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/services/app_scanner_service.dart';
-import '../../../../core/models/app_model.dart';
 import '../../../../core/providers/auth_provider.dart';
 
 /// Child apps screen showing installed apps and their rules
@@ -115,7 +112,7 @@ class _ChildAppsScreenState extends ConsumerState<ChildAppsScreen> {
         (_) => _checkForNewApps(),
       );
     } catch (e) {
-      print('Failed to start app monitoring: $e');
+      debugPrint('Failed to start app monitoring: $e');
     }
   }
 
@@ -142,7 +139,7 @@ class _ChildAppsScreenState extends ConsumerState<ChildAppsScreen> {
         await _scanAndUploadApps();
       }
     } catch (e) {
-      print('Failed to check for new apps: $e');
+      debugPrint('Failed to check for new apps: $e');
     }
   }
 

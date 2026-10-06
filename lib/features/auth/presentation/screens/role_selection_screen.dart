@@ -1,269 +1,148 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import '../../../../core/constants/app_routes.dart';
-import '../../../../core/constants/app_constants.dart';
+import '../../../../core/models/user_model.dart';
 import '../../../../core/providers/auth_provider.dart';
-import '../../../../core/services/auth_service.dart';
 
-/// Role selection screen shown after initial registration
-/// Allows user to choose between Parent and Child roles
-class RoleSelectionScreen extends ConsumerStatefulWidget {
+/// Screen for users to select their role (parent or child)
+class RoleSelectionScreen extends ConsumerWidget {
   const RoleSelectionScreen({super.key});
 
-  @override
-  ConsumerState<RoleSelectionScreen> createState() => _RoleSelectionScreenState();
-}
+  /// Handle role selection
+  Future<void> _handleRoleSelection(
+    BuildContext context,
+    WidgetRef ref,
+    UserRole role,
+  ) async {
+    final authNotifier = ref.read(authNotifierProvider.notifier);
+    final success = await authNotifier.updateRole(role);
 
-class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
-  String? _selectedRole;
-  bool _isLoading = false;
-  String? _errorMessage;
-
-  /// Set user role and navigate to appropriate home screen
-  Future<void> _setRole(String role) async {
-    final user = ref.read(currentUserProvider);
-    if (user == null) {
-      setState(() {
-        _errorMessage = 'User not authenticated';
-      });
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-      _selectedRole = role;
-    });
-
-    try {
-      final authService = ref.read(authServiceProvider);
-      await authService.setUserRole(user.uid, role);
-
-      // Navigate based on role
-      if (mounted) {
-        if (role == AppConstants.parentRole) {
-          context.go(AppRoutes.parentHome);
-        } else {
-          context.go(AppRoutes.childHome);
-        }
-      }
-    } on AuthException catch (e) {
-      setState(() {
-        _errorMessage = e.message;
-        _selectedRole = null;
-      });
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Failed to set role. Please try again.';
-        _selectedRole = null;
-      });
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  /// Show role explanation dialog
-  void _showRoleInfo(String role) {
-    String title;
-    String description;
-    IconData icon;
-    Color color;
-
-    if (role == AppConstants.parentRole) {
-      title = 'Parent Account';
-      description = '''
-• Monitor your child's device usage
-• Set app permissions and time limits  
-• Track location and create safe zones
-• Approve or deny app requests
-• View usage reports and activity
-• Manage family settings
-      ''';
-      icon = Icons.supervisor_account;
-      color = Colors.blue;
-    } else {
-      title = 'Child Account';
-      description = '''
-• Your device will be monitored for safety
-• Parents can see which apps you use
-• Some apps may be blocked or time-limited
-• You can request permission for blocked apps
-• Location sharing keeps you safe
-• All monitoring is transparent
-      ''';
-      icon = Icons.child_care;
-      color = Colors.orange;
-    }
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(icon, color: color),
-            const SizedBox(width: 8),
-            Text(title),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'This account type includes:',
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
-            const SizedBox(height: 8),
-            Text(description.trim()),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+    if (success && context.mounted) {
+      // Navigation will be handled automatically by the router
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Role selected: ${role == UserRole.parent ? 'Parent' : 'Child'}',
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _setRole(role);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: color,
-              foregroundColor: Colors.white,
-            ),
-            child: Text('Choose $title'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final user = ref.watch(currentUserProvider);
-
-    // Redirect if user is not authenticated
-    if (user == null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        context.go(AppRoutes.login);
-      });
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+          backgroundColor: Colors.green,
+        ),
       );
     }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authNotifierProvider);
+    final currentUser = authState.user;
 
     return Scaffold(
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Header
-              Expanded(
-                flex: 2,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.people,
-                      size: 80,
+              const SizedBox(height: 60),
+              
+              // Welcome message
+              Column(
+                children: [
+                  Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
                       color: Colors.blue,
+                      borderRadius: BorderRadius.circular(20),
                     ),
-                    const SizedBox(height: 24),
-                    Text(
-                      'Choose Your Role',
-                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
+                    child: const Icon(
+                      Icons.family_restroom,
+                      size: 60,
+                      color: Colors.white,
                     ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Select whether you are a parent monitoring devices or a child whose device will be monitored.',
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: Colors.grey[600],
-                      ),
-                      textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Welcome, ${currentUser?.displayName ?? 'User'}!',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
                     ),
-                  ],
-                ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Please select your role to continue',
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: Colors.grey[600],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
               ),
-
+              
+              const SizedBox(height: 60),
+              
               // Role selection cards
               Expanded(
-                flex: 3,
                 child: Column(
                   children: [
                     // Parent role card
-                    Expanded(
-                      child: _RoleCard(
-                        role: AppConstants.parentRole,
-                        title: 'I am a Parent',
-                        subtitle: 'Monitor and manage children\'s devices',
-                        icon: Icons.supervisor_account,
-                        color: Colors.blue,
-                        isSelected: _selectedRole == AppConstants.parentRole,
-                        isLoading: _isLoading && _selectedRole == AppConstants.parentRole,
-                        onTap: () => _showRoleInfo(AppConstants.parentRole),
-                      ),
+                    _RoleCard(
+                      title: 'Parent',
+                      subtitle: 'Monitor and manage family device usage',
+                      icon: Icons.supervisor_account,
+                      color: Colors.blue,
+                      isLoading: authState.isLoading,
+                      onTap: () => _handleRoleSelection(context, ref, UserRole.parent),
                     ),
                     
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 24),
                     
                     // Child role card
-                    Expanded(
-                      child: _RoleCard(
-                        role: AppConstants.childRole,
-                        title: 'I am a Child',
-                        subtitle: 'This device will be monitored by parents',
-                        icon: Icons.child_care,
-                        color: Colors.orange,
-                        isSelected: _selectedRole == AppConstants.childRole,
-                        isLoading: _isLoading && _selectedRole == AppConstants.childRole,
-                        onTap: () => _showRoleInfo(AppConstants.childRole),
-                      ),
+                    _RoleCard(
+                      title: 'Child',
+                      subtitle: 'Use devices with parental guidance',
+                      icon: Icons.child_care,
+                      color: Colors.green,
+                      isLoading: authState.isLoading,
+                      onTap: () => _handleRoleSelection(context, ref, UserRole.child),
                     ),
                   ],
                 ),
               ),
-
+              
               // Error message
-              if (_errorMessage != null) ...[
+              if (authState.errorMessage != null) ...[
                 Container(
-                  margin: const EdgeInsets.only(top: 16),
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: Colors.red[50],
-                    borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: Colors.red[200]!),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Text(
-                    _errorMessage!,
-                    style: TextStyle(color: Colors.red[700]),
-                    textAlign: TextAlign.center,
+                  child: Row(
+                    children: [
+                      Icon(Icons.error_outline, color: Colors.red[700], size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          authState.errorMessage!,
+                          style: TextStyle(color: Colors.red[700]),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
+                const SizedBox(height: 16),
               ],
-
-              // Logout option
-              Padding(
-                padding: const EdgeInsets.only(top: 24),
-                child: TextButton.icon(
-                  onPressed: _isLoading ? null : () async {
-                    await ref.read(authServiceProvider).signOut();
-                    if (mounted) {
-                      context.go(AppRoutes.login);
-                    }
-                  },
-                  icon: const Icon(Icons.logout),
-                  label: const Text('Sign Out'),
-                ),
+              
+              // Sign out button
+              TextButton(
+                onPressed: authState.isLoading ? null : () {
+                  ref.read(authNotifierProvider.notifier).signOut();
+                },
+                child: const Text('Sign Out'),
               ),
+              
+              const SizedBox(height: 24),
             ],
           ),
         ),
@@ -274,22 +153,18 @@ class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
 
 /// Role selection card widget
 class _RoleCard extends StatelessWidget {
-  final String role;
   final String title;
   final String subtitle;
   final IconData icon;
   final Color color;
-  final bool isSelected;
   final bool isLoading;
   final VoidCallback onTap;
 
   const _RoleCard({
-    required this.role,
     required this.title,
     required this.subtitle,
     required this.icon,
     required this.color,
-    required this.isSelected,
     required this.isLoading,
     required this.onTap,
   });
@@ -297,70 +172,55 @@ class _RoleCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      elevation: isSelected ? 8 : 2,
-      shadowColor: isSelected ? color.withValues(alpha: 0.3) : null,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: isSelected ? color : Colors.grey[300]!,
-          width: isSelected ? 2 : 1,
-        ),
-      ),
+      elevation: 4,
       child: InkWell(
         onTap: isLoading ? null : onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(32),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey[200]!),
+          ),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              if (isLoading)
-                CircularProgressIndicator(color: color)
-              else
-                Icon(
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(40),
+                ),
+                child: Icon(
                   icon,
-                  size: 48,
+                  size: 40,
                   color: color,
                 ),
-              
-              const SizedBox(height: 16),
-              
+              ),
+              const SizedBox(height: 20),
               Text(
                 title,
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: isSelected ? color : null,
+                  color: color,
                 ),
-                textAlign: TextAlign.center,
               ),
-              
               const SizedBox(height: 8),
-              
               Text(
                 subtitle,
+                textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: Colors.grey[600],
                 ),
-                textAlign: TextAlign.center,
               ),
-              
-              const SizedBox(height: 16),
-              
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(20),
+              if (isLoading) ...[
+                const SizedBox(height: 16),
+                const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
                 ),
-                child: Text(
-                  'Tap to learn more',
-                  style: TextStyle(
-                    color: color,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
+              ],
             ],
           ),
         ),

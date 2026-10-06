@@ -186,11 +186,23 @@ class _PermissionOnboardingScreenState extends ConsumerState<PermissionOnboardin
 
   /// Complete the onboarding process
   Future<void> _completeOnboarding() async {
-    // Create monitoring notification
+    // Start monitoring service to create persistent notification
     try {
-      await _permissionService.createMonitoringNotification();
+      final started = await _permissionService.startMonitoringService();
+      if (!started) {
+        // Show warning but don't block completion
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Warning: Could not start monitoring service'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
     } catch (e) {
-      // Continue even if notification creation fails
+      // Log error but don't block completion
+      debugPrint('Failed to start monitoring service: $e');
     }
 
     // Navigate to child home

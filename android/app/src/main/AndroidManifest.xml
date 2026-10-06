@@ -1,32 +1,76 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
-    <!-- Internet permission for Firebase -->
-    <uses-permission android:name="android.permission.INTERNET" />
     
-    <!-- Location permissions for family safety -->
+    <!-- DOCUMENTED PERMISSIONS FOR FAMILY GUARDIAN APP -->
+    
+    <!-- INTERNET AND NETWORK PERMISSIONS -->
+    <!-- Required for Firebase communication and cloud services -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    
+    <!-- LOCATION PERMISSIONS -->
+    <!-- ACCESS_FINE_LOCATION: Allows GPS location access for family safety features -->
+    <!-- ACCESS_COARSE_LOCATION: Allows network-based location for family safety features -->
+    <!-- ACCESS_BACKGROUND_LOCATION: Allows location tracking when app is not in foreground -->
+    <!-- Required for: family member location sharing, safe zone alerts, device tracking -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
     
-    <!-- Device monitoring permissions -->
+    <!-- DEVICE MONITORING PERMISSIONS -->
+    <!-- PACKAGE_USAGE_STATS: Allows monitoring app usage statistics -->
+    <!-- Required for: tracking app usage time, generating screen time reports, enforcing time limits -->
+    <!-- NOTE: This is NOT a runtime permission - requires user to manually enable in Settings -->
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" 
         tools:ignore="ProtectedPermissions" />
+    
+    <!-- SYSTEM_ALERT_WINDOW: Allows displaying overlays on top of other apps -->
+    <!-- Required for: showing app block screens, time limit warnings, safety notifications -->
+    <!-- NOTE: This is NOT a runtime permission - requires user to manually enable in Settings -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    
+    <!-- BOOT AND SERVICE PERMISSIONS -->
+    <!-- RECEIVE_BOOT_COMPLETED: Allows app to start monitoring service after device reboot -->
+    <!-- Required for: maintaining parental controls after device restart -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    
+    <!-- FOREGROUND_SERVICE: Allows running foreground service for continuous monitoring -->
+    <!-- Required for: persistent monitoring notification, background app monitoring -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    
+    <!-- FOREGROUND_SERVICE_SPECIAL_USE: For Android 14+ special use foreground services -->
+    <!-- Required for: parental control monitoring service on Android 14+ -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    
+    <!-- BATTERY OPTIMIZATION PERMISSIONS -->
+    <!-- REQUEST_IGNORE_BATTERY_OPTIMIZATIONS: Allows requesting battery optimization exemption -->
+    <!-- Required for: reliable background monitoring, preventing service termination -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     
-    <!-- Notification permissions -->
+    <!-- NOTIFICATION PERMISSIONS -->
+    <!-- POST_NOTIFICATIONS: Allows posting notifications (Android 13+) -->
+    <!-- Required for: monitoring status notifications, time limit alerts, safety notifications -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    
+    <!-- WAKE_LOCK: Allows preventing device from sleeping during critical operations -->
+    <!-- Required for: maintaining monitoring during screen off, location updates -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     
-    <!-- Camera permission for QR scanning -->
+    <!-- CAMERA PERMISSION -->
+    <!-- CAMERA: Allows camera access for QR code scanning -->
+    <!-- Required for: scanning family pairing QR codes, setup process -->
     <uses-permission android:name="android.permission.CAMERA" />
+    
+    <!-- VIBRATE: Allows vibration for notifications and alerts -->
+    <!-- Required for: urgent safety alerts, time limit notifications -->
+    <uses-permission android:name="android.permission.VIBRATE" />
 
     <application
         android:label="Family Guardian"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        
+        <!-- MAIN ACTIVITY -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -50,14 +94,24 @@
             </intent-filter>
         </activity>
 
-        <!-- Foreground service for background monitoring (will be implemented in Prompt 7) -->
+        <!-- MONITORING FOREGROUND SERVICE -->
+        <!-- Persistent foreground service that maintains parental control monitoring -->
+        <!-- Shows transparent notification: "Family Guardian parental controls are active" -->
+        <!-- Service type: specialUse for Android 14+ compliance -->
         <service 
-            android:name=".MonitoringService"
+            android:name=".MonitoringForegroundService"
             android:enabled="true"
             android:exported="false"
-            android:foregroundServiceType="specialUse" />
+            android:foregroundServiceType="specialUse">
+            <!-- Special use case declaration for Android 14+ -->
+            <property 
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="parental_controls" />
+        </service>
 
-        <!-- Boot receiver to restart monitoring service after reboot -->
+        <!-- BOOT RECEIVER -->
+        <!-- Restarts monitoring service after device reboot -->
+        <!-- Ensures parental controls remain active after restart -->
         <receiver 
             android:name=".BootReceiver"
             android:enabled="true"
@@ -70,6 +124,23 @@
             </intent-filter>
         </receiver>
 
+        <!-- PACKAGE CHANGE RECEIVER -->
+        <!-- Detects app installation/removal events for real-time monitoring -->
+        <!-- Only works when Family Guardian service is running -->
+        <receiver 
+            android:name=".PackageChangeReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter android:priority="100">
+                <action android:name="android.intent.action.PACKAGE_ADDED" />
+                <action android:name="android.intent.action.PACKAGE_REMOVED" />
+                <action android:name="android.intent.action.PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.PACKAGE_FULLY_REMOVED" />
+                <action android:name="android.intent.action.PACKAGE_CHANGED" />
+                <data android:scheme="package" />
+            </intent-filter>
+        </receiver>
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
@@ -77,6 +148,7 @@
             android:value="2" />
     </application>
 
+    <!-- PACKAGE VISIBILITY QUERIES -->
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
          https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
@@ -88,6 +160,7 @@
             <data android:mimeType="text/plain"/>
         </intent>
         <!-- Query for installed packages to monitor app usage -->
+        <!-- Required for: getting list of installed apps, monitoring app launches -->
         <package android:name="*" />
     </queries>
 </manifest>

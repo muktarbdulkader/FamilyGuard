@@ -35,6 +35,9 @@ dependencies:
   # Device and App Management
   device_apps: ^2.2.0
   
+  # Local Storage
+  shared_preferences: ^2.3.2
+  
   # Permissions
   permission_handler: ^11.3.1
 

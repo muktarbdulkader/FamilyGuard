@@ -9,7 +9,10 @@ import '../../features/family/presentation/screens/pairing/family_setup_screen.d
 import '../../features/family/presentation/screens/pairing/join_family_screen.dart';
 import '../../features/permissions/presentation/screens/permission_onboarding_screen.dart';
 import '../../features/permissions/presentation/screens/monitoring_status_screen.dart';
+import '../../features/apps/presentation/screens/child_apps_screen.dart';
+import '../../features/apps/presentation/screens/parent_app_management_screen.dart';
 import '../constants/app_routes.dart';
+import '../models/user_model.dart';
 import 'auth_provider.dart';
 
 /// Router provider using GoRouter for navigation
@@ -75,6 +78,23 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const MonitoringStatusScreen(),
       ),
       
+      // Child app management route
+      GoRoute(
+        path: AppRoutes.childApps,
+        name: 'child-apps',
+        builder: (context, state) => const ChildAppsScreen(),
+      ),
+      
+      // Parent app management route
+      GoRoute(
+        path: '/parent-apps/:childId/:childName',
+        name: 'parent-app-management',
+        builder: (context, state) => ParentAppManagementScreen(
+          childId: state.pathParameters['childId']!,
+          childName: state.pathParameters['childName']!,
+        ),
+      ),
+      
       // Error route for undefined routes
       GoRoute(
         path: '/error',
@@ -107,8 +127,8 @@ final routerProvider = Provider<GoRouter>((ref) {
     
     // Redirect logic based on authentication state
     redirect: (context, state) async {
-      // Get auth state synchronously first
-      final authState = ref.read(authStateProvider);
+      final authNotifier = ref.read(authNotifierProvider.notifier);
+      final authState = ref.read(authNotifierProvider);
       final location = state.matchedLocation;
       
       // If still loading auth state, don't redirect
@@ -116,7 +136,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         return null;
       }
       
-      final isAuthenticated = authState.hasValue && authState.value != null;
+      final isAuthenticated = authState.user != null;
       
       // If user is not authenticated, redirect to login
       if (!isAuthenticated) {
@@ -124,33 +144,28 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
       
       // User is authenticated, check their role
-      try {
-        final userRole = await ref.read(userRoleFutureProvider.future);
-        
-        // If user has no role and not on role selection, redirect there
-        if (userRole == null || userRole.isEmpty) {
-          return location == AppRoutes.roleSelection ? null : AppRoutes.roleSelection;
-        }
-        
-        // If user has role but on login/role selection, redirect to home
-        if (location == AppRoutes.login || location == AppRoutes.roleSelection) {
-          if (userRole == 'parent') {
-            return AppRoutes.parentHome;
-          } else if (userRole == 'child') {
-            return AppRoutes.childHome;
-          }
-        }
-        
-        // Check if user is trying to access wrong role's pages
-        if (userRole == 'parent' && location.startsWith('/child')) {
+      final user = authState.user!;
+      final userRole = user.role;
+      
+      // If user has no role and not on role selection, redirect there
+      if (userRole == UserRole.none) {
+        return location == AppRoutes.roleSelection ? null : AppRoutes.roleSelection;
+      }
+      
+      // If user has role but on login/role selection, redirect to appropriate home
+      if (location == AppRoutes.login || location == AppRoutes.roleSelection) {
+        if (userRole == UserRole.parent) {
           return AppRoutes.parentHome;
-        } else if (userRole == 'child' && location.startsWith('/parent')) {
+        } else if (userRole == UserRole.child) {
           return AppRoutes.childHome;
         }
-        
-      } catch (e) {
-        // If error getting role, redirect to role selection
-        return AppRoutes.roleSelection;
+      }
+      
+      // Role-based access control
+      if (userRole == UserRole.parent && _isChildRoute(location)) {
+        return AppRoutes.parentHome;
+      } else if (userRole == UserRole.child && _isParentRoute(location)) {
+        return AppRoutes.childHome;
       }
       
       return null; // No redirect needed
@@ -182,3 +197,32 @@ final routerProvider = Provider<GoRouter>((ref) {
     ),
   );
 });
+
+/// Check if a route is for child users
+bool _isChildRoute(String location) {
+  const childRoutes = [
+    AppRoutes.childHome,
+    AppRoutes.childPermissions,
+    AppRoutes.childStatus,
+    AppRoutes.childApps,
+    AppRoutes.joinFamily,
+    AppRoutes.permissionOnboarding,
+    AppRoutes.monitoringStatus,
+  ];
+  
+  return childRoutes.any((route) => location.startsWith(route));
+}
+
+/// Check if a route is for parent users
+bool _isParentRoute(String location) {
+  const parentRoutes = [
+    AppRoutes.parentHome,
+    AppRoutes.parentApps,
+    AppRoutes.parentLocation,
+    AppRoutes.parentRequests,
+    AppRoutes.familySetup,
+  ];
+  
+  return parentRoutes.any((route) => location.startsWith(route)) ||
+         location.startsWith('/parent-apps/');
+}
