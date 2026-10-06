@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "686968535480",
+    "project_id": "study-app-fbebe",
+    "storage_bucket": "study-app-fbebe.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:686968535480:android:1845794709ca17bc15b74d",
+        "android_client_info": {
+          "package_name": "com.example.flutter_study_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAPJ6DOtiOQzXTYx2EvzNu7MVuKHgJfYWw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
