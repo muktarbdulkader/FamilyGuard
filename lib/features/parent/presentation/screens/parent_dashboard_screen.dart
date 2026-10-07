@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import '../../../../core/providers/family_provider.dart';
-import '../../../../core/models/family_model.dart';
 import '../widgets/family_selector.dart';
 import '../widgets/child_selector.dart';
-import 'parent_app_management_screen.dart';
+import '../../../apps/presentation/screens/parent_app_management_screen.dart';
 
 /// Main parent dashboard screen with family and child selection
 /// Professional UI for managing parental controls
@@ -50,7 +48,7 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                 color: Colors.white,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 10,
                     offset: const Offset(0, 2),
                   ),
@@ -188,9 +186,8 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                   children: [
                     // Apps Tab
                     ParentAppManagementScreen(
-                      childId: selectedChild!.id,
-                      childName: selectedChild!.displayName,
-                      familyId: selectedFamily!.id,
+                      childId: selectedChild.id,
+                      familyId: selectedFamily.id,
                     ),
                     
                     // Usage Tab
@@ -498,7 +495,7 @@ class _FeatureCard extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, color: color, size: 24),

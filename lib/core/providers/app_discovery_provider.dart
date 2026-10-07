@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/app_discovery_service.dart';
 import '../models/app_info.dart';
-import 'auth_provider.dart';
+import 'user_provider.dart';
 
 /// Provider for app discovery service instance
 final appDiscoveryServiceProvider = Provider<AppDiscoveryService>((ref) {

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../../core/providers/auth_provider.dart';
+import '../../../../../core/providers/user_provider.dart';
 import '../../../../../core/services/family_service.dart';
 import 'qr_code_screen.dart';
 
@@ -32,7 +32,8 @@ class _FamilySetupScreenState extends ConsumerState<FamilySetupScreen> {
   Future<void> _createFamily() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final user = ref.read(currentUserProvider);
+    final userData = ref.read(currentUserDataProvider);
+    final user = userData.value;
     if (user == null) {
       setState(() {
         _errorMessage = 'User not authenticated';
@@ -48,7 +49,7 @@ class _FamilySetupScreenState extends ConsumerState<FamilySetupScreen> {
     try {
       // Create family
       final family = await _familyService.createFamily(
-        parentId: user.uid,
+        parentId: user.id,
         familyName: _familyNameController.text.trim(),
       );
 

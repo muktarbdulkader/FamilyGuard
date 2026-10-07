@@ -41,6 +41,9 @@ final authNotifierProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref
   return AuthNotifier(ref.read(authServiceProvider));
 });
 
+/// Alias for authNotifierProvider
+final authProvider = authNotifierProvider;
+
 /// User role provider that gets role from Firestore (server-side truth)
 final userRoleProvider = FutureProvider<UserRole?>((ref) async {
   final userData = await ref.watch(currentUserProvider.future);

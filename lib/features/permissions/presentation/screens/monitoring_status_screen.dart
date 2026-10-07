@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/services/permission_service.dart';
-import '../../../../core/providers/auth_provider.dart';
+import '../../../../core/providers/user_provider.dart';
 import 'permission_onboarding_screen.dart';
 
 /// Monitoring status screen showing current parental control status

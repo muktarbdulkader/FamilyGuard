@@ -327,7 +327,7 @@ class LocationService {
     // combined with position stream for better battery efficiency
     
     const locationSettings = LocationSettings(
-      accuracy: LocationAccuracy.balanced,
+      accuracy: LocationAccuracy.medium,
       distanceFilter: 50, // Update when moved 50 meters
     );
 
@@ -352,7 +352,7 @@ class LocationService {
   Future<void> _updateLocationPeriodically() async {
     try {
       final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.balanced,
+        desiredAccuracy: LocationAccuracy.medium,
       );
       
       await _handleLocationUpdate(position);
@@ -458,8 +458,9 @@ class LocationService {
         
         if (lastLocation != null) {
           try {
-            final location = FamilyLocation.fromFirestore(
-              _MockDocumentSnapshot(doc.id, lastLocation),
+            final location = FamilyLocation.fromMap(
+              lastLocation,
+              id: doc.id,
             );
             locations.add(location);
           } catch (e) {
@@ -490,8 +491,9 @@ class LocationService {
       
       if (lastLocation == null) return null;
 
-      return FamilyLocation.fromFirestore(
-        _MockDocumentSnapshot(childId, lastLocation),
+      return FamilyLocation.fromMap(
+        lastLocation,
+        id: childId,
       );
       
     } catch (e) {
@@ -564,32 +566,4 @@ class LocationService {
   Future<void> dispose() async {
     await stopLocationSharing();
   }
-}
-
-// Mock DocumentSnapshot for location parsing
-class _MockDocumentSnapshot implements DocumentSnapshot {
-  @override
-  final String id;
-  final Map<String, dynamic> _data;
-
-  _MockDocumentSnapshot(this.id, this._data);
-
-  @override
-  Map<String, dynamic> data() => _data;
-
-  @override
-  dynamic get(Object field) => _data[field];
-
-  @override
-  dynamic operator [](Object field) => _data[field];
-
-  // Implement other DocumentSnapshot methods as needed
-  @override
-  bool get exists => true;
-
-  @override
-  DocumentReference get reference => throw UnimplementedError();
-
-  @override
-  SnapshotMetadata get metadata => throw UnimplementedError();
 }

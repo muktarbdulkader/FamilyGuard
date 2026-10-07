@@ -1,10 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/providers/user_provider.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_routes.dart';
 import '../../../../core/constants/app_constants.dart';
-import '../../../../core/providers/auth_provider.dart';
 import '../../../../core/services/auth_service.dart';
 
 /// Parent home screen - Dashboard for managing children's devices

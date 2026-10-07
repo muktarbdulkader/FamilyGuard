@@ -35,10 +35,10 @@ service cloud.firestore {
       return isParentInFamily(familyId) || isChildInFamily(familyId);
     }
     
-    function isValidTimestamp(timestamp) {
-      return timestamp is timestamp && 
-             timestamp <= request.time &&
-             timestamp >= request.time - duration.value(300, 's'); // Max 5 minutes ago
+    function isValidTimestamp(timestampValue) {
+      return timestampValue is timestamp && 
+             timestampValue <= request.time &&
+             timestampValue >= request.time - duration.value(300, 's'); // Max 5 minutes ago
     }
     
     function isValidCoordinates(lat, lng) {
@@ -308,6 +308,34 @@ service cloud.firestore {
                            request.resource.data.keys().hasAll(['childId', 'timestamp']) &&
                            isValidTimestamp(request.resource.data.timestamp);
     }
+
+    // RULES COLLECTION - Parental control rules (NEW)
+    match /rules/{ruleId} {
+      // CRITICAL: Parents can create, read, update, delete rules for their children
+      allow read: if isAuthenticated() && 
+                     (isParentInFamily(resource.data.familyId) ||
+                      (request.auth.uid == resource.data.childId && 
+                       isChildInFamily(resource.data.familyId)));
+      
+      allow create, update, delete: if isAuthenticated() && 
+                                   isParentInFamily(resource.data.familyId) &&
+                                   // Validate rule data structure
+                                   validateRuleData(request.resource.data);
+    }
+
+    // RULE ENFORCEMENT LOGS - Logging rule enforcements (NEW)
+    match /rule_enforcement_logs/{logId} {
+      // CRITICAL: Parents can read logs for their children
+      allow read: if isAuthenticated() && 
+                     (isParentInFamily(getFamilyIdForChild(resource.data.childId)) ||
+                      request.auth.uid == resource.data.childId);
+      
+      // System can create logs (children reporting enforcement, Cloud Functions)
+      allow create: if isAuthenticated() &&
+                   request.resource.data.keys().hasAll(['ruleId', 'childId', 'action', 'timestamp']) &&
+                   request.resource.data.childId == request.auth.uid &&
+                   isValidTimestamp(request.resource.data.timestamp);
+    }
     
     // AUDIT LOGS - Security monitoring (Cloud Functions only)
     match /auditLogs/{logId} {
@@ -325,6 +353,27 @@ service cloud.firestore {
                   // Validate settings structure
                   request.resource.data.keys().hasAll(['isEnabled', 'enabledBy']) &&
                   request.resource.data.enabledBy == request.auth.uid;
+    }
+
+    // Helper functions for validation
+    function validateRuleData(data) {
+      return data.keys().hasAll(['familyId', 'childId', 'ruleName', 'type', 'status']) &&
+             data.familyId is string &&
+             data.childId is string &&
+             data.ruleName is string &&
+             data.ruleName.size() <= 100 &&
+             data.type in ['appLimit', 'appBlock', 'appSchedule', 'screenTime', 'bedtime', 'appRequest', 'category'] &&
+             data.status in ['active', 'paused', 'expired', 'disabled'] &&
+             // Validate time limits are reasonable (1 min to 24 hours)
+             (!data.keys().hasAny(['dailyLimitMinutes']) || 
+              (data.dailyLimitMinutes is number && data.dailyLimitMinutes >= 1 && data.dailyLimitMinutes <= 1440)) &&
+             // Validate weekly limits (1 min to 7 days)
+             (!data.keys().hasAny(['weeklyLimitMinutes']) || 
+              (data.weeklyLimitMinutes is number && data.weeklyLimitMinutes >= 1 && data.weeklyLimitMinutes <= 10080));
+    }
+    
+    function getFamilyIdForChild(childId) {
+      return get(/databases/$(database)/documents/users/$(childId)).data.familyId;
     }
     
     // DEFAULT DENY - CRITICAL security measure

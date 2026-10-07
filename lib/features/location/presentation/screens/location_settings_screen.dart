@@ -58,8 +58,8 @@ class _LocationSettingsScreenState extends ConsumerState<LocationSettingsScreen>
 
   @override
   Widget build(BuildContext context) {
-    final user = ref.watch(authProvider);
-    final isParent = user?.role == 'parent';
+    final authState = ref.watch(authProvider);
+    final isParent = authState.user?.isParent ?? false;
 
     return Scaffold(
       appBar: AppBar(
@@ -126,8 +126,8 @@ class _LocationSettingsScreenState extends ConsumerState<LocationSettingsScreen>
     setState(() => _isSaving = true);
     
     try {
-      final user = ref.read(authProvider);
-      if (user == null) return;
+      final authState = ref.read(authProvider);
+      if (authState.user == null) return;
 
       // Get family data to find children
       // In a real implementation, you'd get this from family provider
@@ -434,7 +434,7 @@ class _ChildLocationStatus extends StatelessWidget {
                   const SizedBox(height: 8),
                   
                   _StatusRow(
-                    icon: settings.shareOnlyWhenAppOpen ? Icons.phone_android : Icons.background_replace,
+                    icon: settings.shareOnlyWhenAppOpen ? Icons.phone_android : Icons.my_location,
                     title: 'Sharing Mode',
                     status: settings.shareOnlyWhenAppOpen ? 'Foreground Only' : 'Background Enabled',
                     isPositive: true,

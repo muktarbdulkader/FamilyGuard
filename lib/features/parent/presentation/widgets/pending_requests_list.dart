@@ -7,7 +7,7 @@ import 'request_notification_card.dart';
 
 /// Widget displaying list of pending app requests for parents
 class PendingRequestsList extends ConsumerWidget {
-  const PendingRequestsList({Key? key}) : super(key: key);
+  const PendingRequestsList({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -275,7 +275,7 @@ class PendingRequestsList extends ConsumerWidget {
 
 /// Compact widget showing request count for dashboard
 class RequestCountIndicator extends ConsumerWidget {
-  const RequestCountIndicator({Key? key}) : super(key: key);
+  const RequestCountIndicator({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

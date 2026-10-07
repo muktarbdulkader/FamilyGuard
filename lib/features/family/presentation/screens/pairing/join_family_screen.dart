@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../../../../core/constants/app_routes.dart';
-import '../../../../../core/providers/auth_provider.dart';
+import '../../../../../core/providers/user_provider.dart';
 import '../../../../../core/services/family_service.dart';
 
 /// Join family screen for children to scan QR or enter code
@@ -42,7 +42,8 @@ class _JoinFamilyScreenState extends ConsumerState<JoinFamilyScreen>
 
   /// Join family with invite code
   Future<void> _joinFamily(String inviteCode) async {
-    final user = ref.read(currentUserProvider);
+    final userData = ref.read(currentUserDataProvider);
+    final user = userData.value;
     if (user == null) {
       setState(() {
         _errorMessage = 'User not authenticated';

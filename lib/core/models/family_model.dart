@@ -93,6 +93,10 @@ class FamilyModel {
   /// Get all member IDs (parents + children)
   List<String> get allMemberIds => [...parentIds, ...childIds];
 
+  /// Getter aliases for compatibility
+  String get parentId => createdBy;
+  List<String> get childrenIds => childIds;
+
   /// Check if user is parent in this family
   bool isParent(String userId) => parentIds.contains(userId);
 

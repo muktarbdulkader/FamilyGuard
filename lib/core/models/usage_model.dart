@@ -406,7 +406,7 @@ class UsageReport {
     
     final totalSeconds = weeklyData.fold<int>(
       0, 
-      (sum, day) => sum + day.totalScreenTimeSeconds,
+      (acc, day) => acc + day.totalScreenTimeSeconds,
     );
     final averageSeconds = totalSeconds / weeklyData.length;
     

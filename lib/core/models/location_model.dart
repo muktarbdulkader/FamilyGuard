@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class FamilyLocation {
@@ -29,12 +30,21 @@ class FamilyLocation {
     this.isStale = false,
   });
 
-  factory FamilyLocation.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-    final timestamp = (data['timestamp'] as Timestamp).toDate();
+  factory FamilyLocation.fromMap(Map<String, dynamic> data, {String id = ''}) {
+    final rawTimestamp = data['timestamp'];
+    final DateTime timestamp;
+    if (rawTimestamp is Timestamp) {
+      timestamp = rawTimestamp.toDate();
+    } else if (rawTimestamp is DateTime) {
+      timestamp = rawTimestamp;
+    } else if (rawTimestamp is String) {
+      timestamp = DateTime.tryParse(rawTimestamp) ?? DateTime.now();
+    } else {
+      timestamp = DateTime.now();
+    }
     
     return FamilyLocation(
-      id: doc.id,
+      id: id.isNotEmpty ? id : (data['id'] ?? ''),
       familyId: data['familyId'] ?? '',
       childId: data['childId'] ?? '',
       latitude: (data['latitude'] ?? 0.0).toDouble(),
@@ -46,6 +56,13 @@ class FamilyLocation {
       timestamp: timestamp,
       address: data['address'],
       isStale: _isLocationStale(timestamp),
+    );
+  }
+
+  factory FamilyLocation.fromFirestore(DocumentSnapshot doc) {
+    return FamilyLocation.fromMap(
+      doc.data() as Map<String, dynamic>,
+      id: doc.id,
     );
   }
 
@@ -74,16 +91,16 @@ class FamilyLocation {
     // Haversine formula for calculating distance between two points
     const double earthRadius = 6371000; // Earth's radius in meters
     
-    final lat1Rad = latitude * (3.14159265359 / 180);
-    final lat2Rad = other.latitude * (3.14159265359 / 180);
-    final deltaLatRad = (other.latitude - latitude) * (3.14159265359 / 180);
-    final deltaLngRad = (other.longitude - longitude) * (3.14159265359 / 180);
+    final lat1Rad = latitude * (pi / 180);
+    final lat2Rad = other.latitude * (pi / 180);
+    final deltaLatRad = (other.latitude - latitude) * (pi / 180);
+    final deltaLngRad = (other.longitude - longitude) * (pi / 180);
     
-    final a = (deltaLatRad / 2).sin() * (deltaLatRad / 2).sin() +
-        lat1Rad.cos() * lat2Rad.cos() *
-        (deltaLngRad / 2).sin() * (deltaLngRad / 2).sin();
+    final a = sin(deltaLatRad / 2) * sin(deltaLatRad / 2) +
+        cos(lat1Rad) * cos(lat2Rad) *
+        sin(deltaLngRad / 2) * sin(deltaLngRad / 2);
     
-    final c = 2 * (a.sqrt()).asin();
+    final c = 2 * asin(sqrt(a));
     
     return earthRadius * c;
   }

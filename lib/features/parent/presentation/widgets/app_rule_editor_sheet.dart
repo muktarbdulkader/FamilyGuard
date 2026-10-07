@@ -1,6 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/models/family_model.dart';
 import '../../../../core/providers/family_provider.dart';
 import '../../../../core/models/app_info.dart';
 
@@ -10,18 +10,18 @@ class AppRuleEditorSheet extends ConsumerStatefulWidget {
   final String childId;
 
   const AppRuleEditorSheet({
-    Key? key,
+    super.key,
     required this.appWithUsage,
     required this.familyId,
     required this.childId,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<AppRuleEditorSheet> createState() => _AppRuleEditorSheetState();
 }
 
 class _AppRuleEditorSheetState extends ConsumerState<AppRuleEditorSheet> {
-  late AppRuleType _selectedRuleType;
+  late AppControlRule _selectedRuleType;
   int _dailyLimitMinutes = 60;
   TimeOfDay _allowedStartTime = const TimeOfDay(hour: 9, minute: 0);
   TimeOfDay _allowedEndTime = const TimeOfDay(hour: 17, minute: 0);
@@ -30,15 +30,27 @@ class _AppRuleEditorSheetState extends ConsumerState<AppRuleEditorSheet> {
   @override
   void initState() {
     super.initState();
-    _selectedRuleType = widget.appWithUsage.rule?.type ?? AppRuleType.allowed;
-    if (widget.appWithUsage.rule?.dailyLimitMinutes != null) {
-      _dailyLimitMinutes = widget.appWithUsage.rule!.dailyLimitMinutes!;
+    _selectedRuleType = widget.appWithUsage.app.rule;
+    if (widget.appWithUsage.app.dailyLimitMinutes != null) {
+      _dailyLimitMinutes = widget.appWithUsage.app.dailyLimitMinutes!;
     }
-    if (widget.appWithUsage.rule?.allowedStartTime != null) {
-      _allowedStartTime = widget.appWithUsage.rule!.allowedStartTime!;
+    if (widget.appWithUsage.app.allowedFrom != null) {
+      final parts = widget.appWithUsage.app.allowedFrom!.split(':');
+      if (parts.length == 2) {
+        _allowedStartTime = TimeOfDay(
+          hour: int.tryParse(parts[0]) ?? 9,
+          minute: int.tryParse(parts[1]) ?? 0,
+        );
+      }
     }
-    if (widget.appWithUsage.rule?.allowedEndTime != null) {
-      _allowedEndTime = widget.appWithUsage.rule!.allowedEndTime!;
+    if (widget.appWithUsage.app.allowedUntil != null) {
+      final parts = widget.appWithUsage.app.allowedUntil!.split(':');
+      if (parts.length == 2) {
+        _allowedEndTime = TimeOfDay(
+          hour: int.tryParse(parts[0]) ?? 17,
+          minute: int.tryParse(parts[1]) ?? 0,
+        );
+      }
     }
   }
 
@@ -50,131 +62,137 @@ class _AppRuleEditorSheetState extends ConsumerState<AppRuleEditorSheet> {
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Row(
-            children: [
-              if (widget.appWithUsage.app.icon != null)
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.memory(
-                      widget.appWithUsage.app.icon!,
-                      fit: BoxFit.cover,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              children: [
+                if (widget.appWithUsage.app.iconBase64 != null)
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                  ),
-                )
-              else
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.android,
-                    color: Colors.grey,
-                    size: 24,
-                  ),
-                ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.appWithUsage.app.appName,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.memory(
+                        base64Decode(widget.appWithUsage.app.iconBase64!),
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          color: Colors.grey[300],
+                          child: const Icon(Icons.android, color: Colors.grey),
+                        ),
                       ),
                     ),
-                    Text(
-                      widget.appWithUsage.app.packageName,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.grey[600],
-                      ),
+                  )
+                else
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                  ],
+                    child: const Icon(
+                      Icons.android,
+                      color: Colors.grey,
+                      size: 24,
+                    ),
+                  ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.appWithUsage.app.name,
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        widget.appWithUsage.app.packageName,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              IconButton(
-                onPressed: () => Navigator.of(context).pop(),
-                icon: const Icon(Icons.close),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          
-          // Rule Type Selection
-          Text(
-            'Rule Type',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
+                IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 16),
-          
-          ...AppRuleType.values.map((ruleType) => _buildRuleTypeOption(ruleType)),
-          
-          const SizedBox(height: 24),
-          
-          // Rule-specific settings
-          if (_selectedRuleType == AppRuleType.timeLimit) ...[
-            _buildTimeLimitSettings(),
             const SizedBox(height: 24),
-          ],
-          
-          if (_selectedRuleType == AppRuleType.timeWindow) ...[
-            _buildTimeWindowSettings(),
+            
+            // Rule Type Selection
+            Text(
+              'Rule Type',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            
+            ...AppControlRule.values.map((ruleType) => _buildRuleTypeOption(ruleType)),
+            
             const SizedBox(height: 24),
-          ],
-          
-          // Action buttons
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
-                  child: const Text('Cancel'),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _saveRule,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).primaryColor,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text('Save Rule'),
-                ),
-              ),
+            
+            // Rule-specific settings
+            if (_selectedRuleType == AppControlRule.timeLimited) ...[
+              _buildTimeLimitSettings(),
+              const SizedBox(height: 24),
             ],
-          ),
-        ],
+            
+            if (_selectedRuleType == AppControlRule.timeRestricted) ...[
+              _buildTimeWindowSettings(),
+              const SizedBox(height: 24),
+            ],
+            
+            // Action buttons
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+                    child: const Text('Cancel'),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _saveRule,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).primaryColor,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text('Save Rule'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildRuleTypeOption(AppRuleType ruleType) {
+  Widget _buildRuleTypeOption(AppControlRule ruleType) {
     final isSelected = _selectedRuleType == ruleType;
     
     return Padding(
@@ -190,7 +208,7 @@ class _AppRuleEditorSheetState extends ConsumerState<AppRuleEditorSheet> {
               width: isSelected ? 2 : 1,
             ),
             borderRadius: BorderRadius.circular(12),
-            color: isSelected ? Theme.of(context).primaryColor.withOpacity(0.1) : null,
+            color: isSelected ? Theme.of(context).primaryColor.withValues(alpha: 0.1) : null,
           ),
           child: Row(
             children: [
@@ -256,7 +274,7 @@ class _AppRuleEditorSheetState extends ConsumerState<AppRuleEditorSheet> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text('${(_dailyLimitMinutes / 60).floor()}h ${_dailyLimitMinutes % 60}m'),
-                  Text('${_dailyLimitMinutes} minutes'),
+                  Text('$_dailyLimitMinutes minutes'),
                 ],
               ),
               const SizedBox(height: 16),
@@ -366,47 +384,47 @@ class _AppRuleEditorSheetState extends ConsumerState<AppRuleEditorSheet> {
     );
   }
 
-  IconData _getRuleTypeIcon(AppRuleType ruleType) {
+  IconData _getRuleTypeIcon(AppControlRule ruleType) {
     switch (ruleType) {
-      case AppRuleType.allowed:
+      case AppControlRule.allow:
         return Icons.check_circle;
-      case AppRuleType.blocked:
+      case AppControlRule.block:
         return Icons.block;
-      case AppRuleType.askParent:
+      case AppControlRule.ask:
         return Icons.help;
-      case AppRuleType.timeLimit:
+      case AppControlRule.timeLimited:
         return Icons.timer;
-      case AppRuleType.timeWindow:
+      case AppControlRule.timeRestricted:
         return Icons.schedule;
     }
   }
 
-  String _getRuleTypeName(AppRuleType ruleType) {
+  String _getRuleTypeName(AppControlRule ruleType) {
     switch (ruleType) {
-      case AppRuleType.allowed:
+      case AppControlRule.allow:
         return 'Always Allowed';
-      case AppRuleType.blocked:
+      case AppControlRule.block:
         return 'Always Blocked';
-      case AppRuleType.askParent:
+      case AppControlRule.ask:
         return 'Ask Parent';
-      case AppRuleType.timeLimit:
+      case AppControlRule.timeLimited:
         return 'Daily Time Limit';
-      case AppRuleType.timeWindow:
+      case AppControlRule.timeRestricted:
         return 'Time Window';
     }
   }
 
-  String _getRuleTypeDescription(AppRuleType ruleType) {
+  String _getRuleTypeDescription(AppControlRule ruleType) {
     switch (ruleType) {
-      case AppRuleType.allowed:
+      case AppControlRule.allow:
         return 'App can be used without restrictions';
-      case AppRuleType.blocked:
+      case AppControlRule.block:
         return 'App is completely blocked';
-      case AppRuleType.askParent:
+      case AppControlRule.ask:
         return 'Child must ask permission to use this app';
-      case AppRuleType.timeLimit:
+      case AppControlRule.timeLimited:
         return 'App usage limited to specified daily time';
-      case AppRuleType.timeWindow:
+      case AppControlRule.timeRestricted:
         return 'App only available during specified hours';
     }
   }
@@ -435,27 +453,24 @@ class _AppRuleEditorSheetState extends ConsumerState<AppRuleEditorSheet> {
     setState(() => _isLoading = true);
 
     try {
-      final appRule = AppRule(
-        appPackageName: widget.appWithUsage.app.packageName,
-        type: _selectedRuleType,
-        dailyLimitMinutes: _selectedRuleType == AppRuleType.timeLimit ? _dailyLimitMinutes : null,
-        allowedStartTime: _selectedRuleType == AppRuleType.timeWindow ? _allowedStartTime : null,
-        allowedEndTime: _selectedRuleType == AppRuleType.timeWindow ? _allowedEndTime : null,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
+      final startTimeStr = '${_allowedStartTime.hour.toString().padLeft(2, '0')}:${_allowedStartTime.minute.toString().padLeft(2, '0')}';
+      final endTimeStr = '${_allowedEndTime.hour.toString().padLeft(2, '0')}:${_allowedEndTime.minute.toString().padLeft(2, '0')}';
 
       await ref.read(appRuleServiceProvider).updateAppRule(
         familyId: widget.familyId,
         childId: widget.childId,
-        appRule: appRule,
+        packageName: widget.appWithUsage.app.packageName,
+        rule: _selectedRuleType,
+        dailyLimitMinutes: _selectedRuleType == AppControlRule.timeLimited ? _dailyLimitMinutes : null,
+        allowedFrom: _selectedRuleType == AppControlRule.timeRestricted ? startTimeStr : null,
+        allowedUntil: _selectedRuleType == AppControlRule.timeRestricted ? endTimeStr : null,
       );
 
       if (mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Rule updated for ${widget.appWithUsage.app.appName}'),
+            content: Text('Rule updated for ${widget.appWithUsage.app.name}'),
             backgroundColor: Colors.green,
           ),
         );

@@ -69,7 +69,7 @@ class _FamilyMapScreenState extends ConsumerState<FamilyMapScreen> {
             snippet: _getLocationSnippet(location),
           ),
           icon: location.isStale
-              ? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGrey)
+              ? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure)
               : BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
           onTap: () => _showLocationDetails(location),
         ),

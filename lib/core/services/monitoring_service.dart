@@ -114,9 +114,7 @@ class MonitoringService {
       final pendingUsage = await _cacheService.getPendingUsage();
       
       if (pendingUsage.isNotEmpty) {
-        // Get latest usage from native service
-        final result = await _channel.invokeMethod('getUsageStats');
-        final usageStats = Map<String, int>.from(result);
+        await _channel.invokeMethod('getUsageStats');
 
         // TODO: Upload to Firestore (will be implemented with parent app management)
         

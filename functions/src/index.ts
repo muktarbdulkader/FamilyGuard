@@ -1189,3 +1189,586 @@ async function sendDenialNotificationToChild(
     console.error('Error sending denial notification to child:', error);
   }
 }
+
+// ============================================================================
+// RULES MANAGEMENT FUNCTIONS
+// ============================================================================
+
+/**
+ * Validate and process new rule creation
+ */
+exports.onRuleCreated = functions.firestore
+  .document('rules/{ruleId}')
+  .onCreate(async (snapshot, context) => {
+    try {
+      const ruleData = snapshot.data();
+      const ruleId = context.params.ruleId;
+      
+      console.log(`New rule created: ${ruleId}`, ruleData);
+
+      // Validate rule data integrity
+      await validateRuleData(ruleId, ruleData);
+
+      // Log rule creation for audit
+      await logRuleActivity('created', ruleId, ruleData);
+
+      // Notify child device about new rule
+      await notifyChildDevice(ruleData.childId, 'rule_created', {
+        ruleId,
+        ruleName: ruleData.ruleName,
+        type: ruleData.type,
+        status: ruleData.status
+      });
+
+    } catch (error) {
+      console.error('Error processing rule creation:', error);
+    }
+  });
+
+/**
+ * Handle rule updates and enforce changes
+ */
+exports.onRuleUpdated = functions.firestore
+  .document('rules/{ruleId}')
+  .onUpdate(async (change, context) => {
+    try {
+      const beforeData = change.before.data();
+      const afterData = change.after.data();
+      const ruleId = context.params.ruleId;
+
+      console.log(`Rule updated: ${ruleId}`);
+
+      // Check if status changed
+      if (beforeData.status !== afterData.status) {
+        await handleRuleStatusChange(ruleId, beforeData.status, afterData.status, afterData);
+      }
+
+      // Check if rule parameters changed
+      const parameterChanges = checkParameterChanges(beforeData, afterData);
+      if (parameterChanges.length > 0) {
+        await handleRuleParameterChanges(ruleId, parameterChanges, afterData);
+      }
+
+      // Log rule update for audit
+      await logRuleActivity('updated', ruleId, afterData, beforeData);
+
+      // Notify child device about rule changes
+      await notifyChildDevice(afterData.childId, 'rule_updated', {
+        ruleId,
+        ruleName: afterData.ruleName,
+        type: afterData.type,
+        status: afterData.status,
+        changes: parameterChanges
+      });
+
+    } catch (error) {
+      console.error('Error processing rule update:', error);
+    }
+  });
+
+/**
+ * Handle rule deletion
+ */
+exports.onRuleDeleted = functions.firestore
+  .document('rules/{ruleId}')
+  .onDelete(async (snapshot, context) => {
+    try {
+      const deletedData = snapshot.data();
+      const ruleId = context.params.ruleId;
+
+      console.log(`Rule deleted: ${ruleId}`);
+
+      // Log rule deletion for audit
+      await logRuleActivity('deleted', ruleId, deletedData);
+
+      // Notify child device about rule removal
+      await notifyChildDevice(deletedData.childId, 'rule_deleted', {
+        ruleId,
+        ruleName: deletedData.ruleName,
+        type: deletedData.type
+      });
+
+    } catch (error) {
+      console.error('Error processing rule deletion:', error);
+    }
+  });
+
+/**
+ * Callable function to check if an app is allowed
+ */
+exports.checkAppAllowed = functions.https.onCall(async (data, context) => {
+  try {
+    const { childId, packageName, currentUsage = 0 } = data;
+    
+    // Verify authentication
+    if (!context.auth?.uid) {
+      throw new functions.https.HttpsError('unauthenticated', 'Authentication required');
+    }
+
+    // Verify the caller is authorized (child or parent)
+    const isAuthorized = await verifyChildAccess(context.auth.uid, childId);
+    if (!isAuthorized) {
+      throw new functions.https.HttpsError('permission-denied', 'Unauthorized access');
+    }
+
+    // Get active rules for the child
+    const rulesSnapshot = await db.collection('rules')
+      .where('childId', '==', childId)
+      .where('status', '==', 'active')
+      .get();
+
+    const result = {
+      allowed: true,
+      remainingTime: null as number | null,
+      reason: '',
+      blockedUntil: null as Date | null
+    };
+
+    // Check each rule
+    for (const doc of rulesSnapshot.docs) {
+      const rule = doc.data();
+      
+      // Check app-specific rules
+      if (rule.appPackageName === packageName) {
+        const ruleResult = await evaluateAppRule(rule, currentUsage);
+        if (!ruleResult.allowed) {
+          result.allowed = false;
+          result.reason = ruleResult.reason;
+          result.remainingTime = ruleResult.remainingTime;
+          result.blockedUntil = ruleResult.blockedUntil;
+          break;
+        }
+        if (ruleResult.remainingTime !== null) {
+          result.remainingTime = ruleResult.remainingTime;
+        }
+      }
+
+      // Check bedtime rules
+      if (rule.type === 'bedtime' && rule.bedtimeEnabled) {
+        const bedtimeResult = evaluateBedtimeRule(rule);
+        if (!bedtimeResult.allowed) {
+          result.allowed = false;
+          result.reason = bedtimeResult.reason;
+          result.blockedUntil = bedtimeResult.blockedUntil;
+          break;
+        }
+      }
+    }
+
+    return result;
+
+  } catch (error) {
+    console.error('Error checking app allowance:', error);
+    throw new functions.https.HttpsError('internal', 'Failed to check app allowance');
+  }
+});
+
+/**
+ * Callable function to log rule enforcement
+ */
+exports.logRuleEnforcement = functions.https.onCall(async (data, context) => {
+  try {
+    const { ruleId, childId, action, details = {} } = data;
+    
+    // Verify authentication
+    if (!context.auth?.uid) {
+      throw new functions.https.HttpsError('unauthenticated', 'Authentication required');
+    }
+
+    // Verify the caller is the child or authorized parent
+    const isAuthorized = await verifyChildAccess(context.auth.uid, childId);
+    if (!isAuthorized) {
+      throw new functions.https.HttpsError('permission-denied', 'Unauthorized access');
+    }
+
+    // Create enforcement log
+    const logData = {
+      ruleId,
+      childId,
+      action,
+      details,
+      timestamp: FieldValue.serverTimestamp(),
+      reportedBy: context.auth.uid
+    };
+
+    await db.collection('rule_enforcement_logs').add(logData);
+
+    // Notify parent if enforcement action occurred
+    if (['blocked', 'limited', 'violated'].includes(action)) {
+      await notifyParentOfEnforcement(childId, action, details);
+    }
+
+    return { success: true };
+
+  } catch (error) {
+    console.error('Error logging rule enforcement:', error);
+    throw new functions.https.HttpsError('internal', 'Failed to log enforcement');
+  }
+});
+
+// ============================================================================
+// RULES HELPER FUNCTIONS
+// ============================================================================
+
+async function validateRuleData(ruleId: string, ruleData: any) {
+  // Validate required fields
+  const requiredFields = ['familyId', 'childId', 'ruleName', 'type', 'status'];
+  for (const field of requiredFields) {
+    if (!ruleData[field]) {
+      throw new Error(`Missing required field: ${field}`);
+    }
+  }
+
+  // Validate rule type
+  const validTypes = ['appLimit', 'appBlock', 'appSchedule', 'screenTime', 'bedtime', 'appRequest', 'category'];
+  if (!validTypes.includes(ruleData.type)) {
+    throw new Error(`Invalid rule type: ${ruleData.type}`);
+  }
+
+  // Validate status
+  const validStatuses = ['active', 'paused', 'expired', 'disabled'];
+  if (!validStatuses.includes(ruleData.status)) {
+    throw new Error(`Invalid rule status: ${ruleData.status}`);
+  }
+
+  // Type-specific validation
+  if (ruleData.type === 'appLimit' || ruleData.type === 'screenTime') {
+    if (ruleData.dailyLimitMinutes && (ruleData.dailyLimitMinutes < 1 || ruleData.dailyLimitMinutes > 1440)) {
+      throw new Error('Daily limit must be between 1 and 1440 minutes');
+    }
+  }
+
+  console.log(`Rule validation passed for: ${ruleId}`);
+}
+
+async function logRuleActivity(action: string, ruleId: string, ruleData: any, previousData?: any) {
+  try {
+    await db.collection('audit_logs').add({
+      type: 'rule_activity',
+      action,
+      ruleId,
+      ruleData,
+      previousData: previousData || null,
+      timestamp: FieldValue.serverTimestamp()
+    });
+  } catch (error) {
+    console.error('Error logging rule activity:', error);
+  }
+}
+
+async function handleRuleStatusChange(
+  ruleId: string, 
+  oldStatus: string, 
+  newStatus: string, 
+  ruleData: any
+) {
+  console.log(`Rule ${ruleId} status changed: ${oldStatus} -> ${newStatus}`);
+
+  // If rule was activated, send immediate sync to child device
+  if (newStatus === 'active') {
+    await notifyChildDevice(ruleData.childId, 'rule_activated', {
+      ruleId,
+      ruleName: ruleData.ruleName,
+      type: ruleData.type,
+      settings: extractRuleSettings(ruleData)
+    });
+  }
+
+  // If rule was paused/disabled, notify child device
+  if (['paused', 'disabled'].includes(newStatus)) {
+    await notifyChildDevice(ruleData.childId, 'rule_deactivated', {
+      ruleId,
+      type: ruleData.type
+    });
+  }
+}
+
+function checkParameterChanges(beforeData: any, afterData: any): string[] {
+  const changes: string[] = [];
+  const importantFields = [
+    'dailyLimitMinutes', 'weeklyLimitMinutes', 'allowedStartTime', 'allowedEndTime',
+    'bedtimeStart', 'bedtimeEnd', 'totalScreenTimeMinutes', 'requireApproval'
+  ];
+
+  for (const field of importantFields) {
+    if (beforeData[field] !== afterData[field]) {
+      changes.push(field);
+    }
+  }
+
+  return changes;
+}
+
+async function handleRuleParameterChanges(
+  ruleId: string, 
+  changes: string[], 
+  ruleData: any
+) {
+  console.log(`Rule ${ruleId} parameters changed:`, changes);
+
+  // Force immediate sync for time-sensitive changes
+  const timeSensitiveChanges = [
+    'dailyLimitMinutes', 'allowedStartTime', 'allowedEndTime', 
+    'bedtimeStart', 'bedtimeEnd', 'totalScreenTimeMinutes'
+  ];
+
+  if (changes.some(change => timeSensitiveChanges.includes(change))) {
+    await notifyChildDevice(ruleData.childId, 'rule_sync_required', {
+      ruleId,
+      priority: 'high',
+      changes
+    });
+  }
+}
+
+async function notifyChildDevice(childId: string, type: string, data: any) {
+  try {
+    // Get child's FCM tokens
+    const tokensSnapshot = await db.collection('fcm_tokens')
+      .where('userId', '==', childId)
+      .get();
+
+    if (tokensSnapshot.empty) {
+      console.warn(`No FCM tokens found for child: ${childId}`);
+      return;
+    }
+
+    const tokens = tokensSnapshot.docs.map(doc => doc.data().token);
+    
+    const message = {
+      data: {
+        type,
+        childId,
+        payload: JSON.stringify(data)
+      },
+      tokens
+    };
+
+    const response = await messaging.sendMulticast(message);
+    console.log(`Sent ${type} notification to child ${childId}:`, response);
+
+  } catch (error) {
+    console.error('Error sending notification to child device:', error);
+  }
+}
+
+async function verifyChildAccess(authUid: string, childId: string): Promise<boolean> {
+  // Child can access their own data
+  if (authUid === childId) {
+    return true;
+  }
+
+  // Check if auth user is parent of this child
+  return await verifyParentRole(authUid, childId);
+}
+
+async function verifyParentRole(authUid: string, childId: string): Promise<boolean> {
+  try {
+    // Get child's family ID
+    const childDoc = await db.collection('users').doc(childId).get();
+    if (!childDoc.exists) {
+      return false;
+    }
+
+    const familyId = childDoc.data()?.familyId;
+    if (!familyId) {
+      return false;
+    }
+
+    // Check if auth user is parent in this family
+    const familyDoc = await db.collection('families').doc(familyId).get();
+    if (!familyDoc.exists) {
+      return false;
+    }
+
+    const familyData = familyDoc.data();
+    return familyData?.parentIds?.includes(authUid) || false;
+
+  } catch (error) {
+    console.error('Error verifying parent role:', error);
+    return false;
+  }
+}
+
+async function evaluateAppRule(rule: any, currentUsage: number) {
+  const result = {
+    allowed: true,
+    reason: '',
+    remainingTime: null as number | null,
+    blockedUntil: null as Date | null
+  };
+
+  // Check if app is blocked
+  if (rule.type === 'appBlock') {
+    result.allowed = false;
+    result.reason = 'App is blocked by parent';
+    return result;
+  }
+
+  // Check daily time limit
+  if (rule.type === 'appLimit' && rule.dailyLimitMinutes) {
+    if (currentUsage >= rule.dailyLimitMinutes) {
+      result.allowed = false;
+      result.reason = 'Daily time limit exceeded';
+      // Next day at midnight
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(0, 0, 0, 0);
+      result.blockedUntil = tomorrow;
+    } else {
+      result.remainingTime = rule.dailyLimitMinutes - currentUsage;
+    }
+    return result;
+  }
+
+  // Check time window
+  if (rule.type === 'appSchedule' && rule.allowedStartTime && rule.allowedEndTime) {
+    const now = new Date();
+    const currentTime = now.getHours() * 60 + now.getMinutes();
+    const startTime = parseTimeString(rule.allowedStartTime);
+    const endTime = parseTimeString(rule.allowedEndTime);
+
+    let isInWindow = false;
+    if (startTime <= endTime) {
+      // Same day window
+      isInWindow = currentTime >= startTime && currentTime <= endTime;
+    } else {
+      // Overnight window
+      isInWindow = currentTime >= startTime || currentTime <= endTime;
+    }
+
+    if (!isInWindow) {
+      result.allowed = false;
+      result.reason = 'App is not available at this time';
+      
+      // Calculate when it will be available next
+      const nextAvailable = new Date();
+      if (startTime <= endTime) {
+        // Next availability is today or tomorrow at start time
+        if (currentTime < startTime) {
+          nextAvailable.setHours(Math.floor(startTime / 60), startTime % 60, 0, 0);
+        } else {
+          nextAvailable.setDate(nextAvailable.getDate() + 1);
+          nextAvailable.setHours(Math.floor(startTime / 60), startTime % 60, 0, 0);
+        }
+      } else {
+        // Overnight schedule
+        if (currentTime > endTime && currentTime < startTime) {
+          nextAvailable.setHours(Math.floor(startTime / 60), startTime % 60, 0, 0);
+        } else {
+          nextAvailable.setHours(Math.floor(startTime / 60), startTime % 60, 0, 0);
+          if (currentTime >= startTime) {
+            nextAvailable.setDate(nextAvailable.getDate() + 1);
+          }
+        }
+      }
+      
+      result.blockedUntil = nextAvailable;
+    }
+  }
+
+  return result;
+}
+
+function evaluateBedtimeRule(rule: any) {
+  const result = {
+    allowed: true,
+    reason: '',
+    blockedUntil: null as Date | null
+  };
+
+  if (!rule.bedtimeStart || !rule.bedtimeEnd) {
+    return result;
+  }
+
+  const now = new Date();
+  const currentTime = now.getHours() * 60 + now.getMinutes();
+  const bedtimeStart = parseTimeString(rule.bedtimeStart);
+  const bedtimeEnd = parseTimeString(rule.bedtimeEnd);
+
+  let isInBedtime = false;
+  if (bedtimeStart <= bedtimeEnd) {
+    // Same day bedtime (unusual)
+    isInBedtime = currentTime >= bedtimeStart && currentTime <= bedtimeEnd;
+  } else {
+    // Overnight bedtime (normal)
+    isInBedtime = currentTime >= bedtimeStart || currentTime <= bedtimeEnd;
+  }
+
+  if (isInBedtime) {
+    result.allowed = false;
+    result.reason = 'Device is locked during bedtime';
+    
+    // Calculate when bedtime ends
+    const bedtimeEnds = new Date();
+    if (bedtimeStart <= bedtimeEnd) {
+      // Same day - ends today
+      bedtimeEnds.setHours(Math.floor(bedtimeEnd / 60), bedtimeEnd % 60, 0, 0);
+    } else {
+      // Overnight - ends today or tomorrow
+      if (currentTime >= bedtimeStart) {
+        // Currently after bedtime start, ends tomorrow
+        bedtimeEnds.setDate(bedtimeEnds.getDate() + 1);
+      }
+      bedtimeEnds.setHours(Math.floor(bedtimeEnd / 60), bedtimeEnd % 60, 0, 0);
+    }
+    
+    result.blockedUntil = bedtimeEnds;
+  }
+
+  return result;
+}
+
+async function notifyParentOfEnforcement(childId: string, action: string, details: any) {
+  try {
+    // Get child's family
+    const childDoc = await db.collection('users').doc(childId).get();
+    const familyId = childDoc.data()?.familyId;
+    
+    if (!familyId) return;
+
+    // Get family parents
+    const familyDoc = await db.collection('families').doc(familyId).get();
+    const parentIds = familyDoc.data()?.parentIds || [];
+
+    // Create notification for parents
+    for (const parentId of parentIds) {
+      await db.collection('notifications').add({
+        familyId,
+        parentId,
+        childId,
+        type: 'rule_enforcement',
+        title: `Rule ${action}`,
+        body: `${action} action taken on child's device`,
+        data: { action, ...details },
+        createdAt: FieldValue.serverTimestamp(),
+        isRead: false
+      });
+    }
+
+  } catch (error) {
+    console.error('Error notifying parent of enforcement:', error);
+  }
+}
+
+function parseTimeString(timeString: string): number {
+  const [hours, minutes] = timeString.split(':').map(Number);
+  return hours * 60 + minutes;
+}
+
+function extractRuleSettings(ruleData: any) {
+  const settings: any = {
+    type: ruleData.type,
+    status: ruleData.status
+  };
+
+  // Include relevant settings based on rule type
+  if (ruleData.dailyLimitMinutes) settings.dailyLimitMinutes = ruleData.dailyLimitMinutes;
+  if (ruleData.allowedStartTime) settings.allowedStartTime = ruleData.allowedStartTime;
+  if (ruleData.allowedEndTime) settings.allowedEndTime = ruleData.allowedEndTime;
+  if (ruleData.bedtimeStart) settings.bedtimeStart = ruleData.bedtimeStart;
+  if (ruleData.bedtimeEnd) settings.bedtimeEnd = ruleData.bedtimeEnd;
+  if (ruleData.requireApproval !== undefined) settings.requireApproval = ruleData.requireApproval;
+
+  return settings;
+}

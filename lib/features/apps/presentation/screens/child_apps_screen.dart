@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/services/app_scanner_service.dart';
-import '../../../../core/providers/auth_provider.dart';
+import '../../../../core/providers/user_provider.dart';
 
 /// Child apps screen showing installed apps and their rules
 /// This screen scans REAL installed apps and syncs with Firestore

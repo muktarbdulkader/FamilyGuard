@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/providers/user_provider.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_routes.dart';
 import '../../../../core/providers/auth_provider.dart';
-import '../../../../core/services/auth_service.dart';
 
 /// Child home screen - Status interface for monitored devices
 /// Shows monitoring status, permissions, and parent contact options

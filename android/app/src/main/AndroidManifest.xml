@@ -208,6 +208,5 @@
         </intent>
         <!-- Query for installed packages to monitor app usage -->
         <!-- Required for: getting list of installed apps, monitoring app launches -->
-        <package android:name="*" />
     </queries>
 </manifest>

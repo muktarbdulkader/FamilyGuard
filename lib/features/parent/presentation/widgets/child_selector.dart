@@ -72,7 +72,7 @@ class ChildSelector extends StatelessWidget {
                       children: [
                         CircleAvatar(
                           radius: 16,
-                          backgroundColor: child.statusColor.withOpacity(0.2),
+                          backgroundColor: child.statusColor.withValues(alpha: 0.2),
                           child: Icon(
                             Icons.child_care,
                             size: 16,
@@ -205,7 +205,7 @@ class _ChildCard extends StatelessWidget {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: child.statusColor.withOpacity(0.1),
+                          color: child.statusColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(

@@ -11,12 +11,12 @@ class RequestNotificationCard extends StatelessWidget {
   final VoidCallback? onDenied;
 
   const RequestNotificationCard({
-    Key? key,
+    super.key,
     required this.request,
     required this.child,
     this.onApproved,
     this.onDenied,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -336,11 +336,11 @@ class QuickApprovalSheet extends StatelessWidget {
   final VoidCallback? onApproved;
 
   const QuickApprovalSheet({
-    Key? key,
+    super.key,
     required this.request,
     required this.child,
     this.onApproved,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

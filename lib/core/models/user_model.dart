@@ -8,6 +8,7 @@ class UserModel {
   final UserRole role;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String? familyId;
 
   const UserModel({
     required this.uid,
@@ -16,7 +17,14 @@ class UserModel {
     required this.role,
     required this.createdAt,
     required this.updatedAt,
+    this.familyId,
   });
+
+  /// Get user ID (alias for uid for compatibility)
+  String get id => uid;
+
+  /// Check if user belongs to a family
+  bool get hasFamily => familyId != null;
 
   /// Create UserModel from Firestore document
   factory UserModel.fromFirestore(DocumentSnapshot doc) {
@@ -28,6 +36,7 @@ class UserModel {
       role: UserRole.fromString(data['role'] ?? ''),
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      familyId: data['familyId'],
     );
   }
 
@@ -40,6 +49,7 @@ class UserModel {
       role: UserRole.fromString(json['role'] ?? ''),
       createdAt: DateTime.parse(json['createdAt']),
       updatedAt: DateTime.parse(json['updatedAt']),
+      familyId: json['familyId'],
     );
   }
 
@@ -52,6 +62,7 @@ class UserModel {
       'role': role.value,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
+      if (familyId != null) 'familyId': familyId,
     };
   }
 
@@ -64,6 +75,7 @@ class UserModel {
       'role': role.value,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
+      if (familyId != null) 'familyId': familyId,
     };
   }
 
@@ -75,6 +87,7 @@ class UserModel {
     UserRole? role,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? familyId,
   }) {
     return UserModel(
       uid: uid ?? this.uid,
@@ -83,6 +96,7 @@ class UserModel {
       role: role ?? this.role,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      familyId: familyId ?? this.familyId,
     );
   }
 

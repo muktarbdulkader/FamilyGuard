@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import '../../../../core/constants/app_routes.dart';
 import '../../../../core/providers/auth_provider.dart';
 
 /// Production login screen with complete authentication
@@ -19,7 +17,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   
   bool _isPasswordVisible = false;
   bool _isSignUp = false;
-  String? _displayName;
 
   @override
   void dispose() {

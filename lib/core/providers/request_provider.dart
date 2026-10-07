@@ -127,8 +127,6 @@ final requestHistoryProvider = FutureProvider.family<List<AppRequest>, RequestHi
 
 /// Provider for active temporary permissions
 final activePermissionsProvider = FutureProvider.family<List<TemporaryPermission>, String>((ref, childId) async {
-  final requestService = ref.read(requestServiceProvider);
-  
   // This would typically fetch from local database
   // For now, returning empty list as placeholder
   return [];

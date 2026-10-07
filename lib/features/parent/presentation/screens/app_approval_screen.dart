@@ -11,10 +11,10 @@ class AppApprovalScreen extends ConsumerStatefulWidget {
   final ChildModel child;
 
   const AppApprovalScreen({
-    Key? key,
+    super.key,
     required this.request,
     required this.child,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<AppApprovalScreen> createState() => _AppApprovalScreenState();
@@ -424,13 +424,15 @@ class _AppApprovalScreenState extends ConsumerState<AppApprovalScreen> {
       );
 
       if (success) {
-        _showSuccess('Request approved successfully');
-        Navigator.of(context).pop(true);
+        if (mounted) {
+          _showSuccess('Request approved successfully');
+          Navigator.of(context).pop(true);
+        }
       } else {
-        _showError('Failed to approve request');
+        if (mounted) _showError('Failed to approve request');
       }
     } catch (e) {
-      _showError('Error approving request: $e');
+      if (mounted) _showError('Error approving request: $e');
     } finally {
       setState(() {
         _isProcessing = false;
@@ -457,13 +459,15 @@ class _AppApprovalScreenState extends ConsumerState<AppApprovalScreen> {
       );
 
       if (success) {
-        _showSuccess('Request denied');
-        Navigator.of(context).pop(true);
+        if (mounted) {
+          _showSuccess('Request denied');
+          Navigator.of(context).pop(true);
+        }
       } else {
-        _showError('Failed to deny request');
+        if (mounted) _showError('Failed to deny request');
       }
     } catch (e) {
-      _showError('Error denying request: $e');
+      if (mounted) _showError('Error denying request: $e');
     } finally {
       setState(() {
         _isProcessing = false;

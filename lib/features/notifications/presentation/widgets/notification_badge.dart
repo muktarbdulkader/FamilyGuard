@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/providers/notification_provider.dart';
+import '../../../../core/models/notification_model.dart';
 
 class NotificationBadge extends ConsumerWidget {
   final Widget child;

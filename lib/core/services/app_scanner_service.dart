@@ -53,11 +53,10 @@ class AppScannerService {
 
       // Get existing apps to preserve rules set by parents
       final existingAppsSnapshot = await childAppsRef.get();
-      final existingApps = Map<String, AppModel>.fromIterable(
-        existingAppsSnapshot.docs,
-        key: (doc) => doc.id,
-        value: (doc) => AppModel.fromFirestore(doc),
-      );
+      final existingApps = {
+        for (final doc in existingAppsSnapshot.docs)
+          doc.id: AppModel.fromFirestore(doc),
+      };
 
       final now = DateTime.now();
       final systemPackages = await _getSystemPackageNames();

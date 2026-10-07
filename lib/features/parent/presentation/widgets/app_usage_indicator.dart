@@ -121,7 +121,7 @@ class CompactUsageIndicator extends StatelessWidget {
       color = Colors.green;
     }
 
-    return Container(
+    return SizedBox(
       width: 60,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.end,

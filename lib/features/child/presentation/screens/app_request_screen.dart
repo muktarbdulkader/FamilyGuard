@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/models/request_model.dart';
@@ -12,11 +13,11 @@ class AppRequestScreen extends ConsumerStatefulWidget {
   final String? appIconBase64;
 
   const AppRequestScreen({
-    Key? key,
+    super.key,
     required this.packageName,
     required this.appName,
     this.appIconBase64,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<AppRequestScreen> createState() => _AppRequestScreenState();
@@ -108,9 +109,7 @@ class _AppRequestScreenState extends ConsumerState<AppRequestScreen> {
           ? ClipRRect(
               borderRadius: BorderRadius.circular(15),
               child: Image.memory(
-                // You'd decode base64 here
-                // base64Decode(widget.appIconBase64!),
-                // For now, showing a placeholder
+                base64Decode(widget.appIconBase64!),
                 width: 80,
                 height: 80,
                 fit: BoxFit.cover,

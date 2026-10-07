@@ -21,15 +21,14 @@ final currentUserNotificationsProvider = StreamProvider<List<ParentNotification>
       .collection('users')
       .doc(user.uid)
       .snapshots()
-      .asyncMap((userDoc) async {
-    if (!userDoc.exists) return <ParentNotification>[];
+      .asyncExpand((userDoc) {
+    if (!userDoc.exists) return Stream.value(<ParentNotification>[]);
     
     final userData = userDoc.data();
     final familyId = userData?['familyId'];
     
-    if (familyId == null) return <ParentNotification>[];
+    if (familyId == null) return Stream.value(<ParentNotification>[]);
     
-    // Return notifications for this family
     return FirebaseFirestore.instance
         .collection('notifications')
         .where('familyId', isEqualTo: familyId)
@@ -39,7 +38,7 @@ final currentUserNotificationsProvider = StreamProvider<List<ParentNotification>
         .map((snapshot) => snapshot.docs
             .map((doc) => ParentNotification.fromFirestore(doc))
             .toList());
-  }).switchMap((stream) => stream);
+  });
 });
 
 final unreadNotificationCountProvider = Provider<int>((ref) {
@@ -188,9 +187,9 @@ class NotificationActions {
     required String childName,
     required String service,
   }) async {
-    final service = ref.read(notificationServiceProvider);
+    final notificationService = ref.read(notificationServiceProvider);
     
-    await service.sendServiceUnavailableNotification(
+    await notificationService.sendServiceUnavailableNotification(
       familyId: familyId,
       childId: childId,
       childName: childName,

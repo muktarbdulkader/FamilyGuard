@@ -6,7 +6,6 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
-import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/notification_model.dart';
 
@@ -14,6 +13,9 @@ class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
   NotificationService._internal();
+
+  // Singleton instance getter
+  static NotificationService get instance => _instance;
 
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _localNotifications = 
@@ -72,7 +74,6 @@ class NotificationService {
       'Urgent Notifications',
       description: 'Critical security and monitoring alerts',
       importance: Importance.max,
-      priority: Priority.high,
       playSound: true,
       enableVibration: true,
     );
@@ -82,7 +83,6 @@ class NotificationService {
       'High Priority Notifications',
       description: 'App requests and important alerts',
       importance: Importance.high,
-      priority: Priority.high,
       playSound: true,
       enableVibration: true,
     );
@@ -92,7 +92,6 @@ class NotificationService {
       'Normal Notifications',
       description: 'General notifications and updates',
       importance: Importance.defaultImportance,
-      priority: Priority.defaultPriority,
       playSound: true,
     );
 
@@ -101,7 +100,6 @@ class NotificationService {
       'Low Priority Notifications',
       description: 'Status updates and informational notices',
       importance: Importance.low,
-      priority: Priority.low,
       playSound: false,
     );
 

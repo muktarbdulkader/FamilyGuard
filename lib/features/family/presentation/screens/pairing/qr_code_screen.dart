@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../../core/services/family_service.dart';
-import '../../../../../core/models/family_model.dart';
+import '../../../../../core/models/family_invite_model.dart';
 import '../../../../../core/constants/app_constants.dart';
 
 /// QR code screen showing invite code and QR code for family pairing

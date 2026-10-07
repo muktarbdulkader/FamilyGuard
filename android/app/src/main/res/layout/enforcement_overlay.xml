@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#E6000000"
@@ -14,14 +15,14 @@
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="16dp"
         app:cardCornerRadius="16dp"
-        app:cardElevation="8dp"
-        xmlns:app="http://schemas.android.com/apk/res-auto">
+        app:cardElevation="8dp">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="24dp">
+            android:padding="24dp"
+            android:background="@android:color/white">
 
             <!-- Close button -->
             <ImageView
@@ -33,7 +34,7 @@
                 android:background="?android:attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Close"
                 android:padding="8dp"
-                android:src="@drawable/ic_close" />
+                android:src="@android:drawable/ic_menu_close_clear_cancel" />
 
             <!-- Warning icon -->
             <ImageView
@@ -41,8 +42,8 @@
                 android:layout_height="64dp"
                 android:layout_gravity="center_horizontal"
                 android:layout_marginBottom="16dp"
-                android:src="@drawable/ic_warning"
-                android:tint="@color/warning_color" />
+                android:src="@android:drawable/ic_dialog_alert"
+                android:tint="@android:color/holo_orange_dark" />
 
             <!-- Title -->
             <TextView
@@ -51,7 +52,7 @@
                 android:layout_height="wrap_content"
                 android:gravity="center"
                 android:text="App Restricted"
-                android:textColor="@color/primary_text_color"
+                android:textColor="@android:color/black"
                 android:textSize="24sp"
                 android:textStyle="bold"
                 android:layout_marginBottom="16dp" />
@@ -64,7 +65,7 @@
                 android:gravity="center"
                 android:lineSpacingMultiplier="1.2"
                 android:text="This app is not available right now. Please choose a different activity."
-                android:textColor="@color/secondary_text_color"
+                android:textColor="@android:color/darker_gray"
                 android:textSize="16sp"
                 android:layout_marginBottom="24dp" />
 
@@ -86,7 +87,7 @@
                 android:layout_height="wrap_content"
                 android:gravity="center"
                 android:text="Use the recent apps button to switch to another app"
-                android:textColor="@color/secondary_text_color"
+                android:textColor="@android:color/darker_gray"
                 android:textSize="14sp" />
 
         </LinearLayout>

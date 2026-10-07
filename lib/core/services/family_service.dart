@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/family_model.dart';
 import '../models/user_model.dart';
+import '../models/family_invite_model.dart';
 import '../constants/app_constants.dart';
 
 /// Family service handling family operations
@@ -21,9 +22,11 @@ class FamilyService {
       final family = FamilyModel(
         id: familyRef.id,
         name: familyName,
-        parentId: parentId,
-        childrenIds: [],
+        createdBy: parentId,
+        parentIds: [parentId],
+        childIds: [],
         createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
       );
 
       await familyRef.set(family.toFirestore());
@@ -55,11 +58,13 @@ class FamilyService {
       );
 
       final invite = FamilyInviteModel(
-        code: code,
+        id: code,
         familyId: familyId,
-        parentId: parentId,
+        inviteCode: code,
+        parentName: 'Parent', // We'll get this from user data in a real implementation
         createdAt: DateTime.now(),
         expiresAt: expiresAt,
+        isActive: true,
       );
 
       // Store invite code

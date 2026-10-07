@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crypto/crypto.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import '../models/request_model.dart';
 
 /// Service for managing app access requests on the child device
@@ -15,7 +14,6 @@ class RequestService {
   static const int _maxPendingRequests = 3;
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   
   StreamController<AppRequest>? _requestUpdatesController;
   StreamSubscription<QuerySnapshot>? _requestListener;

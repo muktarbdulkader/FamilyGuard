@@ -90,8 +90,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/parent-apps/:childId/:childName',
         name: 'parent-app-management',
         builder: (context, state) => ParentAppManagementScreen(
+          familyId: state.pathParameters['familyId'] ?? '',
           childId: state.pathParameters['childId']!,
-          childName: state.pathParameters['childName']!,
         ),
       ),
       
@@ -127,7 +127,6 @@ final routerProvider = Provider<GoRouter>((ref) {
     
     // Redirect logic based on authentication state
     redirect: (context, state) async {
-      final authNotifier = ref.read(authNotifierProvider.notifier);
       final authState = ref.read(authNotifierProvider);
       final location = state.matchedLocation;
       

@@ -1,8 +1,9 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/family_model.dart';
 import '../models/app_info.dart';
-import 'auth_provider.dart';
+import 'user_provider.dart';
 
 /// Provider for user's families
 final userFamiliesProvider = StreamProvider<List<FamilyModel>>((ref) {
