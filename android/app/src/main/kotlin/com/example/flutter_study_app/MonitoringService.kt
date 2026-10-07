@@ -335,7 +335,7 @@ class MonitoringService : Service() {
     /**
      * CRITICAL: Log security events for audit trail
      */
-    private fun logSecurityEvent(event: String, data: Map<String, Any>) {
+    private fun logSecurityEvent(event: String, data: Map<String, Any?>) {
         // TODO: Send to secure logging service
         // For now, log locally with timestamp and device signature
         val timestamp = System.currentTimeMillis()
@@ -601,11 +601,7 @@ class MonitoringService : Service() {
                 }
                 
                 // CRITICAL: Remove close button to prevent easy bypass
-                view.findViewById<Button>(R.id.btn_close)?.visibility = View.GONE
-                
-                // CRITICAL: Add security warning
-                view.findViewById<TextView>(R.id.security_warning)?.text = 
-                    "This app is blocked for your safety. Attempting to bypass parental controls may result in additional restrictions."
+                view.findViewById<View>(R.id.btn_close)?.visibility = View.GONE
                 
             } catch (e: Exception) {
                 logSecurityEvent("overlay_setup_error", mapOf(

@@ -9,9 +9,14 @@ import android.content.pm.PackageManager
 import android.os.*
 import androidx.core.app.NotificationCompat
 import com.example.flutter_study_app.R
+import com.example.flutter_study_app.MainActivity
+import com.example.flutter_study_app.DeviceStatusHelper
 import com.example.flutter_study_app.database.LocalDatabase
 import com.example.flutter_study_app.enforcement.RuleEngine
 import com.example.flutter_study_app.enforcement.EnforcementManager
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.Timestamp
 import kotlinx.coroutines.*
 import java.time.LocalDateTime
 import java.util.concurrent.TimeUnit
@@ -99,12 +104,6 @@ class MonitoringService : Service() {
     }
     
     override fun onBind(intent: Intent?): IBinder? = null
-    
-    override fun onDestroy() {
-        super.onDestroy()
-        stopMonitoring()
-        serviceJob.cancel()
-    }
     
     private fun startMonitoring() {
         val notification = createNotification()
@@ -221,8 +220,8 @@ class MonitoringService : Service() {
         android.util.Log.d("MonitoringService", "Foreground app changed to: $packageName")
         
         // Check if this is a new app (not in local database)
-        val appData = database.getAppData(packageName)
-        if (appData == null) {
+        val rule = database.getRule(packageName)
+        if (rule == null) {
             // This is a new app, send notification
             sendNewAppNotification(packageName)
         }
@@ -275,7 +274,8 @@ class MonitoringService : Service() {
         
         try {
             val packageInfo = packageManager.getPackageInfo(packageName, 0)
-            return (packageInfo.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
+            val applicationInfo = packageInfo.applicationInfo
+            return ((applicationInfo?.flags ?: 0) and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
         } catch (e: PackageManager.NameNotFoundException) {
             return true // If we can't find the package, treat as system
         }
@@ -470,7 +470,7 @@ class MonitoringService : Service() {
     private fun getAppInfo(packageName: String): AppInfo? {
         return try {
             val packageInfo = packageManager.getPackageInfo(packageName, 0)
-            val applicationInfo = packageInfo.applicationInfo
+            val applicationInfo = packageInfo.applicationInfo ?: return null
             
             AppInfo(
                 name = packageManager.getApplicationLabel(applicationInfo).toString(),
@@ -486,19 +486,20 @@ class MonitoringService : Service() {
      */
     private suspend fun checkDailyLimitAndNotify(packageName: String) {
         try {
-            val appData = database.getAppData(packageName) ?: return
-            val rule = ruleEngine.parseRule(appData)
+            val rule = database.getRule(packageName) ?: return
             
-            if (rule is RuleEngine.AppRule.TimeLimit) {
-                val currentUsage = database.getTodayUsageMinutes(packageName)
+            if (rule.type == RuleEngine.RuleType.TIME_LIMIT && rule.dailyLimitMinutes != null) {
+                val usage = database.getUsage(packageName)
+                val currentUsage = usage?.todayMinutes ?: 0
+                val limitMinutes = rule.dailyLimitMinutes
                 
                 // Check if we just reached the daily limit
-                if (currentUsage >= rule.dailyLimitMinutes && 
-                    currentUsage - checkIntervalMs/60000 < rule.dailyLimitMinutes) {
+                if (currentUsage >= limitMinutes && 
+                    (currentUsage - (checkIntervalMs / 60000).toInt()) < limitMinutes) {
                     
                     val appInfo = getAppInfo(packageName)
                     if (appInfo != null) {
-                        sendDailyLimitNotification(packageName, appInfo.name, rule.dailyLimitMinutes)
+                        sendDailyLimitNotification(packageName, appInfo.name, limitMinutes)
                     }
                 }
             }

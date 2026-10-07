@@ -103,7 +103,7 @@ class UsageTrackingService(
             deviceId = getDeviceId()
         )
         
-        activeSession[packageName] = sessionTracker
+        activeSessions[packageName] = sessionTracker
         
         android.util.Log.d(TAG, "Started session for $packageName at $currentTime")
     }
@@ -112,7 +112,7 @@ class UsageTrackingService(
      * End tracking usage for an app
      */
     fun endAppSession(packageName: String) {
-        val sessionTracker = activeSession.remove(packageName) ?: return
+        val sessionTracker = activeSessions.remove(packageName) ?: return
         val endTime = LocalDateTime.now()
         
         // Validate session duration
@@ -177,7 +177,7 @@ class UsageTrackingService(
         android.util.Log.d(TAG, "Handling device reboot")
         
         // End all active sessions (they would be invalid after reboot)
-        activeSession.clear()
+        activeSessions.clear()
         
         // Perform aggregation in case of missed updates
         serviceScope.launch {
@@ -330,11 +330,11 @@ class UsageTrackingService(
     private fun endAllActiveSessions() {
         val currentTime = LocalDateTime.now()
         
-        activeSession.values.forEach { sessionTracker ->
+        activeSessions.values.forEach { sessionTracker ->
             recordSession(sessionTracker, currentTime)
         }
         
-        activeSession.clear()
+        activeSessions.clear()
     }
     
     private suspend fun aggregateUsageStats() = withContext(Dispatchers.IO) {
@@ -352,7 +352,7 @@ class UsageTrackingService(
         }
         
         // Add packages from active session
-        activeSession.keys.forEach { packageName ->
+        activeSessions.keys.forEach { packageName ->
             recentPackages.add(packageName)
         }
         

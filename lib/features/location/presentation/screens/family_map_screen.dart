@@ -4,13 +4,14 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'dart:async';
 import '../../../../core/models/location_model.dart';
 import '../../../../core/services/location_service.dart';
+import '../../../../core/providers/user_provider.dart';
 
 class FamilyMapScreen extends ConsumerStatefulWidget {
-  final String familyId;
+  final String? familyId;
 
   const FamilyMapScreen({
     super.key,
-    required this.familyId,
+    this.familyId,
   });
 
   @override
@@ -34,7 +35,9 @@ class _FamilyMapScreenState extends ConsumerState<FamilyMapScreen> {
   @override
   void initState() {
     super.initState();
-    _subscribeToLocations();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _subscribeToLocations();
+    });
   }
 
   @override
@@ -44,15 +47,25 @@ class _FamilyMapScreenState extends ConsumerState<FamilyMapScreen> {
   }
 
   void _subscribeToLocations() {
-    _locationSubscription = LocationService()
-        .getFamilyLocations(widget.familyId)
-        .listen((locations) {
+    final effectiveFamilyId = widget.familyId ?? ref.read(currentUserDataProvider).value?.familyId ?? '';
+    if (effectiveFamilyId.isEmpty) {
       setState(() {
-        _locations = locations;
         _isLoading = false;
       });
-      _updateMarkers(locations);
-      _fitMapToLocations(locations);
+      return;
+    }
+
+    _locationSubscription = LocationService()
+        .getFamilyLocations(effectiveFamilyId)
+        .listen((locations) {
+      if (mounted) {
+        setState(() {
+          _locations = locations;
+          _isLoading = false;
+        });
+        _updateMarkers(locations);
+        _fitMapToLocations(locations);
+      }
     });
   }
 

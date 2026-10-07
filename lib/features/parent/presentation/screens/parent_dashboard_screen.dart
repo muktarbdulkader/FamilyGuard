@@ -48,7 +48,7 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                 color: Colors.white,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
+                    color: Colors.black.withOpacity(0.05),
                     blurRadius: 10,
                     offset: const Offset(0, 2),
                   ),
@@ -59,18 +59,22 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                 children: [
                   Row(
                     children: [
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+                        onPressed: () => Navigator.of(context).maybePop(),
+                      ),
                       Icon(
                         Icons.family_restroom,
-                        size: 32,
+                        size: 28,
                         color: Colors.blue[600],
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Family Guardian',
+                              'Family Controls',
                               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: Colors.blue[800],
@@ -78,7 +82,7 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                             ),
                             Text(
                               'Parental Control Dashboard',
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                 color: Colors.grey[600],
                               ),
                             ),
@@ -111,9 +115,16 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                         );
                       }
                       
+                      // Auto-select first family if none selected
+                      if (selectedFamily == null && families.isNotEmpty) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          ref.read(selectedFamilyProvider.notifier).state = families.first;
+                        });
+                      }
+                      
                       return FamilySelector(
                         families: families,
-                        selectedFamily: selectedFamily,
+                        selectedFamily: selectedFamily ?? families.first,
                         onFamilySelected: (family) {
                           ref.read(selectedFamilyProvider.notifier).state = family;
                           ref.read(selectedChildProvider.notifier).state = null;
@@ -125,7 +136,7 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                   const SizedBox(height: 12),
                   
                   // Child Selector
-                  if (selectedFamily != null) ...[
+                  if (selectedFamily != null || familiesAsync.value?.isNotEmpty == true) ...[
                     Consumer(
                       builder: (context, ref, child) {
                         final childrenAsync = ref.watch(familyChildrenProvider);
@@ -146,9 +157,16 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                               );
                             }
                             
+                            // Auto-select first child if none selected
+                            if (selectedChild == null && children.isNotEmpty) {
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                ref.read(selectedChildProvider.notifier).state = children.first;
+                              });
+                            }
+                            
                             return ChildSelector(
                               children: children,
-                              selectedChild: selectedChild,
+                              selectedChild: selectedChild ?? children.first,
                               onChildSelected: (child) {
                                 ref.read(selectedChildProvider.notifier).state = child;
                               },
@@ -211,49 +229,50 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
   }
 
   Widget _buildWelcomeState() {
-    return Center(
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
               Icons.family_restroom,
-              size: 120,
+              size: 88,
               color: Colors.blue[300],
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
             Text(
               'Welcome to Family Guardian',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: Colors.blue[800],
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             Text(
-              'Select a family and child to start managing parental controls',
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              'Select a family and child above to start managing parental controls',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: Colors.grey[600],
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
             _FeatureCard(
               icon: Icons.apps,
               title: 'App Management',
               description: 'Control which apps your children can use and set time limits',
               color: Colors.blue,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             _FeatureCard(
               icon: Icons.schedule,
               title: 'Screen Time',
               description: 'Monitor usage and set healthy screen time boundaries',
               color: Colors.green,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             _FeatureCard(
               icon: Icons.location_on,
               title: 'Location Safety',
@@ -495,7 +514,7 @@ class _FeatureCard extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
+              color: color.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, color: color, size: 24),

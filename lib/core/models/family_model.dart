@@ -42,14 +42,17 @@ class FamilyModel {
       id: doc.id,
       name: data['name'] ?? '',
       createdBy: data['createdBy'] ?? '',
-      parentIds: List<String>.from(data['parentIds'] ?? []),
-      childIds: List<String>.from(data['childIds'] ?? []),
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-      updatedAt: (data['updatedAt'] as Timestamp).toDate(),
+      parentIds: List<String>.from(data['parentIds'] ?? (data['parentId'] != null ? [data['parentId']] : [])),
+      childIds: List<String>.from(data['childIds'] ?? data['childrenIds'] ?? []),
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       familyCode: data['familyCode'],
       settings: Map<String, dynamic>.from(data['settings'] ?? {}),
     );
   }
+
+  /// Compatibility getter for childrenIds
+  List<String> get childrenIds => childIds;
 
   /// Convert to Firestore document
   Map<String, dynamic> toFirestore() {

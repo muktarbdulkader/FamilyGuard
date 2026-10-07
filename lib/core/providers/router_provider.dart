@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../features/auth/presentation/screens/splash_screen.dart';
+import '../../features/auth/presentation/screens/welcome_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/role_selection_screen.dart';
 import '../../features/family/presentation/screens/parent_home_screen.dart';
@@ -11,27 +13,83 @@ import '../../features/permissions/presentation/screens/permission_onboarding_sc
 import '../../features/permissions/presentation/screens/monitoring_status_screen.dart';
 import '../../features/apps/presentation/screens/child_apps_screen.dart';
 import '../../features/apps/presentation/screens/parent_app_management_screen.dart';
+import '../../features/location/presentation/screens/family_map_screen.dart';
+import '../../features/parent/presentation/screens/parent_dashboard_screen.dart';
+import '../../features/notifications/presentation/screens/parent_notifications_screen.dart';
+import '../../features/family/presentation/screens/pairing/qr_code_screen.dart';
 import '../constants/app_routes.dart';
 import '../models/user_model.dart';
 import 'auth_provider.dart';
 
+/// Listenable that notifies GoRouter when auth state changes
+class RouterNotifier extends ChangeNotifier {
+  final Ref _ref;
+
+  RouterNotifier(this._ref) {
+    _ref.listen<AuthState>(
+      authNotifierProvider,
+      (_, __) => notifyListeners(),
+    );
+  }
+}
+
+final routerNotifierProvider = Provider<RouterNotifier>((ref) {
+  return RouterNotifier(ref);
+});
+
 /// Router provider using GoRouter for navigation
 /// Handles authentication-based routing and role-based navigation
 final routerProvider = Provider<GoRouter>((ref) {
+  final notifier = ref.watch(routerNotifierProvider);
+
   return GoRouter(
-    initialLocation: AppRoutes.login,
+    initialLocation: AppRoutes.splash,
+    refreshListenable: notifier,
     debugLogDiagnostics: true,
     
     // Route configuration
     routes: [
+      // Splash and onboarding routes
+      GoRoute(
+        path: AppRoutes.splash,
+        name: 'splash',
+        builder: (context, state) => const SplashScreen(),
+      ),
+      
+      GoRoute(
+        path: AppRoutes.welcome,
+        name: 'welcome',
+        builder: (context, state) => const WelcomeScreen(),
+      ),
+      
       // Authentication routes
       GoRoute(
         path: AppRoutes.login,
         name: 'login',
-        builder: (context, state) => const LoginScreen(),
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          final selectedRole = extra?['role'] as UserRole?;
+          return LoginScreen(
+            initialTabIsSignUp: false,
+            selectedRole: selectedRole,
+          );
+        },
       ),
       
-      // Role selection route (after initial login)
+      GoRoute(
+        path: AppRoutes.register,
+        name: 'register',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          final selectedRole = extra?['role'] as UserRole?;
+          return LoginScreen(
+            initialTabIsSignUp: true,
+            selectedRole: selectedRole,
+          );
+        },
+      ),
+      
+      // Role selection route (after initial login/registration)
       GoRoute(
         path: AppRoutes.roleSelection,
         name: 'role-selection',
@@ -94,6 +152,61 @@ final routerProvider = Provider<GoRouter>((ref) {
           childId: state.pathParameters['childId']!,
         ),
       ),
+
+      // Parent location / live map route
+      GoRoute(
+        path: AppRoutes.parentLocation,
+        name: 'parent-location',
+        builder: (context, state) => const FamilyMapScreen(),
+      ),
+
+      // Parent requests & dashboard route
+      GoRoute(
+        path: AppRoutes.parentRequests,
+        name: 'parent-requests',
+        builder: (context, state) => const ParentDashboardScreen(),
+      ),
+
+      // Parent apps overview route
+      GoRoute(
+        path: AppRoutes.parentApps,
+        name: 'parent-apps',
+        builder: (context, state) => const ParentDashboardScreen(),
+      ),
+
+      // Family QR Code route
+      GoRoute(
+        path: AppRoutes.familyQrCode,
+        name: 'family-qr-code',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return QRCodeScreen(
+            familyId: extra?['familyId'] ?? '',
+            familyName: extra?['familyName'] ?? 'My Family',
+          );
+        },
+      ),
+
+      // Family Pairing / Setup route
+      GoRoute(
+        path: AppRoutes.familyPairing,
+        name: 'family-pairing',
+        builder: (context, state) => const FamilySetupScreen(),
+      ),
+
+      // Join Family alias
+      GoRoute(
+        path: AppRoutes.joinFamily,
+        name: 'join-family',
+        builder: (context, state) => const JoinFamilyScreen(),
+      ),
+
+      // Notifications route
+      GoRoute(
+        path: '/notifications',
+        name: 'notifications',
+        builder: (context, state) => const ParentNotificationsScreen(),
+      ),
       
       // Error route for undefined routes
       GoRoute(
@@ -135,11 +248,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         return null;
       }
       
+      // Allow splash and welcome screens for unauthenticated users
+      final isOnboardingRoute = location == AppRoutes.splash || location == AppRoutes.welcome;
+      final isAuthRoute = location == AppRoutes.login || location == AppRoutes.register;
+      
+      // Check if user is authenticated
       final isAuthenticated = authState.user != null;
       
-      // If user is not authenticated, redirect to login
+      // If user is not authenticated, allow onboarding and auth routes
       if (!isAuthenticated) {
-        return location == AppRoutes.login ? null : AppRoutes.login;
+        return isOnboardingRoute || isAuthRoute ? null : AppRoutes.splash;
       }
       
       // User is authenticated, check their role
@@ -151,8 +269,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         return location == AppRoutes.roleSelection ? null : AppRoutes.roleSelection;
       }
       
-      // If user has role but on login/role selection, redirect to appropriate home
-      if (location == AppRoutes.login || location == AppRoutes.roleSelection) {
+      // If user has role but on onboarding/login/register/role selection, redirect to appropriate home
+      if (isOnboardingRoute || isAuthRoute || location == AppRoutes.roleSelection) {
         if (userRole == UserRole.parent) {
           return AppRoutes.parentHome;
         } else if (userRole == UserRole.child) {

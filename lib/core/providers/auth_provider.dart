@@ -81,7 +81,20 @@ class AuthState {
 class AuthNotifier extends StateNotifier<AuthState> {
   final AuthService _authService;
 
-  AuthNotifier(this._authService) : super(const AuthState());
+  AuthNotifier(this._authService) : super(const AuthState(isLoading: true)) {
+    _init();
+  }
+
+  void _init() {
+    _authService.authStateChanges.listen((user) async {
+      if (user != null) {
+        final userData = await _authService.getUserData(user.uid);
+        state = state.copyWith(isLoading: false, user: userData);
+      } else {
+        state = state.copyWith(isLoading: false, clearUser: true);
+      }
+    });
+  }
 
   /// Register new user
   Future<bool> register({

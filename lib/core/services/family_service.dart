@@ -60,8 +60,9 @@ class FamilyService {
       final invite = FamilyInviteModel(
         id: code,
         familyId: familyId,
+        parentId: parentId,
         inviteCode: code,
-        parentName: 'Parent', // We'll get this from user data in a real implementation
+        parentName: 'Parent',
         createdAt: DateTime.now(),
         expiresAt: expiresAt,
         isActive: true,
@@ -135,11 +136,16 @@ class FamilyService {
       final batch = _firestore.batch();
 
       // Add child to family
-      final updatedChildrenIds = [...family.childrenIds, childId];
+      final currentChildIds = family.childIds;
+      final updatedChildIds = currentChildIds.contains(childId)
+          ? currentChildIds
+          : [...currentChildIds, childId];
+
       batch.update(
         _firestore.collection(AppConstants.familiesCollection).doc(invite.familyId),
         {
-          'childrenIds': updatedChildrenIds,
+          'childIds': updatedChildIds,
+          'childrenIds': updatedChildIds,
           'updatedAt': Timestamp.now(),
         },
       );

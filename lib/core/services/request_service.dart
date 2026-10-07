@@ -43,7 +43,6 @@ class RequestService {
 
     _requestListener = requestsRef
         .where('status', whereIn: ['pending', 'approved', 'denied'])
-        .orderBy('createdAt', descending: true)
         .limit(10)
         .snapshots()
         .listen(

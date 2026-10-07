@@ -32,12 +32,15 @@ final currentUserNotificationsProvider = StreamProvider<List<ParentNotification>
     return FirebaseFirestore.instance
         .collection('notifications')
         .where('familyId', isEqualTo: familyId)
-        .orderBy('createdAt', descending: true)
         .limit(50)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => ParentNotification.fromFirestore(doc))
-            .toList());
+        .map((snapshot) {
+          final list = snapshot.docs
+              .map((doc) => ParentNotification.fromFirestore(doc))
+              .toList();
+          list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          return list;
+        });
   });
 });
 

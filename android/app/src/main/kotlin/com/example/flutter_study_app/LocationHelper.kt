@@ -12,7 +12,6 @@ import android.provider.Settings
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import io.flutter.plugin.common.MethodCall
-import io.flutter.plugin.common.MethodResult
 import io.flutter.plugin.common.MethodChannel
 
 class LocationHelper(private val context: Context) {
@@ -29,7 +28,7 @@ class LocationHelper(private val context: Context) {
         const val BACKGROUND_LOCATION = Manifest.permission.ACCESS_BACKGROUND_LOCATION
     }
     
-    fun handleMethodCall(call: MethodCall, result: MethodResult) {
+    fun handleMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
             "checkLocationPermission" -> checkLocationPermission(result)
             "requestLocationPermission" -> requestLocationPermission(result)
@@ -41,7 +40,7 @@ class LocationHelper(private val context: Context) {
         }
     }
     
-    private fun checkLocationPermission(result: MethodResult) {
+    private fun checkLocationPermission(result: MethodChannel.Result) {
         try {
             val hasCoarse = ContextCompat.checkSelfPermission(
                 context, 
@@ -86,7 +85,7 @@ class LocationHelper(private val context: Context) {
         }
     }
     
-    private fun requestLocationPermission(result: MethodResult) {
+    private fun requestLocationPermission(result: MethodChannel.Result) {
         if (context !is Activity) {
             result.error("CONTEXT_ERROR", "Context is not an Activity", null)
             return
@@ -136,7 +135,7 @@ class LocationHelper(private val context: Context) {
         }
     }
     
-    private fun checkLocationServices(result: MethodResult) {
+    private fun checkLocationServices(result: MethodChannel.Result) {
         try {
             val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
             
@@ -157,7 +156,7 @@ class LocationHelper(private val context: Context) {
         }
     }
     
-    private fun openLocationSettings(result: MethodResult) {
+    private fun openLocationSettings(result: MethodChannel.Result) {
         try {
             val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
             intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
@@ -169,7 +168,7 @@ class LocationHelper(private val context: Context) {
         }
     }
     
-    private fun checkBatteryOptimization(result: MethodResult) {
+    private fun checkBatteryOptimization(result: MethodChannel.Result) {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 val powerManager = context.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
@@ -192,7 +191,7 @@ class LocationHelper(private val context: Context) {
         }
     }
     
-    private fun requestBatteryOptimizationExemption(result: MethodResult) {
+    private fun requestBatteryOptimizationExemption(result: MethodChannel.Result) {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {

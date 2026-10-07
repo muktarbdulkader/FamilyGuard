@@ -24,13 +24,14 @@ final childRequestsProvider = StreamProvider.family<List<AppRequest>, String>((r
       .doc(childId)
       .collection('requests')
       .where('status', whereIn: ['pending', 'approved', 'denied'])
-      .orderBy('createdAt', descending: true)
       .limit(10)
       .snapshots()
       .map((snapshot) {
-    return snapshot.docs
+    final list = snapshot.docs
         .map((doc) => AppRequest.fromFirestore(doc))
         .toList();
+    list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return list;
   });
 });
 
@@ -145,9 +146,6 @@ Stream<List<AppRequestWithChild>> _combineChildRequests(String familyId, List<St
         .doc(childId)
         .collection('requests')
         .where('status', isEqualTo: 'pending')
-        .where('expiresAt', isGreaterThan: Timestamp.now())
-        .orderBy('expiresAt')
-        .orderBy('createdAt', descending: true)
         .snapshots()
         .asyncMap((snapshot) async {
       // Get child info

@@ -39,7 +39,6 @@ class PackageChangeReceiver : BroadcastReceiver() {
                 
                 // App state changes
                 addAction(Intent.ACTION_PACKAGE_CHANGED)
-                addAction(Intent.ACTION_PACKAGE_ENABLED_STATE_CHANGED)
                 
                 // Required for package-related intents
                 addDataScheme("package")
@@ -121,8 +120,7 @@ class PackageChangeReceiver : BroadcastReceiver() {
                 handleAppUninstalled(context, packageName)
             }
             
-            Intent.ACTION_PACKAGE_CHANGED,
-            Intent.ACTION_PACKAGE_ENABLED_STATE_CHANGED -> {
+            Intent.ACTION_PACKAGE_CHANGED -> {
                 handleAppStateChanged(context, packageName)
             }
         }

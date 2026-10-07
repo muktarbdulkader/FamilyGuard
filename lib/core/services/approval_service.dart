@@ -221,16 +221,14 @@ class ApprovalService {
           .doc(childId)
           .collection(_collectionRequests)
           .where('status', isEqualTo: 'pending')
-          .where('expiresAt', isGreaterThan: Timestamp.now())
-          .orderBy('expiresAt')
-          .orderBy('createdAt', descending: true)
           .snapshots()
           .listen(
             (snapshot) {
               final requests = snapshot.docs
                   .map((doc) => AppRequest.fromFirestore(doc))
+                  .where((r) => r.expiresAt.isAfter(DateTime.now()))
                   .toList();
-              
+              requests.sort((a, b) => b.createdAt.compareTo(a.createdAt));
               _pendingRequestsController?.add(requests);
             },
             onError: (error) {

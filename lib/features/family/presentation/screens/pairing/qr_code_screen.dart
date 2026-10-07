@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../../core/services/family_service.dart';
 import '../../../../../core/models/family_invite_model.dart';
 import '../../../../../core/constants/app_constants.dart';
@@ -60,18 +61,31 @@ class _QRCodeScreenState extends State<QRCodeScreen> {
     });
 
     try {
-      // Get the parent ID from the family document
-      final familyDoc = await FirebaseFirestore.instance
-          .collection('families')
-          .doc(widget.familyId)
-          .get();
-      
-      if (!familyDoc.exists) {
-        throw FamilyException('Family not found');
+      final currentUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+      String parentId = currentUid;
+
+      // Try reading the parent ID from the family document
+      try {
+        final familyDoc = await FirebaseFirestore.instance
+            .collection('families')
+            .doc(widget.familyId)
+            .get();
+        
+        if (familyDoc.exists && familyDoc.data() != null) {
+          final familyData = familyDoc.data()!;
+          if (familyData['parentId'] is String && (familyData['parentId'] as String).isNotEmpty) {
+            parentId = familyData['parentId'] as String;
+          } else if (familyData['parentIds'] is List && (familyData['parentIds'] as List).isNotEmpty) {
+            parentId = (familyData['parentIds'] as List).first.toString();
+          }
+        }
+      } catch (_) {
+        // Fall back to currentUid
       }
 
-      final familyData = familyDoc.data() as Map<String, dynamic>;
-      final parentId = familyData['parentId'] as String;
+      if (parentId.isEmpty) {
+        parentId = currentUid;
+      }
 
       final invite = await _familyService.generateInviteCode(
         familyId: widget.familyId,
@@ -235,7 +249,7 @@ class _QRCodeScreenState extends State<QRCodeScreen> {
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.1),
+                        color: Colors.black.withOpacity(0.1),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),

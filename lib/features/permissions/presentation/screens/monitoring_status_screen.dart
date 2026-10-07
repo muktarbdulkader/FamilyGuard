@@ -154,7 +154,7 @@ class _MonitoringStatusScreenState extends ConsumerState<MonitoringStatusScreen>
                 width: double.infinity,
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.1),
+                  color: statusColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: statusColor, width: 2),
                 ),

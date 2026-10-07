@@ -236,7 +236,7 @@ class AppDiscoveryHelper(private val context: Context) {
             val applicationInfo = packageInfo.applicationInfo
             
             val appName = try {
-                applicationInfo.loadLabel(packageManager).toString()
+                applicationInfo?.loadLabel(packageManager)?.toString() ?: packageName
             } catch (e: Exception) {
                 packageName // Fallback to package name
             }
@@ -258,7 +258,7 @@ class AppDiscoveryHelper(private val context: Context) {
                 null
             }
             
-            val isSystemApp = (applicationInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
+            val isSystemApp = ((applicationInfo?.flags ?: 0) and ApplicationInfo.FLAG_SYSTEM) != 0
             
             val firstInstallTime = try {
                 Date(packageInfo.firstInstallTime).toInstant().epochSecond
@@ -280,7 +280,7 @@ class AppDiscoveryHelper(private val context: Context) {
                 "isSystemApp" to isSystemApp,
                 "firstInstallTime" to firstInstallTime,
                 "lastUpdateTime" to lastUpdateTime,
-                "isEnabled" to applicationInfo.enabled
+                "isEnabled" to (applicationInfo?.enabled ?: false)
             )
         } catch (e: Exception) {
             Log.w(TAG, "Error extracting app info for ${packageInfo.packageName}", e)

@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class FamilyInviteModel {
   final String id;
   final String familyId;
+  final String parentId;
   final String inviteCode;
   final String parentName;
   final DateTime createdAt;
@@ -15,6 +16,7 @@ class FamilyInviteModel {
   FamilyInviteModel({
     required this.id,
     required this.familyId,
+    required this.parentId,
     required this.inviteCode,
     required this.parentName,
     required this.createdAt,
@@ -39,6 +41,7 @@ class FamilyInviteModel {
     return FamilyInviteModel(
       id: doc.id,
       familyId: data['familyId'] ?? '',
+      parentId: data['parentId'] ?? '',
       inviteCode: data['inviteCode'] ?? '',
       parentName: data['parentName'] ?? '',
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
@@ -53,6 +56,7 @@ class FamilyInviteModel {
   Map<String, dynamic> toFirestore() {
     return {
       'familyId': familyId,
+      'parentId': parentId,
       'inviteCode': inviteCode,
       'parentName': parentName,
       'createdAt': Timestamp.fromDate(createdAt),

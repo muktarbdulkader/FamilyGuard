@@ -30,9 +30,9 @@ class AppScannerHelper(private val activity: Activity) {
      * Scan all installed user applications using PackageManager
      * Returns real app data from Android system
      */
-    fun scanInstalledApps(): List<Map<String, Any>> {
+    fun scanInstalledApps(): List<Map<String, Any?>> {
         val packageManager = activity.packageManager
-        val installedApps = mutableListOf<Map<String, Any>>()
+        val installedApps = mutableListOf<Map<String, Any?>>()
 
         try {
             // Get all installed packages
@@ -40,7 +40,7 @@ class AppScannerHelper(private val activity: Activity) {
 
             for (packageInfo in packages) {
                 try {
-                    val appInfo = packageInfo.applicationInfo
+                    val appInfo = packageInfo.applicationInfo ?: continue
                     
                     // Skip system apps unless they're user-facing
                     if (isSystemApp(appInfo) && !isUserFacingSystemApp(appInfo, packageManager)) {
@@ -55,11 +55,11 @@ class AppScannerHelper(private val activity: Activity) {
                         null
                     }
 
-                    val appData = mapOf(
+                    val appData: Map<String, Any?> = mapOf(
                         "packageName" to appInfo.packageName,
                         "appName" to packageManager.getApplicationLabel(appInfo).toString(),
                         "iconBytes" to iconBytes,
-                        "version" to packageInfo.versionName ?: "Unknown",
+                        "version" to (packageInfo.versionName ?: "Unknown"),
                         "installTime" to packageInfo.firstInstallTime,
                         "lastUpdateTime" to packageInfo.lastUpdateTime,
                         "isSystemApp" to isSystemApp(appInfo)
@@ -89,7 +89,7 @@ class AppScannerHelper(private val activity: Activity) {
             val packages = packageManager.getInstalledPackages(0)
             
             for (packageInfo in packages) {
-                val appInfo = packageInfo.applicationInfo
+                val appInfo = packageInfo.applicationInfo ?: continue
                 
                 // Add critical system packages that should never be blocked
                 if (isSystemApp(appInfo) && isCriticalSystemApp(appInfo)) {

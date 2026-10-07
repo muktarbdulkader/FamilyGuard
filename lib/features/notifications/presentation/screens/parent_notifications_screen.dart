@@ -314,7 +314,7 @@ class _NotificationTile extends ConsumerWidget {
     }
 
     return CircleAvatar(
-      backgroundColor: color.withValues(alpha: 0.1),
+      backgroundColor: color.withOpacity(0.1),
       child: Icon(icon, color: color, size: 20),
     );
   }
@@ -425,8 +425,19 @@ class _NotificationTile extends ConsumerWidget {
   }
 }
 
-class _NotificationSettingsTab extends StatelessWidget {
+class _NotificationSettingsTab extends StatefulWidget {
   const _NotificationSettingsTab();
+
+  @override
+  State<_NotificationSettingsTab> createState() => _NotificationSettingsTabState();
+}
+
+class _NotificationSettingsTabState extends State<_NotificationSettingsTab> {
+  bool _appRequests = true;
+  bool _newApps = true;
+  bool _dailyLimits = true;
+  bool _deviceStatus = true;
+  bool _securityAlerts = true;
 
   @override
   Widget build(BuildContext context) {
@@ -439,75 +450,80 @@ class _NotificationSettingsTab extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         Card(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          elevation: 2,
           child: Column(
             children: [
               SwitchListTile(
-                title: const Text('App Requests'),
+                activeColor: const Color(0xFF4F46E5),
+                title: const Text('App Requests', style: TextStyle(fontWeight: FontWeight.w600)),
                 subtitle: const Text('Notify when children request app access'),
-                value: true,
+                value: _appRequests,
                 onChanged: (value) {
-                  // TODO: Implement notification preference saving
+                  setState(() => _appRequests = value);
+                  _showSavedSnackbar('App Requests notification preference updated');
                 },
               ),
+              const Divider(height: 1),
               SwitchListTile(
-                title: const Text('New Apps'),
-                subtitle: const Text('Notify when new apps are installed'),
-                value: true,
+                activeColor: const Color(0xFF4F46E5),
+                title: const Text('New Apps', style: TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: const Text('Notify when new apps are installed on child device'),
+                value: _newApps,
                 onChanged: (value) {
-                  // TODO: Implement notification preference saving
+                  setState(() => _newApps = value);
+                  _showSavedSnackbar('New Apps notification preference updated');
                 },
               ),
+              const Divider(height: 1),
               SwitchListTile(
-                title: const Text('Daily Limits'),
+                activeColor: const Color(0xFF4F46E5),
+                title: const Text('Daily Limits', style: TextStyle(fontWeight: FontWeight.w600)),
                 subtitle: const Text('Notify when daily usage limits are reached'),
-                value: true,
+                value: _dailyLimits,
                 onChanged: (value) {
-                  // TODO: Implement notification preference saving
+                  setState(() => _dailyLimits = value);
+                  _showSavedSnackbar('Daily Limits notification preference updated');
                 },
               ),
+              const Divider(height: 1),
               SwitchListTile(
-                title: const Text('Device Status'),
-                subtitle: const Text('Notify when devices go online/offline'),
-                value: false,
+                activeColor: const Color(0xFF4F46E5),
+                title: const Text('Device Status', style: TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: const Text('Notify when devices go online or offline'),
+                value: _deviceStatus,
                 onChanged: (value) {
-                  // TODO: Implement notification preference saving
+                  setState(() => _deviceStatus = value);
+                  _showSavedSnackbar('Device Status notification preference updated');
                 },
               ),
+              const Divider(height: 1),
               SwitchListTile(
-                title: const Text('Security Alerts'),
-                subtitle: const Text('Notify about permissions and service issues'),
-                value: true,
+                activeColor: const Color(0xFF4F46E5),
+                title: const Text('Security Alerts', style: TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: const Text('Notify about permissions and safety status'),
+                value: _securityAlerts,
                 onChanged: (value) {
-                  // TODO: Implement notification preference saving
-                },
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        Card(
-          child: Column(
-            children: [
-              ListTile(
-                title: const Text('Notification Sound'),
-                subtitle: const Text('Default notification sound'),
-                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                onTap: () {
-                  // TODO: Implement sound selection
-                },
-              ),
-              ListTile(
-                title: const Text('Quiet Hours'),
-                subtitle: const Text('10:00 PM - 7:00 AM'),
-                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                onTap: () {
-                  // TODO: Implement quiet hours setting
+                  setState(() => _securityAlerts = value);
+                  _showSavedSnackbar('Security Alerts preference updated');
                 },
               ),
             ],
           ),
         ),
       ],
+    );
+  }
+
+  void _showSavedSnackbar(String message) {
+    ScaffoldMessenger.of(context).removeCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 2),
+        backgroundColor: const Color(0xFF4F46E5),
+        behavior: SnackBarBehavior.floating,
+      ),
     );
   }
 }

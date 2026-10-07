@@ -1,10 +1,15 @@
 /// Application route constants
 /// Centralized route definitions for consistent navigation
 class AppRoutes {
+  // Onboarding and startup routes
+  static const String splash = '/';
+  static const String welcome = '/welcome';
+  
   // Authentication routes
   static const String login = '/login';
   static const String register = '/register';
   static const String roleSelection = '/role-selection';
+  static const String authChoice = '/auth-choice';
   
   // Parent routes
   static const String parentHome = '/parent-home';
