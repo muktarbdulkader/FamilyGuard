@@ -36,6 +36,7 @@ class MonitoringService : Service() {
     private lateinit var enforcementManager: EnforcementManager
     private lateinit var usageStatsManager: UsageStatsManager
     private lateinit var notificationManager: NotificationManager
+    private lateinit var deviceStatusHelper: DeviceStatusHelper
     
     private var serviceJob = SupervisorJob()
     private val serviceScope = CoroutineScope(Dispatchers.Default + serviceJob)
@@ -43,6 +44,10 @@ class MonitoringService : Service() {
     private var lastForegroundApp: String? = null
     private var lastCheckTime: Long = 0
     private val checkIntervalMs = 2000L // Check every 2 seconds
+    
+    // For notification tracking
+    private var currentFamilyId: String? = null
+    private var currentChildId: String? = null
     
     companion object {
         private const val NOTIFICATION_ID = 1001
@@ -74,9 +79,13 @@ class MonitoringService : Service() {
         enforcementManager = EnforcementManager(this, database, ruleEngine)
         usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
         notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        deviceStatusHelper = DeviceStatusHelper(this)
         
         createNotificationChannel()
         lastCheckTime = System.currentTimeMillis()
+        
+        // Initialize user context for notifications
+        initializeUserContext()
     }
     
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -211,8 +220,18 @@ class MonitoringService : Service() {
         
         android.util.Log.d("MonitoringService", "Foreground app changed to: $packageName")
         
+        // Check if this is a new app (not in local database)
+        val appData = database.getAppData(packageName)
+        if (appData == null) {
+            // This is a new app, send notification
+            sendNewAppNotification(packageName)
+        }
+        
         // Increment usage tracking
         database.incrementUsageMinutes(packageName, 0, currentTime) // Initialize if needed
+        
+        // Check for daily limit notifications
+        checkDailyLimitAndNotify(packageName)
         
         // Immediate rule evaluation for the new app
         enforcementManager.enforceRuleForApp(packageName, currentTime)
@@ -332,6 +351,224 @@ class MonitoringService : Service() {
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
+    }
+    
+    /**
+     * Initialize user context for notifications
+     */
+    private fun initializeUserContext() {
+        serviceScope.launch {
+            try {
+                val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
+                val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                
+                val user = auth.currentUser
+                if (user != null) {
+                    firestore.collection("users").document(user.uid)
+                        .get()
+                        .addOnSuccessListener { userDoc ->
+                            currentFamilyId = userDoc.getString("familyId")
+                            currentChildId = user.uid
+                            
+                            // Start device status monitoring
+                            if (currentFamilyId != null && currentChildId != null) {
+                                deviceStatusHelper.startStatusMonitoring(currentFamilyId!!, currentChildId!!)
+                            }
+                        }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("MonitoringService", "Error initializing user context", e)
+            }
+        }
+    }
+    
+    /**
+     * Send notification for new app detection
+     */
+    private suspend fun sendNewAppNotification(packageName: String) {
+        val familyId = currentFamilyId ?: return
+        val childId = currentChildId ?: return
+        
+        try {
+            val appInfo = getAppInfo(packageName)
+            if (appInfo != null) {
+                val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                
+                // Create notification in Firestore (triggers Cloud Function)
+                val notificationData = hashMapOf(
+                    "familyId" to familyId,
+                    "childId" to childId,
+                    "childName" to getCurrentChildName(),
+                    "type" to "new_app_detected",
+                    "priority" to "low",
+                    "title" to "New App Detected",
+                    "body" to "${appInfo.name} was installed on ${getCurrentChildName()}'s device.",
+                    "data" to hashMapOf(
+                        "type" to "new_app_detected",
+                        "familyId" to familyId,
+                        "childId" to childId,
+                        "appName" to appInfo.name,
+                        "packageName" to packageName
+                    ),
+                    "createdAt" to com.google.firebase.Timestamp.now(),
+                    "expiresAt" to com.google.firebase.Timestamp(
+                        java.util.Date(System.currentTimeMillis() + 24 * 60 * 60 * 1000) // 24 hours
+                    )
+                )
+
+                firestore.collection("notifications")
+                    .add(notificationData)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MonitoringService", "Error sending new app notification", e)
+        }
+    }
+    
+    /**
+     * Send notification when daily limit is reached
+     */
+    private suspend fun sendDailyLimitNotification(packageName: String, appName: String, limitMinutes: Int) {
+        val familyId = currentFamilyId ?: return
+        val childId = currentChildId ?: return
+        
+        try {
+            val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+            
+            val notificationData = hashMapOf(
+                "familyId" to familyId,
+                "childId" to childId,
+                "childName" to getCurrentChildName(),
+                "type" to "daily_limit_reached",
+                "priority" to "normal",
+                "title" to "Daily Limit Reached",
+                "body" to "${getCurrentChildName()} has reached their daily limit for $appName.",
+                "data" to hashMapOf(
+                    "type" to "daily_limit_reached",
+                    "familyId" to familyId,
+                    "childId" to childId,
+                    "appName" to appName,
+                    "packageName" to packageName,
+                    "dailyLimitMinutes" to limitMinutes
+                ),
+                "createdAt" to com.google.firebase.Timestamp.now(),
+                "expiresAt" to com.google.firebase.Timestamp(
+                    java.util.Date(System.currentTimeMillis() + 8 * 60 * 60 * 1000) // 8 hours
+                )
+            )
+
+            firestore.collection("notifications")
+                .add(notificationData)
+                
+        } catch (e: Exception) {
+            android.util.Log.e("MonitoringService", "Error sending daily limit notification", e)
+        }
+    }
+    
+    /**
+     * Get app information for a package
+     */
+    private fun getAppInfo(packageName: String): AppInfo? {
+        return try {
+            val packageInfo = packageManager.getPackageInfo(packageName, 0)
+            val applicationInfo = packageInfo.applicationInfo
+            
+            AppInfo(
+                name = packageManager.getApplicationLabel(applicationInfo).toString(),
+                packageName = packageName
+            )
+        } catch (e: PackageManager.NameNotFoundException) {
+            null
+        }
+    }
+    
+    /**
+     * Check if daily limit reached and send notification
+     */
+    private suspend fun checkDailyLimitAndNotify(packageName: String) {
+        try {
+            val appData = database.getAppData(packageName) ?: return
+            val rule = ruleEngine.parseRule(appData)
+            
+            if (rule is RuleEngine.AppRule.TimeLimit) {
+                val currentUsage = database.getTodayUsageMinutes(packageName)
+                
+                // Check if we just reached the daily limit
+                if (currentUsage >= rule.dailyLimitMinutes && 
+                    currentUsage - checkIntervalMs/60000 < rule.dailyLimitMinutes) {
+                    
+                    val appInfo = getAppInfo(packageName)
+                    if (appInfo != null) {
+                        sendDailyLimitNotification(packageName, appInfo.name, rule.dailyLimitMinutes)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MonitoringService", "Error checking daily limit", e)
+        }
+    }
+    
+    /**
+     * Get current child name from user data
+     */
+    private fun getCurrentChildName(): String {
+        // In a real implementation, you'd cache this from user data
+        return "Your child"
+    }
+    
+    /**
+     * Data class for app information
+     */
+    private data class AppInfo(
+        val name: String,
+        val packageName: String
+    )
+    
+    override fun onDestroy() {
+        super.onDestroy()
+        deviceStatusHelper.stopStatusMonitoring()
+        
+        // Send service unavailable notification
+        serviceScope.launch {
+            sendServiceUnavailableNotification()
+        }
+        
+        stopMonitoring()
+        serviceJob.cancel()
+    }
+    
+    /**
+     * Send notification when monitoring service stops
+     */
+    private suspend fun sendServiceUnavailableNotification() {
+        val familyId = currentFamilyId ?: return
+        val childId = currentChildId ?: return
+        
+        try {
+            val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+            
+            val notificationData = hashMapOf(
+                "familyId" to familyId,
+                "childId" to childId,
+                "childName" to getCurrentChildName(),
+                "type" to "service_unavailable",
+                "priority" to "urgent",
+                "title" to "Monitoring Unavailable",
+                "body" to "Monitoring service stopped on ${getCurrentChildName()}'s device.",
+                "data" to hashMapOf(
+                    "type" to "service_unavailable",
+                    "familyId" to familyId,
+                    "childId" to childId,
+                    "service" to "Monitoring Service"
+                ),
+                "createdAt" to com.google.firebase.Timestamp.now()
+            )
+
+            firestore.collection("notifications")
+                .add(notificationData)
+                
+        } catch (e: Exception) {
+            android.util.Log.e("MonitoringService", "Error sending service unavailable notification", e)
+        }
     }
 }
 

@@ -15,11 +15,13 @@ class MainActivity : FlutterActivity() {
     private val PERMISSION_CHANNEL = "family_guardian/permissions"
     private val APP_SCANNER_CHANNEL = "family_guard/app_scanner"
     private val MONITORING_CHANNEL = "family_guard/monitoring"
+    private val LOCATION_CHANNEL = "com.example.flutter_study_app/location"
     
     private lateinit var permissionHelper: PermissionHelper
     private lateinit var appScannerHelper: AppScannerHelper
     private lateinit var appDiscoveryHelper: AppDiscoveryHelper
     private lateinit var monitoringHelper: MonitoringHelper
+    private lateinit var locationHelper: LocationHelper
     private var packageChangeReceiver: PackageChangeReceiver? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -32,6 +34,7 @@ class MainActivity : FlutterActivity() {
         appScannerHelper = AppScannerHelper(this)
         appDiscoveryHelper = AppDiscoveryHelper(this)
         monitoringHelper = MonitoringHelper(this)
+        locationHelper = LocationHelper(this)
         
         // Permission method channel - enhanced with monitoring service methods
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, PERMISSION_CHANNEL)
@@ -103,6 +106,12 @@ class MainActivity : FlutterActivity() {
             monitoringHelper.handleMethodCall(call.method, call.arguments, result)
         }
         monitoringHelper.setMethodChannel(monitoringChannel)
+        
+        // Location method channel
+        val locationChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, LOCATION_CHANNEL)
+        locationChannel.setMethodCallHandler { call, result ->
+            locationHelper.handleMethodCall(call, result)
+        }
     }
     
     override fun onDestroy() {

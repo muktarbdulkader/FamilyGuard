@@ -50,19 +50,19 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'your-api-key-here',
-    appId: 'your-app-id-here',
-    messagingSenderId: 'your-sender-id-here',
-    projectId: 'your-project-id-here',
-    storageBucket: 'your-storage-bucket-here',
+    apiKey: 'AIzaSyAPJ6DOtiOQzXTYx2EvzNu7MVuKHgJfYWw',
+    appId: '1:686968535480:android:1845794709ca17bc15b74d',
+    messagingSenderId: '686968535480',
+    projectId: 'study-app-fbebe',
+    storageBucket: 'study-app-fbebe.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'your-ios-api-key-here',
-    appId: 'your-ios-app-id-here',
-    messagingSenderId: 'your-sender-id-here',
-    projectId: 'your-project-id-here',
-    storageBucket: 'your-storage-bucket-here',
+    apiKey: 'AIzaSyAPJ6DOtiOQzXTYx2EvzNu7MVuKHgJfYWw',
+    appId: '1:686968535480:ios:fef891af40a6105b15b74d',
+    messagingSenderId: '686968535480',
+    projectId: 'study-app-fbebe',
+    storageBucket: 'study-app-fbebe.firebasestorage.app',
     iosBundleId: 'com.example.flutter-study-app',
   );
 }
