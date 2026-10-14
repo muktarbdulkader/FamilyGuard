@@ -5,6 +5,7 @@ import '../../../../core/models/request_model.dart';
 import '../../../../core/services/request_service.dart';
 import '../../../../core/providers/auth_provider.dart';
 import '../../../../core/providers/family_provider.dart';
+import '../../../../core/providers/user_provider.dart';
 
 /// Screen shown when child tries to access an ASK_PARENT app
 class AppRequestScreen extends ConsumerStatefulWidget {
@@ -524,16 +525,17 @@ class _AppRequestScreenState extends ConsumerState<AppRequestScreen> {
 
     try {
       final user = ref.read(authProvider).user;
-      final family = ref.read(selectedFamilyProvider);
+      final familyId = user?.familyId ?? ref.read(currentUserDataProvider).value?.familyId ?? ref.read(selectedFamilyProvider)?.id;
       
-      if (user == null || family == null) {
-        _showError('Not properly authenticated');
+      if (user == null || familyId == null || familyId.isEmpty) {
+        _showError('Not properly authenticated with a family');
         return;
       }
 
       final result = await RequestService.instance.createRequest(
-        familyId: family.id,
+        familyId: familyId,
         childId: user.uid,
+        childName: user.displayName,
         packageName: widget.packageName,
         appName: widget.appName,
         deviceInfo: await _getDeviceInfo(),
@@ -567,12 +569,12 @@ class _AppRequestScreenState extends ConsumerState<AppRequestScreen> {
     if (_pendingRequest == null) return;
 
     final user = ref.read(authProvider).user;
-    final family = ref.read(selectedFamilyProvider);
+    final familyId = user?.familyId ?? ref.read(currentUserDataProvider).value?.familyId ?? ref.read(selectedFamilyProvider)?.id;
     
-    if (user == null || family == null) return;
+    if (user == null || familyId == null || familyId.isEmpty) return;
 
     final success = await RequestService.instance.cancelRequest(
-      family.id,
+      familyId,
       user.uid,
       _pendingRequest!.id,
     );
@@ -607,11 +609,11 @@ class _AppRequestScreenState extends ConsumerState<AppRequestScreen> {
 
   void _checkExistingRequest() async {
     final user = ref.read(authProvider).user;
-    final family = ref.read(selectedFamilyProvider);
+    final familyId = user?.familyId ?? ref.read(currentUserDataProvider).value?.familyId ?? ref.read(selectedFamilyProvider)?.id;
     
-    if (user == null || family == null) return;
+    if (user == null || familyId == null || familyId.isEmpty) return;
 
-    final requests = await RequestService.instance.getPendingRequests(family.id, user.uid);
+    final requests = await RequestService.instance.getPendingRequests(familyId, user.uid);
     final existingRequest = requests.where((r) => r.packageName == widget.packageName).firstOrNull;
     
     if (existingRequest != null) {
@@ -632,11 +634,11 @@ class _AppRequestScreenState extends ConsumerState<AppRequestScreen> {
 
   void _listenForRequestUpdates() {
     final user = ref.read(authProvider).user;
-    final family = ref.read(selectedFamilyProvider);
+    final familyId = user?.familyId ?? ref.read(currentUserDataProvider).value?.familyId ?? ref.read(selectedFamilyProvider)?.id;
     
-    if (user == null || family == null) return;
+    if (user == null || familyId == null || familyId.isEmpty) return;
 
-    RequestService.instance.startListening(family.id, user.uid);
+    RequestService.instance.startListening(familyId, user.uid);
     RequestService.instance.requestUpdates.listen((request) {
       if (request.packageName == widget.packageName) {
         setState(() {

@@ -5,6 +5,7 @@ import 'dart:async';
 import '../../../../core/models/location_model.dart';
 import '../../../../core/services/location_service.dart';
 import '../../../../core/providers/user_provider.dart';
+import '../../../../core/providers/family_provider.dart';
 
 /// Family Location Screen — shows child locations without requiring a Maps API key.
 /// Tapping a location card opens the native maps app via a geo: URI.
@@ -21,12 +22,13 @@ class _FamilyMapScreenState extends ConsumerState<FamilyMapScreen> {
   List<FamilyLocation> _locations = [];
   bool _isLoading = true;
   String? _error;
+  String? _activeFamilyId;
   StreamSubscription<List<FamilyLocation>>? _locationSubscription;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _subscribeToLocations());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _initSubscription());
   }
 
   @override
@@ -35,10 +37,23 @@ class _FamilyMapScreenState extends ConsumerState<FamilyMapScreen> {
     super.dispose();
   }
 
-  void _subscribeToLocations() {
-    final effectiveFamilyId =
-        widget.familyId ?? ref.read(currentUserDataProvider).value?.familyId ?? '';
-    if (effectiveFamilyId.isEmpty) {
+  void _initSubscription() {
+    final effectiveFamilyId = widget.familyId ??
+        ref.read(selectedFamilyProvider)?.id ??
+        ref.read(currentUserDataProvider).value?.familyId ?? '';
+    if (effectiveFamilyId.isNotEmpty) {
+      _subscribeToLocations(effectiveFamilyId);
+    }
+  }
+
+  void _subscribeToLocations([String? familyId]) {
+    final effectiveId = familyId ??
+        _activeFamilyId ??
+        widget.familyId ??
+        ref.read(selectedFamilyProvider)?.id ??
+        ref.read(currentUserDataProvider).value?.familyId ?? '';
+
+    if (effectiveId.isEmpty) {
       setState(() {
         _isLoading = false;
         _error = 'No family linked to this account yet.';
@@ -46,8 +61,10 @@ class _FamilyMapScreenState extends ConsumerState<FamilyMapScreen> {
       return;
     }
 
+    _activeFamilyId = effectiveId;
+    _locationSubscription?.cancel();
     _locationSubscription = LocationService()
-        .getFamilyLocations(effectiveFamilyId)
+        .getFamilyLocations(effectiveId)
         .listen(
       (locations) {
         if (mounted) {
@@ -94,6 +111,32 @@ class _FamilyMapScreenState extends ConsumerState<FamilyMapScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(currentUserDataProvider, (prev, next) {
+      final fid = widget.familyId ?? next.value?.familyId;
+      if (fid != null && fid.isNotEmpty && fid != _activeFamilyId) {
+        _subscribeToLocations(fid);
+      }
+    });
+
+    ref.listen(selectedFamilyProvider, (prev, next) {
+      final fid = widget.familyId ?? next?.id;
+      if (fid != null && fid.isNotEmpty && fid != _activeFamilyId) {
+        _subscribeToLocations(fid);
+      }
+    });
+
+    // Auto-subscribe if data becomes available
+    final currentFid = widget.familyId ??
+        ref.watch(currentUserDataProvider).value?.familyId ??
+        ref.watch(selectedFamilyProvider)?.id;
+    if (_activeFamilyId == null && currentFid != null && currentFid.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _activeFamilyId != currentFid) {
+          _subscribeToLocations(currentFid);
+        }
+      });
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
@@ -122,8 +165,18 @@ class _FamilyMapScreenState extends ConsumerState<FamilyMapScreen> {
                 _isLoading = true;
                 _error = null;
               });
-              _locationSubscription?.cancel();
-              _subscribeToLocations();
+              final fid = _activeFamilyId ??
+                  widget.familyId ??
+                  ref.read(selectedFamilyProvider)?.id ??
+                  ref.read(currentUserDataProvider).value?.familyId ?? '';
+              if (fid.isNotEmpty) {
+                _subscribeToLocations(fid);
+              } else {
+                setState(() {
+                  _isLoading = false;
+                  _error = 'No family linked to this account yet.';
+                });
+              }
             },
           ),
         ],
@@ -277,6 +330,9 @@ class _LocationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final timeAgo = _timeAgo(location.timestamp);
     final isStale = location.isStale;
+    final displayName = (location.childName != null && location.childName!.trim().isNotEmpty)
+        ? location.childName!.trim()
+        : 'Child (${location.childId.length > 6 ? location.childId.substring(0, 6) : location.childId})';
 
     return GestureDetector(
       onTap: onTap,
@@ -319,7 +375,7 @@ class _LocationCard extends StatelessWidget {
                   ),
                   child: Center(
                     child: Text(
-                      _initials(location.childId),
+                      _initials(displayName),
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -334,11 +390,13 @@ class _LocationCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Child · ${location.childId.substring(0, 8)}',
+                        displayName,
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 15,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 2),
                       Row(
@@ -444,8 +502,9 @@ class _LocationCard extends StatelessWidget {
     );
   }
 
-  String _initials(String childId) {
-    return childId.isEmpty ? 'C' : childId[0].toUpperCase();
+  String _initials(String name) {
+    final trimmed = name.trim();
+    return trimmed.isEmpty ? 'C' : trimmed[0].toUpperCase();
   }
 
   String _timeAgo(DateTime timestamp) {

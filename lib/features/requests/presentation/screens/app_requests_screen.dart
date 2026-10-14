@@ -162,7 +162,6 @@ class _RequestList extends StatelessWidget {
           .doc(familyId)
           .collection('requests')
           .where('status', isEqualTo: filter.name)
-          .orderBy('createdAt', descending: true)
           .limit(50)
           .snapshots(),
       builder: (context, snapshot) {
@@ -170,8 +169,12 @@ class _RequestList extends StatelessWidget {
           return const Center(child: CircularProgressIndicator(color: Color(0xFF4F46E5)));
         }
         if (snapshot.hasError) {
-          // Firestore may need an index — fall back to unordered query
-          return _UnorderedRequestList(familyId: familyId, filter: filter);
+          return Center(
+            child: Text(
+              'Error loading requests: ${snapshot.error}',
+              style: const TextStyle(color: Color(0xFFEF4444), fontSize: 13),
+            ),
+          );
         }
 
         final docs = snapshot.data?.docs ?? [];
@@ -188,7 +191,8 @@ class _RequestList extends StatelessWidget {
               }
             })
             .whereType<AppRequest>()
-            .toList();
+            .toList()
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
         return ListView.builder(
           padding: const EdgeInsets.all(16),
@@ -237,47 +241,6 @@ class _RequestList extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-/// Fallback list without orderBy (no index needed)
-class _UnorderedRequestList extends StatelessWidget {
-  final String familyId;
-  final RequestStatus filter;
-
-  const _UnorderedRequestList({required this.familyId, required this.filter});
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('families')
-          .doc(familyId)
-          .collection('requests')
-          .where('status', isEqualTo: filter.name)
-          .limit(50)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: Color(0xFF4F46E5)));
-        }
-        final docs = snapshot.data?.docs ?? [];
-        if (docs.isEmpty) {
-          return const Center(child: Text('No requests found.', style: TextStyle(color: Color(0xFF64748B))));
-        }
-        final requests = docs
-            .map((doc) { try { return AppRequest.fromFirestore(doc); } catch (_) { return null; } })
-            .whereType<AppRequest>()
-            .toList()
-          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: requests.length,
-          itemBuilder: (ctx, i) => _RequestCard(request: requests[i], familyId: familyId),
-        );
-      },
     );
   }
 }
@@ -344,6 +307,13 @@ class _RequestCard extends ConsumerWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
+                      if (request.childName != null && request.childName!.isNotEmpty)
+                        Text(
+                          'Requested by: ${request.childName}',
+                          style: const TextStyle(fontSize: 12, color: Color(0xFF4F46E5), fontWeight: FontWeight.w600),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       Text(
                         request.packageName,
                         style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
@@ -467,16 +437,31 @@ class _RequestCard extends ConsumerWidget {
 
   Future<void> _deny(BuildContext context, WidgetRef ref) async {
     try {
+      final updateData = {
+        'status': RequestStatus.denied.name,
+        'decidedAt': Timestamp.now(),
+        'decidedBy': ref.read(authProvider).user?.uid ?? '',
+      };
+
       await FirebaseFirestore.instance
           .collection('families')
           .doc(familyId)
           .collection('requests')
           .doc(request.id)
-          .update({
-        'status': RequestStatus.denied.name,
-        'decidedAt': Timestamp.now(),
-        'decidedBy': ref.read(authProvider).user?.uid ?? '',
-      });
+          .set(updateData, SetOptions(merge: true));
+
+      if (request.childId.isNotEmpty) {
+        try {
+          await FirebaseFirestore.instance
+              .collection('families')
+              .doc(familyId)
+              .collection('children')
+              .doc(request.childId)
+              .collection('requests')
+              .doc(request.id)
+              .set(updateData, SetOptions(merge: true));
+        } catch (_) {}
+      }
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -561,18 +546,33 @@ class _ApproveSheetState extends State<_ApproveSheet> {
     setState(() => _loading = true);
     try {
       final now = DateTime.now();
-      await FirebaseFirestore.instance
-          .collection('families')
-          .doc(widget.familyId)
-          .collection('requests')
-          .doc(widget.request.id)
-          .update({
+      final approveData = {
         'status': RequestStatus.approved.name,
         'grantedMinutes': _selected.minutes,
         'decidedAt': Timestamp.fromDate(now),
         'decidedBy': widget.parentId,
         'accessExpiresAt': Timestamp.fromDate(now.add(Duration(minutes: _selected.minutes))),
-      });
+      };
+
+      await FirebaseFirestore.instance
+          .collection('families')
+          .doc(widget.familyId)
+          .collection('requests')
+          .doc(widget.request.id)
+          .set(approveData, SetOptions(merge: true));
+
+      if (widget.request.childId.isNotEmpty) {
+        try {
+          await FirebaseFirestore.instance
+              .collection('families')
+              .doc(widget.familyId)
+              .collection('children')
+              .doc(widget.request.childId)
+              .collection('requests')
+              .doc(widget.request.id)
+              .set(approveData, SetOptions(merge: true));
+        } catch (_) {}
+      }
       if (mounted) Navigator.pop(context);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

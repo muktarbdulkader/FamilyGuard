@@ -108,9 +108,19 @@ class MonitoringHelper(private val activity: Activity) {
     }
 
     /**
-     * Start the monitoring service
+     * Start the monitoring service and persist context for post-reboot restart.
      */
     private fun startMonitoringService(familyId: String, childId: String) {
+        // Persist credentials so BootReceiver can restart monitoring after reboot.
+        val prefs = activity.getSharedPreferences("family_guardian_prefs", Context.MODE_PRIVATE)
+        prefs.edit()
+            .putBoolean("monitoring_enabled", true)
+            .putBoolean("is_logged_in", true)
+            .putString("user_role", "child")
+            .putString("family_id", familyId)
+            .putString("child_id", childId)
+            .apply()
+
         val serviceIntent = Intent(activity, MonitoringService::class.java).apply {
             action = MonitoringService.ACTION_START_MONITORING
             putExtra("familyId", familyId)

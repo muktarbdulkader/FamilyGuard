@@ -65,7 +65,7 @@ class _JoinFamilyScreenState extends ConsumerState<JoinFamilyScreen>
       );
 
       // Refresh current user data provider so family state is recognized
-      ref.refresh(currentUserDataProvider);
+      final _ = ref.refresh(currentUserDataProvider);
 
       // Trigger automatic scan & upload and start monitoring right away
       unawaited(() async {

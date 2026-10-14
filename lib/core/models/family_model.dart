@@ -137,7 +137,7 @@ class ChildModel {
   factory ChildModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
 
-    DateTime _parseTimestamp(dynamic value, DateTime fallback) {
+    DateTime parseTimestamp(dynamic value, DateTime fallback) {
       if (value == null) return fallback;
       if (value is Timestamp) return value.toDate();
       if (value is DateTime) return value;
@@ -151,8 +151,8 @@ class ChildModel {
       displayName: data['displayName'] ?? data['name'] ?? data['email']?.toString().split('@').first ?? 'Child',
       email: data['email'] ?? '',
       familyId: data['familyId'] ?? '',
-      joinedAt: _parseTimestamp(data['joinedAt'] ?? data['createdAt'], DateTime.now()),
-      lastActiveAt: _parseTimestamp(data['lastActiveAt'] ?? data['lastSeen'] ?? data['updatedAt'], DateTime.now()),
+      joinedAt: parseTimestamp(data['joinedAt'] ?? data['createdAt'], DateTime.now()),
+      lastActiveAt: parseTimestamp(data['lastActiveAt'] ?? data['lastSeen'] ?? data['updatedAt'], DateTime.now()),
       isOnline: data['isOnline'] ?? data['online'] ?? false,
       deviceInfo: data['deviceInfo'],
       preferences: Map<String, dynamic>.from(data['preferences'] ?? {}),

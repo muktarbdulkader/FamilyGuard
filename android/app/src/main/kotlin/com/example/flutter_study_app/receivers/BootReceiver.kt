@@ -24,9 +24,20 @@ class BootReceiver : BroadcastReceiver() {
                 
                 if (monitoringEnabled) {
                     try {
-                        // Restart monitoring service
-                        MonitoringService.startService(context)
-                        android.util.Log.i("BootReceiver", "Monitoring service restarted after boot")
+                        val familyId = sharedPrefs.getString("family_id", null)
+                        val childId = sharedPrefs.getString("child_id", null)
+                        // Restart monitoring service with stored credentials
+                        val intent = android.content.Intent(context, MonitoringService::class.java).apply {
+                            action = MonitoringService.ACTION_START_MONITORING
+                            if (!familyId.isNullOrEmpty()) putExtra("familyId", familyId)
+                            if (!childId.isNullOrEmpty()) putExtra("childId", childId)
+                        }
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                            context.startForegroundService(intent)
+                        } else {
+                            context.startService(intent)
+                        }
+                        android.util.Log.i("BootReceiver", "Monitoring service restarted after boot (family=$familyId, child=$childId)")
                     } catch (e: Exception) {
                         android.util.Log.e("BootReceiver", "Failed to restart monitoring service", e)
                     }

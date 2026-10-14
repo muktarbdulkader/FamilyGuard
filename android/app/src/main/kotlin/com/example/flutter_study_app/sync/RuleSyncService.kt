@@ -25,7 +25,10 @@ class RuleSyncService(
     private val firestore = FirebaseFirestore.getInstance()
     private var ruleListener: ListenerRegistration? = null
     private var approvalListener: ListenerRegistration? = null
-    private val syncScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    // Recreated on every startSync() to avoid the cancelled-scope bug where
+    // stopSync() permanently cancels the scope before new listeners are attached.
+    private var syncJob = SupervisorJob()
+    private var syncScope = CoroutineScope(Dispatchers.IO + syncJob)
     
     companion object {
         private const val COLLECTION_FAMILIES = "families"
@@ -38,7 +41,16 @@ class RuleSyncService(
      * Start real-time synchronization with Firestore
      */
     fun startSync(familyId: String) {
-        stopSync() // Stop any existing listeners
+        // Stop existing Firestore listeners without cancelling the scope we're about to use
+        ruleListener?.remove()
+        approvalListener?.remove()
+        ruleListener = null
+        approvalListener = null
+
+        // Recreate scope so we always have a live scope for snapshot callbacks
+        syncJob.cancel()
+        syncJob = SupervisorJob()
+        syncScope = CoroutineScope(Dispatchers.IO + syncJob)
         
         // Listen for rule changes
         val rulesRef = firestore
@@ -107,7 +119,8 @@ class RuleSyncService(
         approvalListener?.remove()
         ruleListener = null
         approvalListener = null
-        syncScope.cancel()
+        syncJob.cancel()
+        android.util.Log.d("RuleSyncService", "Sync stopped")
     }
     
     /**
@@ -118,23 +131,23 @@ class RuleSyncService(
             // Get current local rules
             val localRules = database.getAllRules().associateBy { it.packageName }
             
-            // Update/insert rules from Firestore
+            // Unconditionally insert/update every rule from Firestore to local DB.
+            // Avoids stale timestamp comparison issues (timezone/format differences).
             for (firestoreRule in firestoreRules) {
-                val localRule = localRules[firestoreRule.packageName]
-                
-                // Update if rule is newer, doesn't exist locally, or rule type has changed
-                if (localRule == null || firestoreRule.type != localRule.type || firestoreRule.updatedAt.isAfter(localRule.updatedAt)) {
-                    database.insertOrUpdateRule(firestoreRule)
-                    android.util.Log.d("RuleSyncService", "Updated rule for: ${firestoreRule.packageName} -> ${firestoreRule.type}")
-                }
+                database.insertOrUpdateRule(firestoreRule)
+                android.util.Log.d("RuleSyncService",
+                    "Updated rule: ${firestoreRule.packageName} -> ${firestoreRule.type}")
             }
             
-            // Remove local rules that no longer exist in Firestore
-            val firestorePackages = firestoreRules.map { it.packageName }.toSet()
-            for ((packageName, localRule) in localRules) {
-                if (!firestorePackages.contains(packageName)) {
-                    database.deleteRule(packageName)
-                    android.util.Log.d("RuleSyncService", "Removed rule for: $packageName")
+            // Only remove local rules that disappeared from Firestore if the
+            // snapshot actually returned rules (guards against empty-snapshot false deletes).
+            if (firestoreRules.isNotEmpty()) {
+                val firestorePackages = firestoreRules.map { it.packageName }.toSet()
+                for ((packageName, _) in localRules) {
+                    if (!firestorePackages.contains(packageName)) {
+                        database.deleteRule(packageName)
+                        android.util.Log.d("RuleSyncService", "Removed stale rule: $packageName")
+                    }
                 }
             }
             
@@ -319,17 +332,22 @@ class RuleSyncService(
      */
     suspend fun sendParentRequest(familyId: String, packageName: String) = withContext(Dispatchers.IO) {
         try {
+            val appName = getAppName(packageName)
             val requestsRef = firestore
                 .collection(COLLECTION_FAMILIES)
                 .document(familyId)
-                .collection("parentRequests")
+                .collection("requests")
             
-            val requestData = mapOf(
-                "childId" to childId,
+            val requestData = hashMapOf(
+                "familyId" to familyId,
+                "childId" to (childId ?: ""),
                 "packageName" to packageName,
-                "requestedAt" to LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+                "appName" to appName,
                 "status" to "pending",
-                "appName" to getAppName(packageName)
+                "createdAt" to com.google.firebase.Timestamp.now(),
+                "expiresAt" to com.google.firebase.Timestamp(java.util.Date(System.currentTimeMillis() + 86400000L)),
+                "deviceInfo" to android.os.Build.MODEL,
+                "requestNonce" to java.util.UUID.randomUUID().toString()
             )
             
             requestsRef.add(requestData).addOnSuccessListener { docRef ->

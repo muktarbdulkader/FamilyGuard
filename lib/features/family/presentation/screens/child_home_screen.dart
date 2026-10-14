@@ -8,6 +8,8 @@ import '../../../../core/providers/user_provider.dart';
 import 'dart:async';
 import '../../../../core/services/app_scanner_service.dart';
 import '../../../../core/services/monitoring_service.dart';
+import '../../../../core/services/permission_service.dart';
+import '../../../../core/services/location_service.dart';
 
 /// Child home screen - Modern, friendly status interface for protected devices
 class ChildHomeScreen extends ConsumerStatefulWidget {
@@ -19,6 +21,29 @@ class ChildHomeScreen extends ConsumerStatefulWidget {
 
 class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
   bool _hasTriggeredSync = false;
+  bool _hasUsageStats = true;  // optimistic default
+  bool _hasOverlay = true;     // optimistic default
+  bool _hasLocationPermission = true; // optimistic default
+  final _permissionService = PermissionService();
+
+  @override
+  void initState() {
+    super.initState();
+    _checkPermissions();
+  }
+
+  Future<void> _checkPermissions() async {
+    final usage = await _permissionService.hasUsageStatsPermission();
+    final overlay = await _permissionService.hasOverlayPermission();
+    final locInfo = await LocationService().checkLocationPermission();
+    if (mounted) {
+      setState(() {
+        _hasUsageStats = usage;
+        _hasOverlay = overlay;
+        _hasLocationPermission = locInfo.canShareLocation;
+      });
+    }
+  }
 
   void _triggerBackgroundSync(dynamic user) {
     if (_hasTriggeredSync || user == null || user.hasFamily != true) return;
@@ -26,6 +51,7 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
 
     final familyId = user.familyId as String?;
     final childId = user.uid as String?;
+    final childName = (user.displayName as String?) ?? (user.name as String?) ?? 'Child';
     if (familyId == null || childId == null) return;
 
     unawaited(() async {
@@ -41,6 +67,12 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
           familyId: familyId,
           childId: childId,
           appRules: [],
+        );
+        // Start child location sharing
+        await LocationService().startChildSharing(
+          familyId: familyId,
+          childId: childId,
+          childName: childName,
         );
       } catch (e) {
         debugPrint('Auto sync in ChildHomeScreen error: $e');
@@ -95,7 +127,101 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
             ),
             data: (user) => CustomScrollView(
               slivers: [
-                // Top Custom Header
+                // ── Permission Warning Banner ───────────────────────
+                if (!_hasUsageStats || !_hasOverlay || !_hasLocationPermission)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(18),
+                          onTap: () async {
+                            if (!_hasUsageStats) {
+                              await _permissionService.openUsageStatsSettings();
+                            } else if (!_hasOverlay) {
+                              await _permissionService.openOverlaySettings();
+                            } else if (!_hasLocationPermission) {
+                              await LocationService().requestLocationPermission();
+                            }
+                            // Re-check after returning from settings
+                            await Future.delayed(const Duration(milliseconds: 800));
+                            await _checkPermissions();
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFFB45309), Color(0xFFD97706)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(18),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFFD97706).withOpacity(0.35),
+                                  blurRadius: 14,
+                                  offset: const Offset(0, 6),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Icon(
+                                    Icons.warning_amber_rounded,
+                                    color: Colors.white,
+                                    size: 26,
+                                  ),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        '⚠️ Permissions Required',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 3),
+                                      Text(
+                                        !_hasUsageStats
+                                          ? 'Grant Usage Access so blocked apps can be detected in the background.'
+                                          : !_hasOverlay
+                                              ? 'Grant "Display over other apps" so the block screen can appear.'
+                                              : 'Grant Location permission so parents can view your live GPS location.',
+                                        style: TextStyle(
+                                          color: Colors.white.withOpacity(0.9),
+                                          fontSize: 12,
+                                          height: 1.3,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                const Icon(
+                                  Icons.arrow_forward_ios_rounded,
+                                  color: Colors.white70,
+                                  size: 16,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                // ── Top Custom Header ───────────────────────────────
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),

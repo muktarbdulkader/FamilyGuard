@@ -5,6 +5,7 @@ class AppRequest {
   final String id;
   final String familyId;
   final String childId;
+  final String? childName;
   final String packageName;
   final String appName;
   final RequestStatus status;
@@ -20,6 +21,7 @@ class AppRequest {
     required this.id,
     required this.familyId,
     required this.childId,
+    this.childName,
     required this.packageName,
     required this.appName,
     required this.status,
@@ -34,25 +36,37 @@ class AppRequest {
 
   /// Create from Firestore document
   factory AppRequest.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+    final data = (doc.data() as Map<String, dynamic>?) ?? {};
+
+    DateTime parseDate(dynamic value, DateTime fallback) {
+      if (value == null) return fallback;
+      if (value is Timestamp) return value.toDate();
+      if (value is DateTime) return value;
+      if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
+      if (value is String) return DateTime.tryParse(value) ?? fallback;
+      return fallback;
+    }
+
+    final createdAt = parseDate(data['createdAt'], DateTime.now());
+    final expiresAt = parseDate(data['expiresAt'], createdAt.add(const Duration(hours: 24)));
+    final decidedAt = data['decidedAt'] != null ? parseDate(data['decidedAt'], DateTime.now()) : null;
     
     return AppRequest(
       id: doc.id,
       familyId: data['familyId'] ?? '',
       childId: data['childId'] ?? '',
+      childName: data['childName'] as String?,
       packageName: data['packageName'] ?? '',
-      appName: data['appName'] ?? '',
+      appName: data['appName'] ?? (data['packageName'] ?? 'App'),
       status: RequestStatus.values.firstWhere(
         (s) => s.name == data['status'],
         orElse: () => RequestStatus.pending,
       ),
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-      expiresAt: (data['expiresAt'] as Timestamp).toDate(),
+      createdAt: createdAt,
+      expiresAt: expiresAt,
       grantedMinutes: data['grantedMinutes'] as int?,
       decidedBy: data['decidedBy'] as String?,
-      decidedAt: data['decidedAt'] != null 
-          ? (data['decidedAt'] as Timestamp).toDate()
-          : null,
+      decidedAt: decidedAt,
       deviceInfo: data['deviceInfo'] as String?,
       requestNonce: data['requestNonce'] ?? '',
     );
@@ -63,6 +77,7 @@ class AppRequest {
     return {
       'familyId': familyId,
       'childId': childId,
+      if (childName != null) 'childName': childName,
       'packageName': packageName,
       'appName': appName,
       'status': status.name,
@@ -81,6 +96,7 @@ class AppRequest {
     String? id,
     String? familyId,
     String? childId,
+    String? childName,
     String? packageName,
     String? appName,
     RequestStatus? status,
@@ -96,6 +112,7 @@ class AppRequest {
       id: id ?? this.id,
       familyId: familyId ?? this.familyId,
       childId: childId ?? this.childId,
+      childName: childName ?? this.childName,
       packageName: packageName ?? this.packageName,
       appName: appName ?? this.appName,
       status: status ?? this.status,

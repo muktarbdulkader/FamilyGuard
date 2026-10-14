@@ -5,6 +5,7 @@ class FamilyLocation {
   final String id;
   final String familyId;
   final String childId;
+  final String? childName;
   final double latitude;
   final double longitude;
   final double? accuracy;
@@ -19,6 +20,7 @@ class FamilyLocation {
     required this.id,
     required this.familyId,
     required this.childId,
+    this.childName,
     required this.latitude,
     required this.longitude,
     this.accuracy,
@@ -46,7 +48,8 @@ class FamilyLocation {
     return FamilyLocation(
       id: id.isNotEmpty ? id : (data['id'] ?? ''),
       familyId: data['familyId'] ?? '',
-      childId: data['childId'] ?? '',
+      childId: data['childId'] ?? id,
+      childName: data['childName'] as String?,
       latitude: (data['latitude'] ?? 0.0).toDouble(),
       longitude: (data['longitude'] ?? 0.0).toDouble(),
       accuracy: data['accuracy']?.toDouble(),
@@ -70,6 +73,7 @@ class FamilyLocation {
     return {
       'familyId': familyId,
       'childId': childId,
+      if (childName != null) 'childName': childName,
       'latitude': latitude,
       'longitude': longitude,
       'accuracy': accuracy,
@@ -109,6 +113,7 @@ class FamilyLocation {
     String? id,
     String? familyId,
     String? childId,
+    String? childName,
     double? latitude,
     double? longitude,
     double? accuracy,
@@ -123,6 +128,7 @@ class FamilyLocation {
       id: id ?? this.id,
       familyId: familyId ?? this.familyId,
       childId: childId ?? this.childId,
+      childName: childName ?? this.childName,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       accuracy: accuracy ?? this.accuracy,

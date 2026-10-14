@@ -572,22 +572,38 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         dividerColor: Colors.transparent,
         tabs: const [
           Tab(
+            height: 40,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.login_rounded, size: 16),
-                SizedBox(width: 6),
-                Text('Sign In'),
+                Icon(Icons.login_rounded, size: 15),
+                SizedBox(width: 5),
+                Flexible(
+                  child: Text(
+                    'Sign In',
+                    overflow: TextOverflow.ellipsis,
+                    softWrap: false,
+                  ),
+                ),
               ],
             ),
           ),
           Tab(
+            height: 40,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.person_add_alt_1_rounded, size: 16),
-                SizedBox(width: 6),
-                Text('Create Account'),
+                Icon(Icons.person_add_alt_1_rounded, size: 15),
+                SizedBox(width: 5),
+                Flexible(
+                  child: Text(
+                    'Register',
+                    overflow: TextOverflow.ellipsis,
+                    softWrap: false,
+                  ),
+                ),
               ],
             ),
           ),

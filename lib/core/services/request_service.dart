@@ -79,6 +79,7 @@ class RequestService {
     required String childId,
     required String packageName,
     required String appName,
+    String? childName,
     String? deviceInfo,
   }) async {
     try {
@@ -105,6 +106,7 @@ class RequestService {
         id: '', // Will be set by Firestore
         familyId: familyId,
         childId: childId,
+        childName: childName,
         packageName: packageName,
         appName: appName,
         status: RequestStatus.pending,
@@ -114,7 +116,8 @@ class RequestService {
         deviceInfo: deviceInfo,
       );
 
-      // Store in Firestore
+      // Store in Firestore:
+      // 1. Child subcollection
       final docRef = await _firestore
           .collection(_collectionFamilies)
           .doc(familyId)
@@ -124,6 +127,14 @@ class RequestService {
           .add(request.toFirestore());
 
       final createdRequest = request.copyWith(id: docRef.id);
+
+      // 2. Family-level requests collection for parent dashboard
+      await _firestore
+          .collection(_collectionFamilies)
+          .doc(familyId)
+          .collection(_collectionRequests)
+          .doc(docRef.id)
+          .set(createdRequest.toFirestore(), SetOptions(merge: true));
       
       // Send FCM notification to parents
       await _notifyParents(familyId, createdRequest);

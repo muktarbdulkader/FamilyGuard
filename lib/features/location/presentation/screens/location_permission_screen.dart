@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../core/models/location_model.dart';
 import '../../../../core/services/location_service.dart';
 
@@ -163,6 +164,15 @@ class _LocationPermissionScreenState extends ConsumerState<LocationPermissionScr
   }
 
   Future<void> _completeSetup() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      await LocationService().startChildSharing(
+        familyId: widget.familyId,
+        childId: user.uid,
+        childName: user.displayName,
+      );
+    }
+    if (!mounted) return;
     if (widget.onComplete != null) {
       widget.onComplete!();
     } else {

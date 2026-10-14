@@ -597,6 +597,27 @@ class MonitoringService : Service() {
 
             firestore.collection("notifications").add(notificationData)
             
+            // Also create or refresh pending request in families/{familyId}/requests
+            val reqId = "${childId}_${packageName.replace(".", "_")}"
+            val requestData = hashMapOf(
+                "id" to reqId,
+                "familyId" to familyId,
+                "childId" to childId,
+                "childName" to childName,
+                "packageName" to packageName,
+                "appName" to appName,
+                "status" to "pending",
+                "createdAt" to com.google.firebase.Timestamp.now(),
+                "expiresAt" to com.google.firebase.Timestamp(java.util.Date(System.currentTimeMillis() + 86400000L)),
+                "deviceInfo" to android.os.Build.MODEL,
+                "requestNonce" to java.util.UUID.randomUUID().toString()
+            )
+            firestore.collection("families")
+                .document(familyId)
+                .collection("requests")
+                .document(reqId)
+                .set(requestData, com.google.firebase.firestore.SetOptions.merge())
+
             // Also add event to family event log
             firestore.collection("families")
                 .document(familyId)
@@ -611,7 +632,7 @@ class MonitoringService : Service() {
                     "timestamp" to com.google.firebase.Timestamp.now()
                 ))
                 
-            android.util.Log.d("MonitoringService", "Sent blocked app notification to parent for $appName")
+            android.util.Log.d("MonitoringService", "Sent blocked app notification and request to parent for $appName")
         } catch (e: Exception) {
             android.util.Log.e("MonitoringService", "Error sending blocked app notification", e)
         }

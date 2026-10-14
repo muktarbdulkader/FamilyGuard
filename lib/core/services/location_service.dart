@@ -23,6 +23,8 @@ class LocationService {
   bool _isInitialized = false;
   bool _isSharing = false;
   String? _currentFamilyId;
+  String? _currentChildId;
+  String? _currentChildName;
   LocationSharingSettings? _currentSettings;
 
   Future<void> initialize() async {
@@ -222,60 +224,86 @@ class LocationService {
     }
   }
 
-  Future<void> startLocationSharing(String familyId) async {
-    if (_isSharing) return;
-
+  /// Starts direct location sharing for a child device without requiring explicit parent toggling
+  Future<bool> startChildSharing({
+    required String familyId,
+    required String childId,
+    String? childName,
+  }) async {
     try {
-      final user = _auth.currentUser;
-      if (user == null) return;
-
-      // Load settings
-      final settings = await getFamilyLocationSettings(familyId);
-      if (settings == null || !settings.isEnabled) {
-        if (kDebugMode) {
-          print('Location sharing not enabled for family: $familyId');
-        }
-        return;
-      }
-
-      // Check if current user is in the enabled children list
-      if (!settings.enabledForChildren.contains(user.uid)) {
-        if (kDebugMode) {
-          print('Location sharing not enabled for current user');
-        }
-        return;
-      }
-
-      // Check permissions
-      final permissionInfo = await checkLocationPermission();
-      if (!permissionInfo.canShareLocation) {
-        if (kDebugMode) {
-          print('Insufficient location permissions');
-        }
-        return;
-      }
-
-      _currentSettings = settings;
       _currentFamilyId = familyId;
+      _currentChildId = childId;
+      if (childName != null && childName.isNotEmpty) {
+        _currentChildName = childName;
+      }
+
+      // Check or request location permissions
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        if (kDebugMode) {
+          print('Location permission denied for child: $childId');
+        }
+        return false;
+      }
+
+      _currentSettings ??= LocationSharingSettings(
+        familyId: familyId,
+        isEnabled: true,
+        updateInterval: const Duration(minutes: 3),
+        minimumDistance: 15.0,
+        enabledForChildren: [childId],
+      );
+
       _isSharing = true;
 
-      // Start location updates
-      if (settings.shareOnlyWhenAppOpen) {
-        await _startForegroundLocationUpdates();
-      } else {
-        await _startBackgroundLocationUpdates();
+      // 1. Immediately attempt to get current GPS position and upload to Firestore
+      try {
+        final initialPosition = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+          timeLimit: const Duration(seconds: 10),
+        );
+        await _handleLocationUpdate(initialPosition);
+      } catch (e) {
+        if (kDebugMode) {
+          print('Could not get initial position fix: $e');
+        }
+        try {
+          final lastKnown = await Geolocator.getLastKnownPosition();
+          if (lastKnown != null) {
+            await _handleLocationUpdate(lastKnown);
+          }
+        } catch (_) {}
       }
 
+      // 2. Start continuous GPS stream and periodic updates
+      await _startBackgroundLocationUpdates();
+
       if (kDebugMode) {
-        print('Location sharing started for family: $familyId');
+        print('Location sharing successfully started for child $childId in family $familyId');
       }
-      
+
+      return true;
     } catch (e) {
       if (kDebugMode) {
-        print('Error starting location sharing: $e');
+        print('Error starting child sharing: $e');
       }
-      _isSharing = false;
+      return false;
     }
+  }
+
+  Future<void> startLocationSharing(String familyId) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    await startChildSharing(
+      familyId: familyId,
+      childId: user.uid,
+      childName: user.displayName,
+    );
   }
 
   Future<void> stopLocationSharing() async {
@@ -304,12 +332,13 @@ class LocationService {
     }
   }
 
-  Future<void> _startForegroundLocationUpdates() async {
+  Future<void> startForegroundLocationUpdates() async {
     const locationSettings = LocationSettings(
       accuracy: LocationAccuracy.high,
-      distanceFilter: 10, // Update when moved 10 meters
+      distanceFilter: 15, // Update when moved 15 meters
     );
 
+    await _locationSubscription?.cancel();
     _locationSubscription = Geolocator.getPositionStream(
       locationSettings: locationSettings,
     ).listen(
@@ -323,14 +352,12 @@ class LocationService {
   }
 
   Future<void> _startBackgroundLocationUpdates() async {
-    // For background updates, we use a timer-based approach
-    // combined with position stream for better battery efficiency
-    
     const locationSettings = LocationSettings(
-      accuracy: LocationAccuracy.medium,
-      distanceFilter: 50, // Update when moved 50 meters
+      accuracy: LocationAccuracy.high,
+      distanceFilter: 15, // Update when moved 15 meters
     );
 
+    await _locationSubscription?.cancel();
     _locationSubscription = Geolocator.getPositionStream(
       locationSettings: locationSettings,
     ).listen(
@@ -342,9 +369,10 @@ class LocationService {
       },
     );
 
-    // Also set up periodic updates as fallback
+    // Also set up periodic updates every 3 minutes so timestamps remain fresh
+    _locationUpdateTimer?.cancel();
     _locationUpdateTimer = Timer.periodic(
-      _currentSettings?.updateInterval ?? const Duration(minutes: 5),
+      const Duration(minutes: 3),
       (_) => _updateLocationPeriodically(),
     );
   }
@@ -352,7 +380,8 @@ class LocationService {
   Future<void> _updateLocationPeriodically() async {
     try {
       final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.medium,
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 12),
       );
       
       await _handleLocationUpdate(position);
@@ -365,32 +394,32 @@ class LocationService {
   }
 
   Future<void> _handleLocationUpdate(Position position) async {
-    final settings = _currentSettings;
     final familyId = _currentFamilyId;
-    final user = _auth.currentUser;
+    final childId = _currentChildId ?? _auth.currentUser?.uid;
     
-    if (settings == null || familyId == null || user == null) return;
+    if (familyId == null || childId == null) return;
 
-    // Check minimum distance
-    if (_lastPosition != null) {
+    final now = DateTime.now();
+
+    // Throttle: don't write more frequently than once every 15 seconds
+    if (_lastUpdateTime != null) {
+      final timeSinceLastUpdate = now.difference(_lastUpdateTime!);
+      if (timeSinceLastUpdate < const Duration(seconds: 15)) {
+        return;
+      }
+    }
+
+    // Distance check: If moved < 15 meters AND updated in the last 3 minutes, skip
+    if (_lastPosition != null && _lastUpdateTime != null) {
       final distance = Geolocator.distanceBetween(
         _lastPosition!.latitude,
         _lastPosition!.longitude,
         position.latitude,
         position.longitude,
       );
-
-      if (distance < settings.minimumDistance) {
-        return; // Don't update if haven't moved enough
-      }
-    }
-
-    // Check minimum time interval
-    final now = DateTime.now();
-    if (_lastUpdateTime != null) {
-      final timeSinceLastUpdate = now.difference(_lastUpdateTime!);
-      if (timeSinceLastUpdate < const Duration(minutes: 1)) {
-        return; // Don't update too frequently
+      final timeSinceLast = now.difference(_lastUpdateTime!);
+      if (distance < 15 && timeSinceLast < const Duration(minutes: 3)) {
+        return;
       }
     }
 
@@ -398,7 +427,8 @@ class LocationService {
       final location = FamilyLocation(
         id: now.millisecondsSinceEpoch.toString(),
         familyId: familyId,
-        childId: user.uid,
+        childId: childId,
+        childName: _currentChildName,
         latitude: position.latitude,
         longitude: position.longitude,
         accuracy: position.accuracy,
@@ -408,32 +438,36 @@ class LocationService {
         timestamp: now,
       );
 
-      // Upload to Firestore
+      final locationMap = location.toFirestore();
+
+      // 1. Update latest location on the child document (using set with merge: true)
       await _firestore
           .collection('families')
           .doc(familyId)
           .collection('children')
-          .doc(user.uid)
+          .doc(childId)
+          .set({
+        'lastLocation': locationMap,
+        'lastLocationUpdate': FieldValue.serverTimestamp(),
+        if (_currentChildName != null && _currentChildName!.isNotEmpty)
+          'displayName': _currentChildName,
+      }, SetOptions(merge: true));
+
+      // 2. Also record in historical locations subcollection
+      await _firestore
+          .collection('families')
+          .doc(familyId)
+          .collection('children')
+          .doc(childId)
           .collection('locations')
           .doc(location.id)
-          .set(location.toFirestore());
-
-      // Update latest location
-      await _firestore
-          .collection('families')
-          .doc(familyId)
-          .collection('children')
-          .doc(user.uid)
-          .update({
-        'lastLocation': location.toFirestore(),
-        'lastLocationUpdate': FieldValue.serverTimestamp(),
-      });
+          .set(locationMap);
 
       _lastPosition = position;
       _lastUpdateTime = now;
 
       if (kDebugMode) {
-        print('Location updated: ${position.latitude}, ${position.longitude}');
+        print('Location updated: ${position.latitude}, ${position.longitude} for child $childId');
       }
       
     } catch (e) {
@@ -444,6 +478,10 @@ class LocationService {
   }
 
   Stream<List<FamilyLocation>> getFamilyLocations(String familyId) {
+    if (familyId.isEmpty) {
+      return Stream.value([]);
+    }
+
     return _firestore
         .collection('families')
         .doc(familyId)
@@ -458,8 +496,13 @@ class LocationService {
         
         if (lastLocation != null) {
           try {
+            final childName = (data['displayName'] ?? data['name'] ?? lastLocation['childName']) as String?;
             final location = FamilyLocation.fromMap(
-              lastLocation,
+              {
+                ...lastLocation,
+                'childId': doc.id,
+                'childName': ?childName,
+              },
               id: doc.id,
             );
             locations.add(location);
