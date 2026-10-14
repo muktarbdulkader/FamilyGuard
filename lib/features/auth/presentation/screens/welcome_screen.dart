@@ -88,19 +88,35 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                             children: [
                               const SizedBox(height: 12),
 
-                              // App Logo Badge with Glow
+                              // Family Care Illustration Hero with Warm Aura
                               Container(
+                                width: 110,
+                                height: 110,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 3.5,
+                                  ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: const Color(0xFF4F46E5).withOpacity(isDark ? 0.35 : 0.2),
+                                      color: const Color(0xFFF43F5E).withOpacity(isDark ? 0.35 : 0.22),
                                       blurRadius: 28,
                                       spreadRadius: 4,
                                     ),
+                                    BoxShadow(
+                                      color: const Color(0xFF4F46E5).withOpacity(isDark ? 0.3 : 0.15),
+                                      blurRadius: 18,
+                                    ),
                                   ],
                                 ),
-                                child: const AppLogo(size: 88, showBackground: false),
+                                child: ClipOval(
+                                  child: Image.asset(
+                                    'assets/images/family_care.png',
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => const AppLogo(size: 88, showBackground: false),
+                                  ),
+                                ),
                               ),
 
                               const SizedBox(height: 16),
@@ -192,11 +208,11 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(16),
                                     gradient: const LinearGradient(
-                                      colors: [Color(0xFF4F46E5), Color(0xFF6366F1)],
+                                      colors: [Color(0xFF4F46E5), Color(0xFFE11D48)],
                                     ),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: const Color(0xFF4F46E5).withOpacity(0.35),
+                                        color: const Color(0xFFE11D48).withOpacity(0.35),
                                         blurRadius: 14,
                                         offset: const Offset(0, 5),
                                       ),

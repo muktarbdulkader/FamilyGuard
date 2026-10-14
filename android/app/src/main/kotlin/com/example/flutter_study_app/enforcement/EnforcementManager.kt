@@ -100,6 +100,9 @@ class EnforcementManager(
      * Show overlay for blocked apps
      */
     private fun showBlockedAppOverlay(packageName: String, rule: RuleEngine.AppRule?) {
+        // Immediately kick child out of blocked app to home screen
+        showAppSwitcher()
+        
         if (currentOverlayPackage == packageName) return // Already showing
         
         removeCurrentOverlay()
@@ -108,7 +111,7 @@ class EnforcementManager(
             // Show notification instead
             showEnforcementNotification(
                 "App Blocked",
-                "This app is not allowed. Please close it and choose a different activity.",
+                "This app is not allowed. Please choose a different activity.",
                 packageName
             )
             return
@@ -120,7 +123,7 @@ class EnforcementManager(
             message = "$appName is not allowed on this device.\n\nPlease close the app and choose a different activity.",
             actionText = "Close App",
             onAction = {
-                // Guide user to close app (we cannot force close)
+                removeCurrentOverlay()
                 showAppSwitcher()
             }
         )
@@ -163,6 +166,7 @@ class EnforcementManager(
      * Show overlay for time expired apps
      */
     private fun showTimeExpiredOverlay(packageName: String, rule: RuleEngine.AppRule?, remainingMinutes: Int) {
+        showAppSwitcher()
         if (currentOverlayPackage == packageName) return
         
         removeCurrentOverlay()
@@ -185,6 +189,7 @@ class EnforcementManager(
             message = "$appName time is up!\n\nDaily limit: ${limitHours}h ${limitMins}m\nTry again tomorrow.",
             actionText = "Close App",
             onAction = {
+                removeCurrentOverlay()
                 showAppSwitcher()
             }
         )
@@ -196,6 +201,7 @@ class EnforcementManager(
      * Show overlay for time window restrictions
      */
     private fun showTimeWindowOverlay(packageName: String, rule: RuleEngine.AppRule?, minutesUntilAllowed: Int?) {
+        showAppSwitcher()
         if (currentOverlayPackage == packageName) return
         
         removeCurrentOverlay()

@@ -49,7 +49,7 @@ class MonitoringService : Service() {
     
     private var lastForegroundApp: String? = null
     private var lastCheckTime: Long = 0
-    private val checkIntervalMs = 2000L // Check every 2 seconds
+    private val checkIntervalMs = 1000L // Check every 1 second for fast blocking
     
     // For notification tracking
     private var currentFamilyId: String? = null
@@ -59,6 +59,9 @@ class MonitoringService : Service() {
     companion object {
         private const val NOTIFICATION_ID = 1001
         private const val CHANNEL_ID = "parental_control_monitoring"
+        private const val PREFS_NAME = "family_guardian_prefs"
+        private const val KEY_FAMILY_ID = "family_id"
+        private const val KEY_CHILD_ID = "child_id"
         
         const val ACTION_START_MONITORING = "START_MONITORING"
         const val ACTION_STOP_MONITORING = "STOP_MONITORING"
@@ -67,7 +70,15 @@ class MonitoringService : Service() {
             val intent = Intent(context, MonitoringService::class.java).apply {
                 action = ACTION_START_MONITORING
             }
-            context.startForegroundService(intent)
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(intent)
+                } else {
+                    context.startService(intent)
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("MonitoringService", "Error starting service", e)
+            }
         }
         
         fun stopService(context: Context) {
@@ -91,7 +102,15 @@ class MonitoringService : Service() {
         createNotificationChannel()
         lastCheckTime = System.currentTimeMillis()
         
-        // Initialize user context for notifications
+        // Restore cached familyId & childId for background runs
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        currentFamilyId = prefs.getString(KEY_FAMILY_ID, null)
+        currentChildId = prefs.getString(KEY_CHILD_ID, null)
+        if (!currentFamilyId.isNullOrEmpty() && !currentChildId.isNullOrEmpty()) {
+            startRuleSync(currentFamilyId!!, currentChildId!!)
+        }
+        
+        // Initialize user context for notifications from Auth as well
         initializeUserContext()
     }
     
@@ -101,6 +120,10 @@ class MonitoringService : Service() {
         if (!familyId.isNullOrEmpty() && !childId.isNullOrEmpty()) {
             currentFamilyId = familyId
             currentChildId = childId
+            getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+                .putString(KEY_FAMILY_ID, familyId)
+                .putString(KEY_CHILD_ID, childId)
+                .apply()
             startRuleSync(familyId, childId)
         }
 
@@ -112,6 +135,29 @@ class MonitoringService : Service() {
         
         // Service should restart if killed by the system
         return START_STICKY
+    }
+    
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        // Ensure service restarts when user swipes the app away from recents
+        try {
+            val restartIntent = Intent(applicationContext, MonitoringService::class.java).apply {
+                action = ACTION_START_MONITORING
+            }
+            val restartPendingIntent = PendingIntent.getService(
+                applicationContext, 1001, restartIntent,
+                PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            alarmManager.set(
+                AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                SystemClock.elapsedRealtime() + 1000,
+                restartPendingIntent
+            )
+            android.util.Log.d("MonitoringService", "Scheduled service restart via AlarmManager after onTaskRemoved")
+        } catch (e: Exception) {
+            android.util.Log.e("MonitoringService", "Error scheduling restart in onTaskRemoved", e)
+        }
     }
     
     override fun onBind(intent: Intent?): IBinder? = null
@@ -172,7 +218,7 @@ class MonitoringService : Service() {
     private suspend fun checkForegroundAppAndEnforce() = withContext(Dispatchers.IO) {
         try {
             val currentTime = LocalDateTime.now()
-            val foregroundApp = getCurrentForegroundApp()
+            val foregroundApp = getCurrentForegroundApp() ?: lastForegroundApp
             
             if (foregroundApp != null && foregroundApp != lastForegroundApp) {
                 // New app came to foreground
@@ -186,7 +232,14 @@ class MonitoringService : Service() {
             }
             
             // Check if current app should be enforced
-            if (foregroundApp != null) {
+            if (foregroundApp != null && !isSystemApp(foregroundApp)) {
+                // Check if blocked to notify parent
+                val rule = database.getRule(foregroundApp)
+                if (rule?.type == RuleEngine.RuleType.BLOCKED) {
+                    val appName = getAppInfo(foregroundApp)?.name ?: foregroundApp
+                    sendBlockedAppNotification(foregroundApp, appName)
+                }
+                
                 enforcementManager.enforceRuleForApp(foregroundApp, currentTime)
             }
             
@@ -197,7 +250,7 @@ class MonitoringService : Service() {
     
     /**
      * Get the currently active foreground application
-     * Uses UsageStatsManager to determine the most recent app
+     * Uses UsageEvents with fallback to queryUsageStats
      */
     private fun getCurrentForegroundApp(): String? {
         if (!hasUsageStatsPermission()) {
@@ -206,8 +259,10 @@ class MonitoringService : Service() {
         
         try {
             val currentTime = System.currentTimeMillis()
+            
+            // 1. Check UsageEvents in the last 30 seconds
             val usageEvents = usageStatsManager.queryEvents(
-                currentTime - checkIntervalMs * 2, // Look back slightly further
+                currentTime - 30_000L,
                 currentTime
             )
             
@@ -218,14 +273,26 @@ class MonitoringService : Service() {
             while (usageEvents.hasNextEvent()) {
                 usageEvents.getNextEvent(event)
                 
-                if (event.eventType == UsageEvents.Event.MOVE_TO_FOREGROUND &&
-                    event.timeStamp > lastEventTime) {
+                val isForegroundEvent = event.eventType == UsageEvents.Event.MOVE_TO_FOREGROUND ||
+                        event.eventType == UsageEvents.Event.ACTIVITY_RESUMED
+                
+                if (isForegroundEvent && event.timeStamp > lastEventTime) {
                     lastForegroundPackage = event.packageName
                     lastEventTime = event.timeStamp
                 }
             }
             
-            return lastForegroundPackage
+            if (lastForegroundPackage != null) {
+                return lastForegroundPackage
+            }
+            
+            // 2. Fallback: queryUsageStats for top recent app
+            val stats = usageStatsManager.queryUsageStats(
+                UsageStatsManager.INTERVAL_DAILY,
+                currentTime - 120_000L,
+                currentTime
+            )
+            return stats?.maxByOrNull { it.lastTimeUsed }?.packageName
         } catch (e: Exception) {
             android.util.Log.e("MonitoringService", "Error getting foreground app", e)
             return null
@@ -486,6 +553,67 @@ class MonitoringService : Service() {
                 
         } catch (e: Exception) {
             android.util.Log.e("MonitoringService", "Error sending daily limit notification", e)
+        }
+    }
+    
+    private val lastBlockNotificationTime = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
+    /**
+     * Send real-time notification to parent when child attempts to use a blocked app
+     */
+    private suspend fun sendBlockedAppNotification(packageName: String, appName: String) {
+        val familyId = currentFamilyId ?: return
+        val childId = currentChildId ?: return
+        
+        val now = System.currentTimeMillis()
+        val lastNotif = lastBlockNotificationTime[packageName] ?: 0L
+        if (now - lastNotif < 30_000L) { // Throttle to at most once per 30 seconds per app
+            return
+        }
+        lastBlockNotificationTime[packageName] = now
+        
+        try {
+            val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+            val childName = getCurrentChildName()
+            
+            val notificationData = hashMapOf(
+                "familyId" to familyId,
+                "childId" to childId,
+                "childName" to childName,
+                "type" to "appRequest",
+                "priority" to "urgent",
+                "title" to "🚫 Blocked App Detected",
+                "body" to "$childName attempted to open $appName which is blocked.",
+                "data" to hashMapOf(
+                    "type" to "blocked_app_attempt",
+                    "familyId" to familyId,
+                    "childId" to childId,
+                    "appName" to appName,
+                    "packageName" to packageName
+                ),
+                "createdAt" to com.google.firebase.Timestamp.now(),
+                "isRead" to false
+            )
+
+            firestore.collection("notifications").add(notificationData)
+            
+            // Also add event to family event log
+            firestore.collection("families")
+                .document(familyId)
+                .collection("events")
+                .add(hashMapOf(
+                    "type" to "blocked_app_attempt",
+                    "familyId" to familyId,
+                    "childId" to childId,
+                    "childName" to childName,
+                    "appName" to appName,
+                    "packageName" to packageName,
+                    "timestamp" to com.google.firebase.Timestamp.now()
+                ))
+                
+            android.util.Log.d("MonitoringService", "Sent blocked app notification to parent for $appName")
+        } catch (e: Exception) {
+            android.util.Log.e("MonitoringService", "Error sending blocked app notification", e)
         }
     }
     

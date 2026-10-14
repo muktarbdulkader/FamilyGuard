@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/models/app_info.dart';
+import '../../../../core/models/family_model.dart';
 import '../../../../core/providers/family_provider.dart';
 import '../../../../core/providers/user_provider.dart';
 import '../../../parent/presentation/widgets/app_rule_editor_sheet.dart';
@@ -28,9 +30,21 @@ enum _AppFilter { all, blocked, ask, allowed, timeLimited }
 
 class _ParentAppManagementScreenState
     extends ConsumerState<ParentAppManagementScreen> {
+  // FIX 1: controller so the clear (X) button really clears the text field.
+  final TextEditingController _searchController = TextEditingController();
+
   String _searchQuery = '';
   _AppFilter _activeFilter = _AppFilter.all;
   bool _hideSystemApps = false;
+
+  // FIX 6: cache decoded icons so base64Decode is not run on every rebuild.
+  final Map<String, Uint8List> _iconCache = {};
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   String _resolveFamilyId() {
     if (widget.familyId.isNotEmpty) return widget.familyId;
@@ -48,16 +62,18 @@ class _ParentAppManagementScreenState
     return selectedChild?.id ?? '';
   }
 
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
+  }
+
   Future<void> _quickSetRule(AppInfo app, AppControlRule newRule) async {
     final familyId = _resolveFamilyId();
     final childId = _resolveChildId();
     if (familyId.isEmpty || childId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Cannot update rule: Family or child not selected.'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showError('Cannot update rule: Family or child not selected.');
       return;
     }
 
@@ -90,14 +106,7 @@ class _ParentAppManagementScreenState
         );
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to update rule: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      _showError('Failed to update rule: $e');
     }
   }
 
@@ -120,24 +129,34 @@ class _ParentAppManagementScreenState
     );
   }
 
+  /// Batch actions only ever target user-installed apps.
+  /// FIX 3: system apps (dialer, settings, launcher...) are never touched,
+  /// so a parent can't accidentally lock the child's phone.
   Future<void> _batchApplyRule(
       List<AppInfo> apps, AppControlRule targetRule) async {
     final familyId = _resolveFamilyId();
     final childId = _resolveChildId();
-    if (familyId.isEmpty || childId.isEmpty) return;
 
-    final targetApps = _hideSystemApps
-        ? apps.where((a) => !a.isSystemApp).toList()
-        : apps;
+    // FIX 4: tell the parent instead of failing silently.
+    if (familyId.isEmpty || childId.isEmpty) {
+      _showError('Cannot update apps: Family or child not selected.');
+      return;
+    }
 
-    if (targetApps.isEmpty) return;
+    final targetApps = apps.where((a) => !a.isSystemApp).toList();
+
+    if (targetApps.isEmpty) {
+      _showError('No user apps to update.');
+      return;
+    }
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text('Apply to ${targetApps.length} Apps?'),
         content: Text(
-          'Are you sure you want to set all ${targetApps.length} apps to ${_getRuleLabel(targetRule)}?',
+          'Are you sure you want to set all ${targetApps.length} user apps '
+          'to ${_getRuleLabel(targetRule)}? System apps are not affected.',
         ),
         actions: [
           TextButton(
@@ -183,14 +202,7 @@ class _ParentAppManagementScreenState
         );
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Batch update failed: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      _showError('Batch update failed: $e');
     }
   }
 
@@ -270,7 +282,7 @@ class _ParentAppManagementScreenState
                     Icon(Icons.notifications_active_rounded,
                         size: 20, color: Colors.amber),
                     SizedBox(width: 12),
-                    Text('Set All to Ask/Notify'),
+                    Text('Set All User Apps to Ask/Notify'),
                   ],
                 ),
               ),
@@ -281,7 +293,7 @@ class _ParentAppManagementScreenState
                     Icon(Icons.check_circle_rounded,
                         size: 20, color: Colors.green),
                     SizedBox(width: 12),
-                    Text('Allow All Apps'),
+                    Text('Allow All User Apps'),
                   ],
                 ),
               ),
@@ -324,7 +336,8 @@ class _ParentAppManagementScreenState
                 ),
                 const SizedBox(height: 16),
                 ElevatedButton.icon(
-                  onPressed: () => ref.refresh(
+                  // FIX 7: invalidate instead of an unused ref.refresh result.
+                  onPressed: () => ref.invalidate(
                     familyChildAppsProvider(
                       FamilyChildParams(familyId: familyId, childId: childId),
                     ),
@@ -367,6 +380,11 @@ class _ParentAppManagementScreenState
               allApps.where((a) => a.rule == AppControlRule.ask).length;
           final allowedCount =
               allApps.where((a) => a.rule == AppControlRule.allow).length;
+          final timedCount = allApps
+              .where((a) =>
+                  a.rule == AppControlRule.timeLimited ||
+                  a.rule == AppControlRule.timeRestricted)
+              .length;
 
           return Column(
             children: [
@@ -376,48 +394,62 @@ class _ParentAppManagementScreenState
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
                 child: Column(
                   children: [
-                    Row(
-                      children: [
-                        _buildMetricChip(
-                          label: 'Total',
-                          count: totalCount,
-                          color: const Color(0xFF1E3A8A),
-                          isSelected: _activeFilter == _AppFilter.all,
-                          onTap: () =>
-                              setState(() => _activeFilter = _AppFilter.all),
-                        ),
-                        const SizedBox(width: 8),
-                        _buildMetricChip(
-                          label: 'Blocked',
-                          count: blockedCount,
-                          color: Colors.red[700]!,
-                          isSelected: _activeFilter == _AppFilter.blocked,
-                          onTap: () => setState(
-                              () => _activeFilter = _AppFilter.blocked),
-                        ),
-                        const SizedBox(width: 8),
-                        _buildMetricChip(
-                          label: 'Notify / Ask',
-                          count: askCount,
-                          color: Colors.amber[800]!,
-                          isSelected: _activeFilter == _AppFilter.ask,
-                          onTap: () =>
-                              setState(() => _activeFilter = _AppFilter.ask),
-                        ),
-                        const SizedBox(width: 8),
-                        _buildMetricChip(
-                          label: 'Allowed',
-                          count: allowedCount,
-                          color: Colors.green[700]!,
-                          isSelected: _activeFilter == _AppFilter.allowed,
-                          onTap: () => setState(
-                              () => _activeFilter = _AppFilter.allowed),
-                        ),
-                      ],
+                    // FIX 2: five chips (incl. Timed) in a horizontal scroller.
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _buildMetricChip(
+                            label: 'Total',
+                            count: totalCount,
+                            color: const Color(0xFF1E3A8A),
+                            isSelected: _activeFilter == _AppFilter.all,
+                            onTap: () =>
+                                setState(() => _activeFilter = _AppFilter.all),
+                          ),
+                          const SizedBox(width: 8),
+                          _buildMetricChip(
+                            label: 'Blocked',
+                            count: blockedCount,
+                            color: Colors.red[700]!,
+                            isSelected: _activeFilter == _AppFilter.blocked,
+                            onTap: () => setState(
+                                () => _activeFilter = _AppFilter.blocked),
+                          ),
+                          const SizedBox(width: 8),
+                          _buildMetricChip(
+                            label: 'Notify / Ask',
+                            count: askCount,
+                            color: Colors.amber[800]!,
+                            isSelected: _activeFilter == _AppFilter.ask,
+                            onTap: () =>
+                                setState(() => _activeFilter = _AppFilter.ask),
+                          ),
+                          const SizedBox(width: 8),
+                          _buildMetricChip(
+                            label: 'Allowed',
+                            count: allowedCount,
+                            color: Colors.green[700]!,
+                            isSelected: _activeFilter == _AppFilter.allowed,
+                            onTap: () => setState(
+                                () => _activeFilter = _AppFilter.allowed),
+                          ),
+                          const SizedBox(width: 8),
+                          _buildMetricChip(
+                            label: 'Timed',
+                            count: timedCount,
+                            color: const Color(0xFF2563EB),
+                            isSelected: _activeFilter == _AppFilter.timeLimited,
+                            onTap: () => setState(
+                                () => _activeFilter = _AppFilter.timeLimited),
+                          ),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 12),
                     // Search Bar
                     TextField(
+                      controller: _searchController,
                       decoration: InputDecoration(
                         hintText: 'Search apps or package name...',
                         prefixIcon:
@@ -425,8 +457,10 @@ class _ParentAppManagementScreenState
                         suffixIcon: _searchQuery.isNotEmpty
                             ? IconButton(
                                 icon: const Icon(Icons.clear_rounded, size: 18),
-                                onPressed: () =>
-                                    setState(() => _searchQuery = ''),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  setState(() => _searchQuery = '');
+                                },
                               )
                             : null,
                         contentPadding: const EdgeInsets.symmetric(
@@ -452,7 +486,7 @@ class _ParentAppManagementScreenState
                     ? _buildEmptyState(allApps.isEmpty)
                     : RefreshIndicator(
                         onRefresh: () async {
-                          ref.refresh(
+                          ref.invalidate(
                             familyChildAppsProvider(
                               FamilyChildParams(
                                 familyId: familyId,
@@ -486,14 +520,17 @@ class _ParentAppManagementScreenState
     required bool isSelected,
     required VoidCallback onTap,
   }) {
-    return Expanded(
+    return SizedBox(
+      width: 88,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(10),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
           decoration: BoxDecoration(
-            color: isSelected ? color.withOpacity(0.12) : Colors.transparent,
+            color: isSelected
+                ? color.withValues(alpha: 0.12)
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
               color: isSelected ? color : Colors.grey[300]!,
@@ -529,40 +566,53 @@ class _ParentAppManagementScreenState
     );
   }
 
+  /// Returns decoded icon bytes from cache, decoding only once per app.
+  Uint8List? _getIconBytes(AppInfo app) {
+    final cached = _iconCache[app.packageName];
+    if (cached != null) return cached;
+
+    final data = app.iconBase64;
+    if (data == null || data.isEmpty) return null;
+
+    try {
+      final bytes = base64Decode(data);
+      _iconCache[app.packageName] = bytes;
+      return bytes;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Widget _buildAppIcon(AppInfo app) {
-    if (app.iconBase64 != null && app.iconBase64!.isNotEmpty) {
-      try {
-        final bytes = base64Decode(app.iconBase64!);
-        return Container(
+    final bytes = _getIconBytes(app);
+    if (bytes == null) return _buildFallbackIcon(app);
+
+    return Container(
+      width: 52,
+      height: 52,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey[200]!, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(13),
+        child: Image.memory(
+          bytes,
           width: 52,
           height: 52,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.grey[200]!, width: 1),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.04),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(13),
-            child: Image.memory(
-              bytes,
-              width: 52,
-              height: 52,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => _buildFallbackIcon(app),
-            ),
-          ),
-        );
-      } catch (_) {
-        return _buildFallbackIcon(app);
-      }
-    }
-    return _buildFallbackIcon(app);
+          fit: BoxFit.cover,
+          gaplessPlayback: true, // avoids flicker when the list rebuilds
+          errorBuilder: (_, __, ___) => _buildFallbackIcon(app),
+        ),
+      ),
+    );
   }
 
   Widget _buildFallbackIcon(AppInfo app) {
@@ -580,9 +630,9 @@ class _ParentAppManagementScreenState
       width: 52,
       height: 52,
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withOpacity(0.3), width: 1),
+        border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
       ),
       alignment: Alignment.center,
       child: Text(
@@ -609,7 +659,9 @@ class _ParentAppManagementScreenState
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
-          color: isBlocked ? Colors.red.withOpacity(0.4) : const Color(0xFFE2E8F0),
+          color: isBlocked
+              ? Colors.red.withValues(alpha: 0.4)
+              : const Color(0xFFE2E8F0),
           width: isBlocked ? 1.5 : 1.0,
         ),
       ),
@@ -683,7 +735,7 @@ class _ParentAppManagementScreenState
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
-                            color: ruleColor.withOpacity(0.12),
+                            color: ruleColor.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Row(
@@ -725,74 +777,34 @@ class _ParentAppManagementScreenState
               // Action Toolbar: Block, Notify/Ask, Allow, Configure
               Row(
                 children: [
-                  // Block Button
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        foregroundColor:
-                            isBlocked ? Colors.white : Colors.red[700],
-                        backgroundColor:
-                            isBlocked ? Colors.red[600] : Colors.transparent,
-                        side: BorderSide(
-                          color: isBlocked ? Colors.red[600]! : Colors.red[200]!,
-                        ),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8)),
-                      ),
-                      onPressed: () => _quickSetRule(app, AppControlRule.block),
-                      icon: const Icon(Icons.block_rounded, size: 16),
-                      label: const Text('Block',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                    ),
+                  _buildRuleButton(
+                    label: 'Block',
+                    icon: Icons.block_rounded,
+                    isActive: isBlocked,
+                    activeColor: Colors.red[600]!,
+                    textColor: Colors.red[700]!,
+                    borderColor: Colors.red[200]!,
+                    onPressed: () => _quickSetRule(app, AppControlRule.block),
                   ),
                   const SizedBox(width: 8),
-
-                  // Notify / Ask Button
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        foregroundColor:
-                            isAsk ? Colors.white : Colors.amber[900],
-                        backgroundColor:
-                            isAsk ? Colors.amber[700] : Colors.transparent,
-                        side: BorderSide(
-                          color: isAsk ? Colors.amber[700]! : Colors.amber[200]!,
-                        ),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8)),
-                      ),
-                      onPressed: () => _quickSetRule(app, AppControlRule.ask),
-                      icon: const Icon(Icons.notifications_active_rounded, size: 16),
-                      label: const Text('Notify',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                    ),
+                  _buildRuleButton(
+                    label: 'Notify',
+                    icon: Icons.notifications_active_rounded,
+                    isActive: isAsk,
+                    activeColor: Colors.amber[700]!,
+                    textColor: Colors.amber[900]!,
+                    borderColor: Colors.amber[200]!,
+                    onPressed: () => _quickSetRule(app, AppControlRule.ask),
                   ),
                   const SizedBox(width: 8),
-
-                  // Allow Button
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        foregroundColor:
-                            isAllowed ? Colors.white : Colors.green[700],
-                        backgroundColor:
-                            isAllowed ? Colors.green[600] : Colors.transparent,
-                        side: BorderSide(
-                          color: isAllowed
-                              ? Colors.green[600]!
-                              : Colors.green[200]!,
-                        ),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8)),
-                      ),
-                      onPressed: () => _quickSetRule(app, AppControlRule.allow),
-                      icon: const Icon(Icons.check_circle_rounded, size: 16),
-                      label: const Text('Allow',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                    ),
+                  _buildRuleButton(
+                    label: 'Allow',
+                    icon: Icons.check_circle_rounded,
+                    isActive: isAllowed,
+                    activeColor: Colors.green[600]!,
+                    textColor: Colors.green[700]!,
+                    borderColor: Colors.green[200]!,
+                    onPressed: () => _quickSetRule(app, AppControlRule.allow),
                   ),
                   const SizedBox(width: 6),
 
@@ -807,6 +819,36 @@ class _ParentAppManagementScreenState
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  /// One reusable quick-action button (replaces three near-identical blocks).
+  Widget _buildRuleButton({
+    required String label,
+    required IconData icon,
+    required bool isActive,
+    required Color activeColor,
+    required Color textColor,
+    required Color borderColor,
+    required VoidCallback onPressed,
+  }) {
+    return Expanded(
+      child: OutlinedButton.icon(
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          foregroundColor: isActive ? Colors.white : textColor,
+          backgroundColor: isActive ? activeColor : Colors.transparent,
+          side: BorderSide(color: isActive ? activeColor : borderColor),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        onPressed: onPressed,
+        icon: Icon(icon, size: 16),
+        label: Text(
+          label,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
         ),
       ),
     );
@@ -847,6 +889,7 @@ class _ParentAppManagementScreenState
               const SizedBox(height: 16),
               TextButton(
                 onPressed: () {
+                  _searchController.clear();
                   setState(() {
                     _searchQuery = '';
                     _activeFilter = _AppFilter.all;

@@ -3,13 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_routes.dart';
 import '../../../../core/constants/app_constants.dart';
-import '../../../../core/constants/app_icons.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../../../core/models/user_model.dart';
 import '../../../../core/providers/auth_provider.dart';
 
-/// Professional login screen with role-based theming and FamilyGuard branding
-/// Features secure authentication with smooth UX and role-specific flows
+/// Ultra-attractive Login and Registration screen featuring the Family Care illustration
+/// and soothing, caring colors (warm coral, royal indigo, soft rose, serene teal).
 class LoginScreen extends ConsumerStatefulWidget {
   final bool initialTabIsSignUp;
   final UserRole? selectedRole;
@@ -24,7 +22,8 @@ class LoginScreen extends ConsumerStatefulWidget {
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProviderStateMixin {
+class _LoginScreenState extends ConsumerState<LoginScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final _signInFormKey = GlobalKey<FormState>();
   final _signUpFormKey = GlobalKey<FormState>();
@@ -42,6 +41,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
   bool _isSignInPasswordVisible = false;
   bool _isSignUpPasswordVisible = false;
   bool _isSignUpConfirmPasswordVisible = false;
+  bool _rememberMe = true;
 
   @override
   void initState() {
@@ -88,9 +88,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
       final user = ref.read(authNotifierProvider).user;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Welcome back, ${user?.displayName ?? 'User'}!'),
+          content: Row(
+            children: [
+              const Icon(Icons.favorite_rounded, color: Colors.white, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text('Welcome back, ${user?.displayName ?? 'Family Member'}!'),
+              ),
+            ],
+          ),
           backgroundColor: const Color(0xFF10B981),
           behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
 
@@ -122,50 +131,163 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Account created successfully! Welcome, $name.'),
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text('Family space created! Welcome, $name.'),
+              ),
+            ],
+          ),
           backgroundColor: const Color(0xFF10B981),
           behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
 
-      // Direct navigation straight into role selection
       context.go(AppRoutes.roleSelection);
     }
   }
 
   /// Handle Password Reset
   Future<void> _handlePasswordReset() async {
-    final email = _signInEmailController.text.trim();
-    if (email.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter your email address to reset password.'),
-          backgroundColor: Color(0xFFEF4444),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
+    final emailController = TextEditingController(text: _signInEmailController.text.trim());
 
-    final authNotifier = ref.read(authNotifierProvider.notifier);
-    final success = await authNotifier.resetPassword(email);
-
-    if (success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Password reset email sent to $email'),
-          backgroundColor: const Color(0xFF10B981),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom,
+          ),
+          child: Container(
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E1B4B) : Colors.white,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF43F5E).withOpacity(0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.lock_reset_rounded,
+                        color: Color(0xFFF43F5E),
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Reset Password',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            'We\'ll send a recovery link to your email',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                TextFormField(
+                  controller: emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: _inputDecoration(
+                    label: 'Account Email',
+                    hint: 'parent@example.com',
+                    icon: Icons.alternate_email_rounded,
+                    isDark: isDark,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () async {
+                    final email = emailController.text.trim();
+                    if (email.isEmpty || !email.contains('@')) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Please enter a valid email address'),
+                          backgroundColor: Color(0xFFEF4444),
+                        ),
+                      );
+                      return;
+                    }
+                    Navigator.pop(ctx);
+                    final success = await ref
+                        .read(authNotifierProvider.notifier)
+                        .resetPassword(email);
+                    if (success && mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Reset link sent to $email'),
+                          backgroundColor: const Color(0xFF10B981),
+                        ),
+                      );
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF4F46E5),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: const Text(
+                    'Send Reset Link',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   String? _validateEmail(String? value) {
     if (value == null || value.trim().isEmpty) {
       return 'Please enter your email';
     }
-    final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+    final emailRegex =
+        RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
     if (!emailRegex.hasMatch(value.trim())) {
       return 'Please enter a valid email address';
     }
@@ -182,14 +304,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
     return null;
   }
 
-  /// Get role-specific color for theming
-  Color _getRoleColor() {
-    if (widget.selectedRole == null) return AppTheme.primaryColor;
-    return widget.selectedRole == UserRole.parent
-        ? AppTheme.parentPrimary
-        : AppTheme.childPrimary;
-  }
-
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authNotifierProvider);
@@ -200,81 +314,112 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
             colors: isDark
-                ? [const Color(0xFF0F172A), const Color(0xFF1E1B4B), const Color(0xFF0F172A)]
-                : [const Color(0xFFEEF2FF), const Color(0xFFF8FAFC), const Color(0xFFE0E7FF)],
+                ? [
+                    const Color(0xFF0F172A),
+                    const Color(0xFF1E1B4B),
+                    const Color(0xFF0F172A),
+                  ]
+                : [
+                    const Color(0xFFFFF1F2), // Soft caring rose blush
+                    const Color(0xFFEEF2FF), // Soft caring periwinkle
+                    const Color(0xFFF0FDFA), // Soft serene teal tint
+                  ],
           ),
         ),
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 480),
+                constraints: const BoxConstraints(maxWidth: 460),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const SizedBox(height: 12),
-                    
-                    // App Brand Header
-                    _buildHeader(theme, isDark),
-                    
-                    const SizedBox(height: 28),
+                    // Top Hero Card with Family Illustration
+                    _buildHeroFamilyBanner(isDark),
 
-                    // Card Container
+                    const SizedBox(height: 20),
+
+                    // Main Form Card with Caring Glow
                     Container(
                       decoration: BoxDecoration(
                         color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                        borderRadius: BorderRadius.circular(24),
+                        borderRadius: BorderRadius.circular(28),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(isDark ? 0.4 : 0.08),
-                            blurRadius: 24,
-                            offset: const Offset(0, 8),
+                            color: const Color(0xFFF43F5E).withOpacity(isDark ? 0.15 : 0.08),
+                            blurRadius: 30,
+                            offset: const Offset(0, 10),
+                            spreadRadius: 2,
+                          ),
+                          BoxShadow(
+                            color: const Color(0xFF4F46E5).withOpacity(isDark ? 0.2 : 0.06),
+                            blurRadius: 20,
+                            offset: const Offset(0, 4),
                           ),
                         ],
                       ),
-                      padding: const EdgeInsets.all(24.0),
+                      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 22.0),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          // Custom Tab Selector
+                          // Custom Pill Segmented Tab Bar
                           _buildTabSelector(isDark),
-                          
+
                           const SizedBox(height: 20),
 
-                          // Error alert
+                          // Dynamic Form Title
+                          Text(
+                            _tabController.index == 0
+                                ? 'Welcome Back!'
+                                : 'Join the Family Circle',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              color: isDark ? Colors.white : const Color(0xFF1E1B4B),
+                              letterSpacing: -0.4,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _tabController.index == 0
+                                ? 'Sign in to monitor & care for your family'
+                                : 'Set up a loving, protected environment in minutes',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: isDark ? Colors.grey[400] : const Color(0xFF64748B),
+                            ),
+                          ),
+
+                          const SizedBox(height: 18),
+
+                          // Error alert banner
                           if (authState.errorMessage != null) ...[
                             _buildErrorBanner(authState.errorMessage!),
                             const SizedBox(height: 16),
                           ],
 
-                          // Form Content based on tab
+                          // Forms
                           AnimatedSize(
                             duration: const Duration(milliseconds: 250),
                             curve: Curves.easeInOut,
                             child: _tabController.index == 0
-                                ? _buildSignInForm(authState)
-                                : _buildSignUpForm(authState),
+                                ? _buildSignInForm(authState, isDark)
+                                : _buildSignUpForm(authState, isDark),
                           ),
                         ],
                       ),
                     ),
 
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 18),
 
-                    // Privacy notice
-                    Text(
-                      AppConstants.appDescription,
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: isDark ? Colors.grey[400] : Colors.grey[600],
-                        height: 1.4,
-                      ),
-                    ),
+                    // Care & Trust Badge
+                    _buildTrustBadge(isDark),
                     const SizedBox(height: 12),
                   ],
                 ),
@@ -286,97 +431,166 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
     );
   }
 
-  Widget _buildHeader(ThemeData theme, bool isDark) {
-    return Column(
-      children: [
-        // Professional App Logo using our AppLogo widget
-        AppLogo(
-          size: 80,
-          showBackground: true,
+  /// Hero Banner featuring the Family Care image
+  Widget _buildHeroFamilyBanner(bool isDark) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: isDark
+              ? [const Color(0xFF2E1065), const Color(0xFF1E1B4B)]
+              : [const Color(0xFF4338CA), const Color(0xFFE11D48)],
         ),
-        const SizedBox(height: 16),
-        
-        // Use our app constants for branding
-        Text(
-          AppConstants.appName,
-          style: theme.textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.5,
-            color: isDark ? Colors.white : const Color(0xFF1E293B),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFE11D48).withOpacity(0.25),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          AppConstants.appTagline,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: isDark ? Colors.grey[400] : const Color(0xFF64748B),
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        
-        // Role indicator if selected
-        if (widget.selectedRole != null) ...[
-          const SizedBox(height: 12),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      child: Row(
+        children: [
+          // Loving Family Image Badge
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            width: 78,
+            height: 78,
             decoration: BoxDecoration(
-              color: _getRoleColor().withOpacity(0.1),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  widget.selectedRole == UserRole.parent ? AppIcons.parent : AppIcons.child,
-                  size: 16,
-                  color: _getRoleColor(),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white.withOpacity(0.9), width: 3),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.25),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
                 ),
-                const SizedBox(width: 6),
-                Text(
-                  '${widget.selectedRole!.displayName} Account',
+              ],
+            ),
+            child: ClipOval(
+              child: Image.asset(
+                'assets/images/family_care.png',
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  color: Colors.white,
+                  child: const Icon(
+                    Icons.favorite_rounded,
+                    color: Color(0xFFE11D48),
+                    size: 38,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+
+          // Titles
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.18),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.shield_rounded, color: Color(0xFF38BDF8), size: 12),
+                      SizedBox(width: 4),
+                      Text(
+                        'DIGITAL SAFETY & CARE',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  AppConstants.appName,
                   style: TextStyle(
-                    color: _getRoleColor(),
-                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.4,
+                  ),
+                ),
+                Text(
+                  'Connected, protected, and balanced.',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
                     fontSize: 12,
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
               ],
             ),
           ),
         ],
-      ],
+      ),
     );
   }
 
+  /// Modern Segmented Pill Switcher
   Widget _buildTabSelector(bool isDark) {
     return Container(
       height: 48,
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
       ),
       padding: const EdgeInsets.all(4),
       child: TabBar(
         controller: _tabController,
         indicator: BoxDecoration(
-          color: isDark ? const Color(0xFF334155) : Colors.white,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(12),
+          gradient: const LinearGradient(
+            colors: [Color(0xFF4F46E5), Color(0xFFE11D48)],
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.06),
-              blurRadius: 6,
+              color: const Color(0xFFE11D48).withOpacity(0.25),
+              blurRadius: 8,
               offset: const Offset(0, 2),
             ),
           ],
         ),
-        labelColor: const Color(0xFF4F46E5),
+        indicatorSize: TabBarIndicatorSize.tab,
+        labelColor: Colors.white,
         unselectedLabelColor: isDark ? Colors.grey[400] : const Color(0xFF64748B),
-        labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+        labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
         dividerColor: Colors.transparent,
         tabs: const [
-          Tab(text: 'Sign In'),
-          Tab(text: 'Create Account'),
+          Tab(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.login_rounded, size: 16),
+                SizedBox(width: 6),
+                Text('Sign In'),
+              ],
+            ),
+          ),
+          Tab(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.person_add_alt_1_rounded, size: 16),
+                SizedBox(width: 6),
+                Text('Create Account'),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -386,18 +600,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFFEF2F2),
-        border: Border.all(color: const Color(0xFFFCA5A5)),
-        borderRadius: BorderRadius.circular(10),
+        color: const Color(0xFFFFF1F2),
+        border: Border.all(color: const Color(0xFFFECDD3)),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline_rounded, color: Color(0xFFDC2626), size: 20),
+          const Icon(Icons.error_outline_rounded, color: Color(0xFFE11D48), size: 20),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               message,
-              style: const TextStyle(color: Color(0xFFDC2626), fontSize: 13, fontWeight: FontWeight.w500),
+              style: const TextStyle(
+                color: Color(0xFFBE123C),
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ],
@@ -405,7 +623,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
     );
   }
 
-  Widget _buildSignInForm(AuthState authState) {
+  /// Sign In Form
+  Widget _buildSignInForm(AuthState authState, bool isDark) {
     return Form(
       key: _signInFormKey,
       child: Column(
@@ -417,14 +636,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
             keyboardType: TextInputType.emailAddress,
             textInputAction: TextInputAction.next,
             decoration: _inputDecoration(
-              label: 'Email address',
-              hint: 'you@example.com',
+              label: 'Parent or Child Email',
+              hint: 'family@example.com',
               icon: Icons.alternate_email_rounded,
+              isDark: isDark,
             ),
             validator: _validateEmail,
             onChanged: (_) => ref.read(authNotifierProvider.notifier).clearError(),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
 
           // Password
           TextFormField(
@@ -432,55 +652,86 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
             obscureText: !_isSignInPasswordVisible,
             textInputAction: TextInputAction.done,
             decoration: _inputDecoration(
-              label: 'Password',
+              label: 'Security Password',
               hint: '••••••••',
               icon: Icons.lock_outline_rounded,
+              isDark: isDark,
               suffixIcon: IconButton(
                 icon: Icon(
-                  _isSignInPasswordVisible ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                  _isSignInPasswordVisible
+                      ? Icons.visibility_off_rounded
+                      : Icons.visibility_rounded,
                   color: const Color(0xFF94A3B8),
+                  size: 20,
                 ),
-                onPressed: () => setState(() => _isSignInPasswordVisible = !_isSignInPasswordVisible),
+                onPressed: () =>
+                    setState(() => _isSignInPasswordVisible = !_isSignInPasswordVisible),
               ),
             ),
-            validator: (val) => (val == null || val.isEmpty) ? 'Please enter your password' : null,
+            validator: (val) =>
+                (val == null || val.isEmpty) ? 'Please enter your password' : null,
             onChanged: (_) => ref.read(authNotifierProvider.notifier).clearError(),
             onFieldSubmitted: (_) => _handleSignIn(),
           ),
           const SizedBox(height: 8),
 
-          // Forgot Password
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: authState.isLoading ? null : _handlePasswordReset,
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          // Remember Me + Forgot Password
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: Checkbox(
+                      value: _rememberMe,
+                      activeColor: const Color(0xFF4F46E5),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+                      onChanged: (val) => setState(() => _rememberMe = val ?? true),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Remember me',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? Colors.grey[400] : const Color(0xFF64748B),
+                    ),
+                  ),
+                ],
               ),
-              child: const Text(
-                'Forgot password?',
-                style: TextStyle(
-                  color: Color(0xFF4F46E5),
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
+              TextButton(
+                onPressed: authState.isLoading ? null : _handlePasswordReset,
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text(
+                  'Forgot password?',
+                  style: TextStyle(
+                    color: Color(0xFFE11D48),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                  ),
                 ),
               ),
-            ),
+            ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 18),
 
           // Submit button
           _buildActionButton(
-            label: 'Sign In',
+            label: 'Sign In to Family Space',
+            icon: Icons.arrow_forward_rounded,
             isLoading: authState.isLoading,
             onPressed: _handleSignIn,
           ),
-          
+
           const SizedBox(height: 16),
 
-          // Quick Switch
+          // Switch to Register
           Center(
             child: GestureDetector(
               onTap: () {
@@ -488,12 +739,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                 ref.read(authNotifierProvider.notifier).clearError();
               },
               child: RichText(
-                text: const TextSpan(
-                  style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
-                  children: [
-                    TextSpan(text: 'Don\'t have an account? '),
+                text: TextSpan(
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: isDark ? Colors.grey[400] : const Color(0xFF64748B),
+                  ),
+                  children: const [
+                    TextSpan(text: 'New to Family Guardian? '),
                     TextSpan(
-                      text: 'Create one',
+                      text: 'Create Family Account',
                       style: TextStyle(
                         color: Color(0xFF4F46E5),
                         fontWeight: FontWeight.bold,
@@ -509,7 +763,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
     );
   }
 
-  Widget _buildSignUpForm(AuthState authState) {
+  /// Sign Up Form
+  Widget _buildSignUpForm(AuthState authState, bool isDark) {
     return Form(
       key: _signUpFormKey,
       child: Column(
@@ -521,9 +776,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
             textCapitalization: TextCapitalization.words,
             textInputAction: TextInputAction.next,
             decoration: _inputDecoration(
-              label: 'Full Name',
-              hint: 'e.g., Alex Johnson',
+              label: 'Your Name or Nickname',
+              hint: 'e.g. Mom, Dad, or Alex',
               icon: Icons.person_outline_rounded,
+              isDark: isDark,
             ),
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
@@ -536,7 +792,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
             },
             onChanged: (_) => ref.read(authNotifierProvider.notifier).clearError(),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
 
           // Email
           TextFormField(
@@ -547,11 +803,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
               label: 'Email address',
               hint: 'you@example.com',
               icon: Icons.alternate_email_rounded,
+              isDark: isDark,
             ),
             validator: _validateEmail,
             onChanged: (_) => ref.read(authNotifierProvider.notifier).clearError(),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
 
           // Password
           TextFormField(
@@ -559,21 +816,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
             obscureText: !_isSignUpPasswordVisible,
             textInputAction: TextInputAction.next,
             decoration: _inputDecoration(
-              label: 'Password',
-              hint: 'At least 6 characters',
+              label: 'Password (min 6 characters)',
+              hint: '••••••••',
               icon: Icons.lock_outline_rounded,
+              isDark: isDark,
               suffixIcon: IconButton(
                 icon: Icon(
-                  _isSignUpPasswordVisible ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                  _isSignUpPasswordVisible
+                      ? Icons.visibility_off_rounded
+                      : Icons.visibility_rounded,
                   color: const Color(0xFF94A3B8),
+                  size: 20,
                 ),
-                onPressed: () => setState(() => _isSignUpPasswordVisible = !_isSignUpPasswordVisible),
+                onPressed: () =>
+                    setState(() => _isSignUpPasswordVisible = !_isSignUpPasswordVisible),
               ),
             ),
             validator: _validatePassword,
             onChanged: (_) => ref.read(authNotifierProvider.notifier).clearError(),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
 
           // Confirm Password
           TextFormField(
@@ -582,14 +844,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
             textInputAction: TextInputAction.done,
             decoration: _inputDecoration(
               label: 'Confirm Password',
-              hint: 'Re-enter your password',
+              hint: 'Re-enter password',
               icon: Icons.lock_reset_rounded,
+              isDark: isDark,
               suffixIcon: IconButton(
                 icon: Icon(
-                  _isSignUpConfirmPasswordVisible ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                  _isSignUpConfirmPasswordVisible
+                      ? Icons.visibility_off_rounded
+                      : Icons.visibility_rounded,
                   color: const Color(0xFF94A3B8),
+                  size: 20,
                 ),
-                onPressed: () => setState(() => _isSignUpConfirmPasswordVisible = !_isSignUpConfirmPasswordVisible),
+                onPressed: () => setState(() =>
+                    _isSignUpConfirmPasswordVisible = !_isSignUpConfirmPasswordVisible),
               ),
             ),
             validator: (value) {
@@ -604,18 +871,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
             onChanged: (_) => ref.read(authNotifierProvider.notifier).clearError(),
             onFieldSubmitted: (_) => _handleSignUp(),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 18),
 
           // Submit Button
           _buildActionButton(
             label: 'Create Account & Continue',
+            icon: Icons.family_restroom_rounded,
             isLoading: authState.isLoading,
             onPressed: _handleSignUp,
           ),
-          
+
           const SizedBox(height: 16),
 
-          // Quick Switch
+          // Switch to Sign In
           Center(
             child: GestureDetector(
               onTap: () {
@@ -623,9 +891,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                 ref.read(authNotifierProvider.notifier).clearError();
               },
               child: RichText(
-                text: const TextSpan(
-                  style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
-                  children: [
+                text: TextSpan(
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: isDark ? Colors.grey[400] : const Color(0xFF64748B),
+                  ),
+                  children: const [
                     TextSpan(text: 'Already have an account? '),
                     TextSpan(
                       text: 'Sign In',
@@ -646,22 +917,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
 
   Widget _buildActionButton({
     required String label,
+    required IconData icon,
     required bool isLoading,
     required VoidCallback onPressed,
   }) {
-    final roleColor = _getRoleColor();
-    
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        gradient: LinearGradient(
-          colors: [roleColor, roleColor.withOpacity(0.8)],
+        borderRadius: BorderRadius.circular(16),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF4F46E5), Color(0xFFE11D48)],
         ),
         boxShadow: [
           BoxShadow(
-            color: roleColor.withOpacity(0.35),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            color: const Color(0xFFE11D48).withOpacity(0.32),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
           ),
         ],
       ),
@@ -671,9 +941,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
           backgroundColor: Colors.transparent,
           shadowColor: Colors.transparent,
           foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 16),
+          padding: const EdgeInsets.symmetric(vertical: 15),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(16),
           ),
         ),
         child: isLoading
@@ -685,13 +955,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                   color: Colors.white,
                 ),
               )
-            : Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.2,
-                ),
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Icon(icon, size: 18),
+                ],
               ),
       ),
     );
@@ -701,31 +978,81 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
     required String label,
     required String hint,
     required IconData icon,
+    required bool isDark,
     Widget? suffixIcon,
   }) {
     return InputDecoration(
       labelText: label,
+      labelStyle: TextStyle(
+        color: isDark ? Colors.grey[400] : const Color(0xFF64748B),
+        fontSize: 13,
+      ),
       hintText: hint,
-      prefixIcon: Icon(icon, size: 20, color: const Color(0xFF64748B)),
+      hintStyle: TextStyle(
+        color: isDark ? Colors.grey[600] : const Color(0xFF94A3B8),
+        fontSize: 13,
+      ),
+      prefixIcon: Icon(
+        icon,
+        size: 19,
+        color: isDark ? const Color(0xFF818CF8) : const Color(0xFF6366F1),
+      ),
       suffixIcon: suffixIcon,
       filled: true,
-      fillColor: const Color(0xFFF8FAFC),
+      fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(
+          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+        ),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(
+          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+        ),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 1.8),
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Color(0xFFE11D48), width: 1.8),
       ),
       errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         borderSide: const BorderSide(color: Color(0xFFEF4444)),
+      ),
+    );
+  }
+
+  Widget _buildTrustBadge(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: isDark
+            ? Colors.white.withOpacity(0.04)
+            : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? Colors.white.withOpacity(0.06) : const Color(0xFFE2E8F0),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.verified_user_rounded, color: Color(0xFF10B981), size: 16),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              'End-to-End Encrypted • 100% Family Safe • Zero Ads',
+              style: TextStyle(
+                fontSize: 11,
+                color: isDark ? Colors.grey[400] : const Color(0xFF64748B),
+                fontWeight: FontWeight.w500,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ],
       ),
     );
   }
