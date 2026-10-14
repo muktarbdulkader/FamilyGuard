@@ -5,15 +5,57 @@ import '../../../../core/constants/app_routes.dart';
 import '../../../../core/providers/auth_provider.dart';
 import '../../../../core/providers/user_provider.dart';
 
+import 'dart:async';
+import '../../../../core/services/app_scanner_service.dart';
+import '../../../../core/services/monitoring_service.dart';
+
 /// Child home screen - Modern, friendly status interface for protected devices
-class ChildHomeScreen extends ConsumerWidget {
+class ChildHomeScreen extends ConsumerStatefulWidget {
   const ChildHomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ChildHomeScreen> createState() => _ChildHomeScreenState();
+}
+
+class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
+  bool _hasTriggeredSync = false;
+
+  void _triggerBackgroundSync(dynamic user) {
+    if (_hasTriggeredSync || user == null || user.hasFamily != true) return;
+    _hasTriggeredSync = true;
+
+    final familyId = user.familyId as String?;
+    final childId = user.uid as String?;
+    if (familyId == null || childId == null) return;
+
+    unawaited(() async {
+      try {
+        final scanner = AppScannerService();
+        final apps = await scanner.scanInstalledApps();
+        await scanner.uploadAppsToFirestore(
+          familyId: familyId,
+          childId: childId,
+          apps: apps,
+        );
+        await MonitoringService().startMonitoring(
+          familyId: familyId,
+          childId: childId,
+          appRules: [],
+        );
+      } catch (e) {
+        debugPrint('Auto sync in ChildHomeScreen error: $e');
+      }
+    }());
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final userData = ref.watch(currentUserDataProvider);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+
+    // Check and trigger sync once user data is loaded
+    userData.whenData((user) => _triggerBackgroundSync(user));
 
     return Scaffold(
       body: Container(

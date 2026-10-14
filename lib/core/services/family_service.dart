@@ -80,8 +80,8 @@ class FamilyService {
     }
   }
 
-  /// Join family using invite code
-  Future<void> joinFamily({
+  /// Join family using invite code, returns joined familyId
+  Future<String> joinFamily({
     required String inviteCode,
     required String childId,
   }) async {
@@ -167,6 +167,8 @@ class FamilyService {
 
       // Commit all changes
       await batch.commit();
+
+      return invite.familyId;
 
     } catch (e) {
       if (e is FamilyException) {

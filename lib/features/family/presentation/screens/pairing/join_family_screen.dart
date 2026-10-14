@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +7,8 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../../../../core/constants/app_routes.dart';
 import '../../../../../core/providers/user_provider.dart';
 import '../../../../../core/services/family_service.dart';
+import '../../../../../core/services/app_scanner_service.dart';
+import '../../../../../core/services/monitoring_service.dart';
 
 /// Join family screen for children to scan QR or enter code
 class JoinFamilyScreen extends ConsumerStatefulWidget {
@@ -56,15 +59,38 @@ class _JoinFamilyScreenState extends ConsumerState<JoinFamilyScreen>
     });
 
     try {
-      await _familyService.joinFamily(
+      final familyId = await _familyService.joinFamily(
         inviteCode: inviteCode,
         childId: user.id,
       );
 
+      // Refresh current user data provider so family state is recognized
+      ref.refresh(currentUserDataProvider);
+
+      // Trigger automatic scan & upload and start monitoring right away
+      unawaited(() async {
+        try {
+          final scanner = AppScannerService();
+          final apps = await scanner.scanInstalledApps();
+          await scanner.uploadAppsToFirestore(
+            familyId: familyId,
+            childId: user.id,
+            apps: apps,
+          );
+          await MonitoringService().startMonitoring(
+            familyId: familyId,
+            childId: user.id,
+            appRules: [],
+          );
+        } catch (e) {
+          debugPrint('Automatic app sync on join error: $e');
+        }
+      }());
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Successfully joined family group!'),
+            content: Text('Successfully joined family group! Apps are syncing.'),
             backgroundColor: Color(0xFF10B981),
             behavior: SnackBarBehavior.floating,
           ),

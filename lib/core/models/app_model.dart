@@ -32,22 +32,28 @@ class AppModel {
 
   /// Create AppModel from Firestore document
   factory AppModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+    final data = (doc.data() as Map<String, dynamic>?) ?? {};
+    final pkg = (data['packageName'] ?? doc.id).toString();
+    final name = (data['appName'] ?? data['name'] ?? pkg).toString();
     return AppModel(
-      packageName: doc.id,
-      appName: data['appName'] ?? '',
-      iconBase64: data['iconBase64'],
-      version: data['version'] ?? '',
-      installedDate: (data['installedDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      packageName: pkg,
+      appName: name.isNotEmpty ? name : pkg,
+      iconBase64: data['iconBase64'] as String?,
+      version: (data['version'] ?? '').toString(),
+      installedDate: (data['installedDate'] as Timestamp?)?.toDate() ??
+          (data['detectedAt'] as Timestamp?)?.toDate() ??
+          DateTime.now(),
       lastUsed: (data['lastUsed'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      isSystemApp: data['isSystemApp'] ?? false,
-      rule: AppRule.fromString(data['rule'] ?? 'ask_parent'),
-      dailyLimitMinutes: data['dailyLimitMinutes'] ?? 0,
+      isSystemApp: data['isSystemApp'] as bool? ?? false,
+      rule: AppRule.fromString((data['rule'] ?? data['type'] ?? 'ask_parent').toString()),
+      dailyLimitMinutes: (data['dailyLimitMinutes'] as num?)?.toInt() ?? 0,
       allowedTimeWindow: data['allowedTimeWindow'] != null 
           ? TimeWindow.fromMap(data['allowedTimeWindow']) 
           : null,
-      usedTodayMinutes: data['usedTodayMinutes'] ?? 0,
-      lastUpdated: (data['lastUpdated'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      usedTodayMinutes: (data['usedTodayMinutes'] as num?)?.toInt() ?? 0,
+      lastUpdated: (data['lastUpdated'] as Timestamp?)?.toDate() ??
+          (data['updatedAt'] as Timestamp?)?.toDate() ??
+          DateTime.now(),
     );
   }
 
@@ -74,17 +80,23 @@ class AppModel {
   /// Convert to Firestore document
   Map<String, dynamic> toFirestore() {
     return {
+      'packageName': packageName,
       'appName': appName,
+      'name': appName,
       'iconBase64': iconBase64,
       'version': version,
       'installedDate': Timestamp.fromDate(installedDate),
+      'detectedAt': Timestamp.fromDate(installedDate),
       'lastUsed': Timestamp.fromDate(lastUsed),
       'isSystemApp': isSystemApp,
       'rule': rule.toString(),
+      'type': rule.toString().toUpperCase(),
       'dailyLimitMinutes': dailyLimitMinutes,
       'allowedTimeWindow': allowedTimeWindow?.toMap(),
       'usedTodayMinutes': usedTodayMinutes,
       'lastUpdated': Timestamp.fromDate(lastUpdated),
+      'updatedAt': Timestamp.fromDate(lastUpdated),
+      'isAvailable': true,
     };
   }
 
@@ -184,16 +196,25 @@ enum AppRule {
   timeWindow;
 
   static AppRule fromString(String value) {
-    switch (value.toLowerCase()) {
+    switch (value.toLowerCase().trim()) {
       case 'allowed':
+      case 'allow':
         return AppRule.allowed;
       case 'blocked':
+      case 'block':
         return AppRule.blocked;
       case 'time_limit':
+      case 'timelimited':
+      case 'timelimit':
         return AppRule.timeLimit;
       case 'ask_parent':
+      case 'ask':
+      case 'notify':
+      case 'request':
         return AppRule.askParent;
       case 'time_window':
+      case 'timerestricted':
+      case 'timewindow':
         return AppRule.timeWindow;
       default:
         return AppRule.askParent; // Safe default

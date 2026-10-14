@@ -14,6 +14,7 @@ import com.example.flutter_study_app.DeviceStatusHelper
 import com.example.flutter_study_app.database.LocalDatabase
 import com.example.flutter_study_app.enforcement.RuleEngine
 import com.example.flutter_study_app.enforcement.EnforcementManager
+import com.example.flutter_study_app.sync.RuleSyncService
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.Timestamp
@@ -53,6 +54,7 @@ class MonitoringService : Service() {
     // For notification tracking
     private var currentFamilyId: String? = null
     private var currentChildId: String? = null
+    private var ruleSyncService: RuleSyncService? = null
     
     companion object {
         private const val NOTIFICATION_ID = 1001
@@ -94,9 +96,18 @@ class MonitoringService : Service() {
     }
     
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val familyId = intent?.getStringExtra("familyId")
+        val childId = intent?.getStringExtra("childId")
+        if (!familyId.isNullOrEmpty() && !childId.isNullOrEmpty()) {
+            currentFamilyId = familyId
+            currentChildId = childId
+            startRuleSync(familyId, childId)
+        }
+
         when (intent?.action) {
             ACTION_START_MONITORING -> startMonitoring()
             ACTION_STOP_MONITORING -> stopMonitoring()
+            else -> startMonitoring() // Default to starting monitoring
         }
         
         // Service should restart if killed by the system
@@ -104,6 +115,17 @@ class MonitoringService : Service() {
     }
     
     override fun onBind(intent: Intent?): IBinder? = null
+
+    private fun startRuleSync(familyId: String, childId: String) {
+        try {
+            ruleSyncService?.stopSync()
+            ruleSyncService = RuleSyncService(this, database, childId)
+            ruleSyncService?.startSync(familyId)
+            android.util.Log.d("MonitoringService", "Started rule sync for family: $familyId, child: $childId")
+        } catch (e: Exception) {
+            android.util.Log.e("MonitoringService", "Error starting rule sync", e)
+        }
+    }
     
     private fun startMonitoring() {
         val notification = createNotification()
@@ -137,6 +159,8 @@ class MonitoringService : Service() {
     }
     
     private fun stopMonitoring() {
+        ruleSyncService?.stopSync()
+        ruleSyncService = null
         serviceJob.cancel()
         stopForeground(true)
         stopSelf()
@@ -370,8 +394,9 @@ class MonitoringService : Service() {
                             currentFamilyId = userDoc.getString("familyId")
                             currentChildId = user.uid
                             
-                            // Start device status monitoring
+                            // Start device status monitoring and rule sync
                             if (currentFamilyId != null && currentChildId != null) {
+                                startRuleSync(currentFamilyId!!, currentChildId!!)
                                 deviceStatusHelper.startStatusMonitoring(currentFamilyId!!, currentChildId!!)
                             }
                         }
@@ -527,6 +552,8 @@ class MonitoringService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         deviceStatusHelper.stopStatusMonitoring()
+        ruleSyncService?.stopSync()
+        ruleSyncService = null
         
         // Send service unavailable notification
         serviceScope.launch {

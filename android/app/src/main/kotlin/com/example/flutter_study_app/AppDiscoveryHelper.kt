@@ -33,8 +33,8 @@ class AppDiscoveryHelper(private val context: Context) {
     
     companion object {
         private const val TAG = "FamilyGuardian.AppDiscovery"
-        private const val MAX_ICON_SIZE = 128 // Maximum icon size in pixels
-        private const val ICON_QUALITY = 80 // JPEG compression quality
+        private const val MAX_ICON_SIZE = 96 // Scaled icon size in pixels for optimal performance & quality
+        private const val ICON_QUALITY = 85 // Compression quality
     }
     
     private val packageManager: PackageManager = context.packageManager
@@ -228,7 +228,7 @@ class AppDiscoveryHelper(private val context: Context) {
     }
     
     /**
-     * Extract app information from PackageInfo
+     * Extract app information from PackageInfo including real base64 icon
      */
     private fun extractAppInfo(packageInfo: PackageInfo): Map<String, Any?>? {
         return try {
@@ -271,15 +271,21 @@ class AppDiscoveryHelper(private val context: Context) {
             } catch (e: Exception) {
                 firstInstallTime
             }
+
+            // Extract real application icon as Base64
+            val iconBase64 = getAppIconBase64(packageName)
             
             mapOf(
                 "packageName" to packageName,
                 "name" to appName,
-                "version" to version,
+                "appName" to appName,
+                "iconBase64" to iconBase64,
+                "version" to (versionName ?: version ?: ""),
                 "versionName" to versionName,
                 "isSystemApp" to isSystemApp,
                 "firstInstallTime" to firstInstallTime,
-                "lastUpdateTime" to lastUpdateTime,
+                "installTime" to packageInfo.firstInstallTime,
+                "lastUpdateTime" to packageInfo.lastUpdateTime,
                 "isEnabled" to (applicationInfo?.enabled ?: false)
             )
         } catch (e: Exception) {
@@ -304,7 +310,7 @@ class AppDiscoveryHelper(private val context: Context) {
                     bitmap
                 }
                 
-                // Convert to base64
+                // Convert to base64 PNG
                 val outputStream = ByteArrayOutputStream()
                 resizedBitmap.compress(Bitmap.CompressFormat.PNG, ICON_QUALITY, outputStream)
                 val byteArray = outputStream.toByteArray()
@@ -319,7 +325,7 @@ class AppDiscoveryHelper(private val context: Context) {
     }
     
     /**
-     * Convert drawable to bitmap
+     * Convert drawable to bitmap safely (handles AdaptiveIconDrawable, VectorDrawable, BitmapDrawable)
      */
     private fun drawableToBitmap(drawable: Drawable): Bitmap? {
         return try {
@@ -327,16 +333,10 @@ class AppDiscoveryHelper(private val context: Context) {
                 return drawable.bitmap
             }
             
-            val bitmap = if (drawable.intrinsicWidth <= 0 || drawable.intrinsicHeight <= 0) {
-                Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
-            } else {
-                Bitmap.createBitmap(
-                    drawable.intrinsicWidth,
-                    drawable.intrinsicHeight,
-                    Bitmap.Config.ARGB_8888
-                )
-            }
+            val width = if (drawable.intrinsicWidth > 0) drawable.intrinsicWidth else MAX_ICON_SIZE
+            val height = if (drawable.intrinsicHeight > 0) drawable.intrinsicHeight else MAX_ICON_SIZE
             
+            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
             drawable.setBounds(0, 0, canvas.width, canvas.height)
             drawable.draw(canvas)

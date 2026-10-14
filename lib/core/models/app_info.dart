@@ -33,25 +33,60 @@ class AppInfo {
 
   /// Create AppInfo from Firestore document
   factory AppInfo.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+    final data = (doc.data() as Map<String, dynamic>?) ?? {};
+    final pkg = (data['packageName'] ?? doc.id).toString();
+    final appName = (data['name'] ?? data['appName'] ?? pkg).toString();
     
     return AppInfo(
-      packageName: data['packageName'] ?? '',
-      name: data['name'] ?? '',
-      rule: AppControlRule.values.firstWhere(
-        (rule) => rule.name == data['rule'],
-        orElse: () => AppControlRule.ask,
-      ),
-      dailyLimitMinutes: data['dailyLimitMinutes'],
-      allowedFrom: data['allowedFrom'],
-      allowedUntil: data['allowedUntil'],
-      detectedAt: (data['detectedAt'] as Timestamp).toDate(),
-      updatedAt: (data['updatedAt'] as Timestamp).toDate(),
-      isAvailable: data['isAvailable'] ?? true,
-      iconBase64: data['iconBase64'],
-      version: data['version'],
-      isSystemApp: data['isSystemApp'] ?? false,
+      packageName: pkg,
+      name: appName.isNotEmpty ? appName : pkg,
+      rule: _parseRule(data['rule'] ?? data['type']),
+      dailyLimitMinutes: (data['dailyLimitMinutes'] as num?)?.toInt(),
+      allowedFrom: data['allowedFrom'] as String? ?? (data['allowedStartTime'] as String?),
+      allowedUntil: data['allowedUntil'] as String? ?? (data['allowedEndTime'] as String?),
+      detectedAt: _parseTimestamp(data['detectedAt'] ?? data['installedDate']),
+      updatedAt: _parseTimestamp(data['updatedAt'] ?? data['lastUpdated']),
+      isAvailable: data['isAvailable'] as bool? ?? true,
+      iconBase64: data['iconBase64'] as String?,
+      version: data['version'] as String?,
+      isSystemApp: data['isSystemApp'] as bool? ?? false,
     );
+  }
+
+  static AppControlRule _parseRule(dynamic ruleRaw) {
+    if (ruleRaw == null) return AppControlRule.ask;
+    final str = ruleRaw.toString().toLowerCase().trim();
+    switch (str) {
+      case 'block':
+      case 'blocked':
+        return AppControlRule.block;
+      case 'allow':
+      case 'allowed':
+        return AppControlRule.allow;
+      case 'ask':
+      case 'ask_parent':
+      case 'notify':
+      case 'request':
+        return AppControlRule.ask;
+      case 'timelimited':
+      case 'time_limit':
+      case 'timelimit':
+        return AppControlRule.timeLimited;
+      case 'timerestricted':
+      case 'time_window':
+      case 'timewindow':
+        return AppControlRule.timeRestricted;
+      default:
+        return AppControlRule.ask;
+    }
+  }
+
+  static DateTime _parseTimestamp(dynamic value) {
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
+    if (value is String) return DateTime.tryParse(value) ?? DateTime.now();
+    return DateTime.now();
   }
 
   /// Convert AppInfo to Firestore document
@@ -59,12 +94,16 @@ class AppInfo {
     return {
       'packageName': packageName,
       'name': name,
+      'appName': name,
       'rule': rule.name,
+      'type': rule.name.toUpperCase(),
       'dailyLimitMinutes': dailyLimitMinutes,
       'allowedFrom': allowedFrom,
       'allowedUntil': allowedUntil,
       'detectedAt': Timestamp.fromDate(detectedAt),
+      'installedDate': Timestamp.fromDate(detectedAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
+      'lastUpdated': Timestamp.fromDate(updatedAt),
       'isAvailable': isAvailable,
       'iconBase64': iconBase64,
       'version': version,

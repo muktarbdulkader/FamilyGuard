@@ -1,43 +1,32 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'dart:async';
 import '../../../../core/models/location_model.dart';
 import '../../../../core/services/location_service.dart';
 import '../../../../core/providers/user_provider.dart';
 
+/// Family Location Screen — shows child locations without requiring a Maps API key.
+/// Tapping a location card opens the native maps app via a geo: URI.
 class FamilyMapScreen extends ConsumerStatefulWidget {
   final String? familyId;
 
-  const FamilyMapScreen({
-    super.key,
-    this.familyId,
-  });
+  const FamilyMapScreen({super.key, this.familyId});
 
   @override
   ConsumerState<FamilyMapScreen> createState() => _FamilyMapScreenState();
 }
 
 class _FamilyMapScreenState extends ConsumerState<FamilyMapScreen> {
-  GoogleMapController? _mapController;
-  final Completer<GoogleMapController> _controller = Completer<GoogleMapController>();
-  
-  Set<Marker> _markers = {};
   List<FamilyLocation> _locations = [];
   bool _isLoading = true;
+  String? _error;
   StreamSubscription<List<FamilyLocation>>? _locationSubscription;
-
-  static const CameraPosition _initialPosition = CameraPosition(
-    target: LatLng(37.7749, -122.4194), // San Francisco
-    zoom: 10,
-  );
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _subscribeToLocations();
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _subscribeToLocations());
   }
 
   @override
@@ -47,531 +36,406 @@ class _FamilyMapScreenState extends ConsumerState<FamilyMapScreen> {
   }
 
   void _subscribeToLocations() {
-    final effectiveFamilyId = widget.familyId ?? ref.read(currentUserDataProvider).value?.familyId ?? '';
+    final effectiveFamilyId =
+        widget.familyId ?? ref.read(currentUserDataProvider).value?.familyId ?? '';
     if (effectiveFamilyId.isEmpty) {
       setState(() {
         _isLoading = false;
+        _error = 'No family linked to this account yet.';
       });
       return;
     }
 
     _locationSubscription = LocationService()
         .getFamilyLocations(effectiveFamilyId)
-        .listen((locations) {
-      if (mounted) {
-        setState(() {
-          _locations = locations;
-          _isLoading = false;
-        });
-        _updateMarkers(locations);
-        _fitMapToLocations(locations);
-      }
-    });
-  }
-
-  void _updateMarkers(List<FamilyLocation> locations) {
-    final markers = <Marker>{};
-    
-    for (final location in locations) {
-      markers.add(
-        Marker(
-          markerId: MarkerId(location.childId),
-          position: LatLng(location.latitude, location.longitude),
-          infoWindow: InfoWindow(
-            title: _getChildName(location.childId),
-            snippet: _getLocationSnippet(location),
-          ),
-          icon: location.isStale
-              ? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure)
-              : BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-          onTap: () => _showLocationDetails(location),
-        ),
-      );
-    }
-    
-    setState(() {
-      _markers = markers;
-    });
-  }
-
-  Future<void> _fitMapToLocations(List<FamilyLocation> locations) async {
-    if (locations.isEmpty || _mapController == null) return;
-    
-    if (locations.length == 1) {
-      // Single location - center on it
-      final location = locations.first;
-      _mapController!.animateCamera(
-        CameraUpdate.newLatLngZoom(
-          LatLng(location.latitude, location.longitude),
-          15,
-        ),
-      );
-      return;
-    }
-    
-    // Multiple locations - fit to bounds
-    double minLat = locations.first.latitude;
-    double maxLat = locations.first.latitude;
-    double minLng = locations.first.longitude;
-    double maxLng = locations.first.longitude;
-    
-    for (final location in locations) {
-      minLat = minLat < location.latitude ? minLat : location.latitude;
-      maxLat = maxLat > location.latitude ? maxLat : location.latitude;
-      minLng = minLng < location.longitude ? minLng : location.longitude;
-      maxLng = maxLng > location.longitude ? maxLng : location.longitude;
-    }
-    
-    _mapController!.animateCamera(
-      CameraUpdate.newLatLngBounds(
-        LatLngBounds(
-          southwest: LatLng(minLat, minLng),
-          northeast: LatLng(maxLat, maxLng),
-        ),
-        100, // padding
-      ),
+        .listen(
+      (locations) {
+        if (mounted) {
+          setState(() {
+            _locations = locations;
+            _isLoading = false;
+            _error = null;
+          });
+        }
+      },
+      onError: (e) {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _error = 'Unable to load locations: $e';
+          });
+        }
+      },
     );
+  }
+
+  /// Open the device's built-in maps app via a geo: URI (no API key needed)
+  Future<void> _openInMaps(FamilyLocation loc) async {
+    final uri = 'geo:${loc.latitude},${loc.longitude}?q=${loc.latitude},${loc.longitude}';
+    const channel = MethodChannel('family_guardian/permissions');
+    try {
+      // Use an Intent via Android — fallback to clipboard copy if unavailable
+      await channel.invokeMethod('openUrl', {'url': uri});
+    } catch (_) {
+      // Fallback: copy coordinates to clipboard
+      await Clipboard.setData(
+        ClipboardData(text: '${loc.latitude}, ${loc.longitude}'),
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Coordinates copied to clipboard. Paste in Google Maps.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text('Family Locations'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _refreshLocations,
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () => _openLocationSettings(),
-          ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          GoogleMap(
-            mapType: MapType.normal,
-            initialCameraPosition: _initialPosition,
-            markers: _markers,
-            onMapCreated: (GoogleMapController controller) {
-              _controller.complete(controller);
-              _mapController = controller;
-              if (_locations.isNotEmpty) {
-                _fitMapToLocations(_locations);
-              }
-            },
-            myLocationEnabled: true,
-            myLocationButtonEnabled: true,
-            compassEnabled: true,
-            zoomControlsEnabled: false,
-          ),
-          
-          // Loading overlay
-          if (_isLoading)
-            Container(
-              color: Colors.black54,
-              child: const Center(
-                child: CircularProgressIndicator(),
-              ),
+        elevation: 0,
+        backgroundColor: Colors.white,
+        foregroundColor: const Color(0xFF0F172A),
+        title: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Family Locations',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
             ),
-          
-          // Location list drawer
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: _LocationListPanel(
-              locations: _locations,
-              onLocationTap: _centerOnLocation,
-              onLocationDetails: _showLocationDetails,
-            ),
-          ),
-        ],
-      ),
-      floatingActionButton: _locations.isNotEmpty
-          ? FloatingActionButton(
-              onPressed: () => _fitMapToLocations(_locations),
-              child: const Icon(Icons.center_focus_strong),
-            )
-          : null,
-    );
-  }
-
-  String _getChildName(String childId) {
-    // In a real implementation, you'd get this from user/family data
-    return 'Child ${childId.substring(0, 6)}';
-  }
-
-  String _getLocationSnippet(FamilyLocation location) {
-    final timeAgo = _getTimeAgo(location.timestamp);
-    final accuracy = location.accuracy != null 
-        ? ' (±${location.accuracy!.toInt()}m)'
-        : '';
-    
-    return '$timeAgo$accuracy${location.isStale ? ' - Stale' : ''}';
-  }
-
-  String _getTimeAgo(DateTime timestamp) {
-    final now = DateTime.now();
-    final difference = now.difference(timestamp);
-    
-    if (difference.inDays > 0) {
-      return '${difference.inDays}d ago';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours}h ago';
-    } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes}m ago';
-    } else {
-      return 'Just now';
-    }
-  }
-
-  Future<void> _refreshLocations() async {
-    // Locations are automatically updated via stream
-    // This could trigger a manual refresh if needed
-  }
-
-  void _openLocationSettings() {
-    // Navigate to location settings
-  }
-
-  void _centerOnLocation(FamilyLocation location) {
-    _mapController?.animateCamera(
-      CameraUpdate.newLatLngZoom(
-        LatLng(location.latitude, location.longitude),
-        16,
-      ),
-    );
-  }
-
-  void _showLocationDetails(FamilyLocation location) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _LocationDetailsSheet(location: location),
-    );
-  }
-}
-
-class _LocationListPanel extends StatelessWidget {
-  final List<FamilyLocation> locations;
-  final ValueChanged<FamilyLocation> onLocationTap;
-  final ValueChanged<FamilyLocation> onLocationDetails;
-
-  const _LocationListPanel({
-    required this.locations,
-    required this.onLocationTap,
-    required this.onLocationDetails,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (locations.isEmpty) {
-      return Container(
-        margin: const EdgeInsets.all(16),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black26,
-              blurRadius: 8,
-              offset: const Offset(0, -2),
+            Text(
+              'Live GPS tracking',
+              style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
             ),
           ],
         ),
-        child: const Column(
-          mainAxisSize: MainAxisSize.min,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            tooltip: 'Refresh',
+            onPressed: () {
+              setState(() {
+                _isLoading = true;
+                _error = null;
+              });
+              _locationSubscription?.cancel();
+              _subscribeToLocations();
+            },
+          ),
+        ],
+      ),
+      body: _buildBody(),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_isLoading) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.location_off, size: 48, color: Colors.grey),
-            SizedBox(height: 8),
-            Text(
-              'No Locations Available',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            SizedBox(height: 4),
-            Text(
-              'Family members need to enable location sharing',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey,
-              ),
-              textAlign: TextAlign.center,
-            ),
+            CircularProgressIndicator(color: Color(0xFF4F46E5)),
+            SizedBox(height: 16),
+            Text('Loading family locations…', style: TextStyle(color: Color(0xFF64748B))),
           ],
         ),
       );
     }
 
-    return Container(
-      margin: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 8,
-            offset: const Offset(0, -2),
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.location_off_rounded, size: 64, color: Color(0xFFCBD5E1)),
+              const SizedBox(height: 16),
+              const Text(
+                'Location Unavailable',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _error!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton.icon(
+                onPressed: () {
+                  setState(() { _isLoading = true; _error = null; });
+                  _locationSubscription?.cancel();
+                  _subscribeToLocations();
+                },
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Retry'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF4F46E5),
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                const Icon(Icons.people, color: Colors.blue),
-                const SizedBox(width: 8),
-                Text(
-                  'Family Locations (${locations.length})',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+        ),
+      );
+    }
+
+    if (_locations.isEmpty) {
+      return _buildEmptyState();
+    }
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        // Info banner
+        Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFF4F46E5).withOpacity(0.08),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFF4F46E5).withOpacity(0.2)),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.info_outline_rounded, color: Color(0xFF4F46E5), size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Tap a card to open the location in your maps app.',
+                  style: TextStyle(
+                    color: const Color(0xFF4F46E5).withOpacity(0.9),
+                    fontSize: 13,
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          
-          const Divider(height: 1),
-          
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 200),
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: locations.length,
-              itemBuilder: (context, index) {
-                final location = locations[index];
-                return _LocationListItem(
-                  location: location,
-                  onTap: () => onLocationTap(location),
-                  onDetails: () => onLocationDetails(location),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
+        ),
+
+        // Location cards
+        ..._locations.map((loc) => _LocationCard(
+          location: loc,
+          onTap: () => _openInMaps(loc),
+        )),
+      ],
     );
   }
-}
 
-class _LocationListItem extends StatelessWidget {
-  final FamilyLocation location;
-  final VoidCallback onTap;
-  final VoidCallback onDetails;
-
-  const _LocationListItem({
-    required this.location,
-    required this.onTap,
-    required this.onDetails,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      leading: CircleAvatar(
-        backgroundColor: location.isStale 
-            ? Colors.grey.shade300 
-            : Colors.blue.shade100,
-        child: Icon(
-          Icons.person,
-          color: location.isStale 
-              ? Colors.grey.shade600 
-              : Colors.blue.shade700,
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF59E0B).withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.location_searching_rounded,
+                size: 56,
+                color: Color(0xFFF59E0B),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'No Locations Yet',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Family members need to enable location sharing in the companion app. '
+              'Locations will appear here automatically once shared.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Color(0xFF64748B), fontSize: 13, height: 1.5),
+            ),
+          ],
         ),
       ),
-      
-      title: Text(_getChildName(location.childId)),
-      
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(_getTimeAgo(location.timestamp)),
-          if (location.accuracy != null)
-            Text(
-              'Accuracy: ±${location.accuracy!.toInt()}m',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey.shade600,
-              ),
-            ),
-        ],
-      ),
-      
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (location.isStale)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: Colors.orange,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Text(
-                'Stale',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          const SizedBox(width: 8),
-          Icon(Icons.chevron_right, color: Colors.grey.shade400),
-        ],
-      ),
-      
-      onTap: onTap,
-      onLongPress: onDetails,
     );
-  }
-
-  String _getChildName(String childId) {
-    return 'Child ${childId.substring(0, 6)}';
-  }
-
-  String _getTimeAgo(DateTime timestamp) {
-    final now = DateTime.now();
-    final difference = now.difference(timestamp);
-    
-    if (difference.inDays > 0) {
-      return '${difference.inDays}d ago';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours}h ago';
-    } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes}m ago';
-    } else {
-      return 'Just now';
-    }
   }
 }
 
-class _LocationDetailsSheet extends StatelessWidget {
-  final FamilyLocation location;
+// ── Location Card ─────────────────────────────────────────────────────────────
 
-  const _LocationDetailsSheet({required this.location});
+class _LocationCard extends StatelessWidget {
+  final FamilyLocation location;
+  final VoidCallback onTap;
+
+  const _LocationCard({required this.location, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
+    final timeAgo = _timeAgo(location.timestamp);
+    final isStale = location.isStale;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: isStale
+                ? const Color(0xFFFCA5A5)
+                : const Color(0xFF34D399).withOpacity(0.4),
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 12,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Top row: name + status badge
             Row(
               children: [
-                CircleAvatar(
-                  radius: 24,
-                  backgroundColor: Colors.blue.shade100,
-                  child: Icon(
-                    Icons.person,
-                    color: Colors.blue.shade700,
-                    size: 28,
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: isStale
+                          ? [const Color(0xFF94A3B8), const Color(0xFF64748B)]
+                          : [const Color(0xFF3B82F6), const Color(0xFF6366F1)],
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Center(
+                    child: Text(
+                      _initials(location.childId),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _getChildName(location.childId),
+                        'Child · ${location.childId.substring(0, 8)}',
                         style: const TextStyle(
-                          fontSize: 20,
                           fontWeight: FontWeight.bold,
+                          fontSize: 15,
                         ),
                       ),
-                      Text(
-                        _getLocationStatus(),
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: location.isStale ? Colors.orange : Colors.green,
-                          fontWeight: FontWeight.w500,
-                        ),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: isStale
+                                  ? const Color(0xFFEF4444)
+                                  : const Color(0xFF10B981),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            isStale ? 'Stale ($timeAgo)' : 'Updated $timeAgo',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isStale
+                                  ? const Color(0xFFEF4444)
+                                  : const Color(0xFF10B981),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
-                IconButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.close),
+                // Open in maps icon
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF4F46E5).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.open_in_new_rounded,
+                    size: 18,
+                    color: Color(0xFF4F46E5),
+                  ),
                 ),
               ],
             ),
-            
-            const SizedBox(height: 24),
-            
-            _DetailRow(
-              icon: Icons.access_time,
-              title: 'Last Updated',
-              value: _formatTimestamp(location.timestamp),
+
+            const SizedBox(height: 14),
+            const Divider(height: 1),
+            const SizedBox(height: 12),
+
+            // Coordinates
+            _InfoRow(
+              icon: Icons.my_location_rounded,
+              label: 'Latitude',
+              value: location.latitude.toStringAsFixed(6),
             ),
-            
-            const SizedBox(height: 16),
-            
-            _DetailRow(
-              icon: Icons.location_on,
-              title: 'Coordinates',
-              value: '${location.latitude.toStringAsFixed(6)}, ${location.longitude.toStringAsFixed(6)}',
+            const SizedBox(height: 6),
+            _InfoRow(
+              icon: Icons.explore_rounded,
+              label: 'Longitude',
+              value: location.longitude.toStringAsFixed(6),
             ),
-            
             if (location.accuracy != null) ...[
-              const SizedBox(height: 16),
-              _DetailRow(
-                icon: Icons.gps_fixed,
-                title: 'Accuracy',
-                value: '±${location.accuracy!.toInt()} meters',
+              const SizedBox(height: 6),
+              _InfoRow(
+                icon: Icons.gps_fixed_rounded,
+                label: 'Accuracy',
+                value: '±${location.accuracy!.toInt()} m',
               ),
             ],
-            
-            if (location.altitude != null) ...[
-              const SizedBox(height: 16),
-              _DetailRow(
-                icon: Icons.terrain,
-                title: 'Altitude',
-                value: '${location.altitude!.toInt()}m above sea level',
+            if (location.address != null && location.address!.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              _InfoRow(
+                icon: Icons.place_rounded,
+                label: 'Address',
+                value: location.address!,
               ),
             ],
-            
-            if (location.speed != null && location.speed! > 0) ...[
-              const SizedBox(height: 16),
-              _DetailRow(
-                icon: Icons.speed,
-                title: 'Speed',
-                value: '${(location.speed! * 3.6).toStringAsFixed(1)} km/h',
-              ),
-            ],
-            
-            const SizedBox(height: 24),
-            
+
+            const SizedBox(height: 12),
+
+            // "Open in Maps" button
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  // Center map on this location
-                },
-                icon: const Icon(Icons.center_focus_strong),
-                label: const Text('Center on Map'),
+                onPressed: onTap,
+                icon: const Icon(Icons.map_rounded, size: 18),
+                label: const Text('Open in Maps'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF4F46E5),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
               ),
             ),
           ],
@@ -580,75 +444,41 @@ class _LocationDetailsSheet extends StatelessWidget {
     );
   }
 
-  String _getChildName(String childId) {
-    return 'Child ${childId.substring(0, 6)}';
+  String _initials(String childId) {
+    return childId.isEmpty ? 'C' : childId[0].toUpperCase();
   }
 
-  String _getLocationStatus() {
-    if (location.isStale) {
-      return 'Location may be outdated';
-    } else {
-      return 'Recent location';
-    }
-  }
-
-  String _formatTimestamp(DateTime timestamp) {
-    final now = DateTime.now();
-    final difference = now.difference(timestamp);
-    
-    if (difference.inDays > 0) {
-      return '${difference.inDays} day${difference.inDays == 1 ? '' : 's'} ago';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours} hour${difference.inHours == 1 ? '' : 's'} ago';
-    } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes} minute${difference.inMinutes == 1 ? '' : 's'} ago';
-    } else {
-      return 'Just now';
-    }
+  String _timeAgo(DateTime timestamp) {
+    final diff = DateTime.now().difference(timestamp);
+    if (diff.inDays > 0) return '${diff.inDays}d ago';
+    if (diff.inHours > 0) return '${diff.inHours}h ago';
+    if (diff.inMinutes > 0) return '${diff.inMinutes}m ago';
+    return 'just now';
   }
 }
 
-class _DetailRow extends StatelessWidget {
+class _InfoRow extends StatelessWidget {
   final IconData icon;
-  final String title;
+  final String label;
   final String value;
 
-  const _DetailRow({
-    required this.icon,
-    required this.title,
-    required this.value,
-  });
+  const _InfoRow({required this.icon, required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(
-          icon,
-          size: 20,
-          color: Colors.grey.shade600,
+        Icon(icon, size: 16, color: const Color(0xFF94A3B8)),
+        const SizedBox(width: 8),
+        Text(
+          '$label: ',
+          style: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
         ),
-        const SizedBox(width: 12),
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey.shade600,
-                ),
-              ),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
+          child: Text(
+            value,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],

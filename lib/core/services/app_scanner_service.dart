@@ -19,15 +19,36 @@ class AppScannerService {
       
       return appsData.map((appData) {
         final app = Map<String, dynamic>.from(appData);
+        final appName = (app['appName'] ?? app['name'] ?? '').toString();
+        
+        Uint8List? iconBytes;
+        if (app['iconBytes'] != null) {
+          try {
+            iconBytes = Uint8List.fromList(List<int>.from(app['iconBytes']));
+          } catch (_) {}
+        } else if (app['iconBase64'] != null && (app['iconBase64'] as String).isNotEmpty) {
+          try {
+            iconBytes = base64Decode(app['iconBase64'] as String);
+          } catch (_) {}
+        }
+
+        final rawInstall = app['installTime'] ?? app['firstInstallTime'] ?? 0;
+        final installMs = rawInstall is int 
+            ? (rawInstall < 10000000000 ? rawInstall * 1000 : rawInstall) 
+            : 0;
+
+        final rawUpdate = app['lastUpdateTime'] ?? rawInstall;
+        final updateMs = rawUpdate is int 
+            ? (rawUpdate < 10000000000 ? rawUpdate * 1000 : rawUpdate) 
+            : installMs;
+
         return InstalledAppInfo(
           packageName: app['packageName'] ?? '',
-          appName: app['appName'] ?? '',
-          iconBytes: app['iconBytes'] != null 
-              ? Uint8List.fromList(List<int>.from(app['iconBytes']))
-              : null,
-          version: app['version'] ?? '',
-          installTime: DateTime.fromMillisecondsSinceEpoch(app['installTime'] ?? 0),
-          lastUpdateTime: DateTime.fromMillisecondsSinceEpoch(app['lastUpdateTime'] ?? 0),
+          appName: appName.isNotEmpty ? appName : (app['packageName'] ?? 'Unknown App'),
+          iconBytes: iconBytes,
+          version: (app['versionName'] ?? app['version'] ?? '').toString(),
+          installTime: DateTime.fromMillisecondsSinceEpoch(installMs),
+          lastUpdateTime: DateTime.fromMillisecondsSinceEpoch(updateMs),
           isSystemApp: app['isSystemApp'] ?? false,
         );
       }).toList();
@@ -68,14 +89,17 @@ class AppScannerService {
         }
 
         final existingApp = existingApps[app.packageName];
+        final iconBase64 = app.iconBytes != null 
+            ? base64Encode(app.iconBytes!) 
+            : existingApp?.iconBase64;
         
         // Create new app model or update existing one
         final appModel = AppModel(
           packageName: app.packageName,
-          appName: app.appName,
-          iconBase64: app.iconBytes != null ? base64Encode(app.iconBytes!) : null,
-          version: app.version,
-          installedDate: app.installTime,
+          appName: app.appName.isNotEmpty ? app.appName : (existingApp?.appName ?? app.packageName),
+          iconBase64: iconBase64,
+          version: app.version.isNotEmpty ? app.version : (existingApp?.version ?? ''),
+          installedDate: app.installTime.year > 2000 ? app.installTime : (existingApp?.installedDate ?? now),
           lastUsed: existingApp?.lastUsed ?? now,
           isSystemApp: app.isSystemApp,
           rule: existingApp?.rule ?? AppRule.askParent, // Default to ask parent for new apps
@@ -85,7 +109,7 @@ class AppScannerService {
           lastUpdated: now,
         );
 
-        batch.set(childAppsRef.doc(app.packageName), appModel.toFirestore());
+        batch.set(childAppsRef.doc(app.packageName), appModel.toFirestore(), SetOptions(merge: true));
       }
 
       // Remove apps that are no longer installed

@@ -73,6 +73,17 @@ class MainActivity : FlutterActivity() {
                     "isMonitoringServiceRunning" -> {
                         result.success(isMonitoringServiceRunning())
                     }
+                    "openUrl" -> {
+                        val url = call.argument<String>("url") ?: ""
+                        try {
+                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW)
+                            intent.data = Uri.parse(url)
+                            startActivity(intent)
+                            result.success(null)
+                        } catch (e: Exception) {
+                            result.error("OPEN_URL_ERROR", e.message, null)
+                        }
+                    }
                     else -> {
                         // Delegate to original permission helper for other methods
                         permissionHelper.handleMethodCall(call.method, result)
@@ -248,6 +259,7 @@ class MainActivity : FlutterActivity() {
      */
     private fun startMonitoringService(): Boolean {
         return try {
+            com.example.flutter_study_app.services.MonitoringService.startService(this)
             MonitoringForegroundService.startService(this)
             // Save monitoring state
             val sharedPrefs = getSharedPreferences("family_guardian_prefs", Context.MODE_PRIVATE)
@@ -263,6 +275,7 @@ class MainActivity : FlutterActivity() {
      */
     private fun stopMonitoringService(): Boolean {
         return try {
+            com.example.flutter_study_app.services.MonitoringService.stopService(this)
             MonitoringForegroundService.stopService(this)
             // Save monitoring state
             val sharedPrefs = getSharedPreferences("family_guardian_prefs", Context.MODE_PRIVATE)

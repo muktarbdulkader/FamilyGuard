@@ -121,13 +121,6 @@
             </intent-filter>
         </activity>
         
-        <!-- Monitoring Foreground Service -->
-        <service
-            android:name="com.example.flutter_study_app.services.MonitoringService"
-            android:enabled="true"
-            android:exported="false"
-            android:foregroundServiceType="dataSync" />
-        
         <!-- Boot Receiver to restart monitoring after reboot -->
         <receiver
             android:name="com.example.flutter_study_app.receivers.BootReceiver"
@@ -151,6 +144,17 @@
             android:exported="false"
             android:foregroundServiceType="specialUse">
             <!-- Special use case declaration for Android 14+ -->
+            <property 
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="parental_controls" />
+        </service>
+
+        <!-- CORE MONITORING SERVICE (UsageStatsManager & Rule Enforcement) -->
+        <service 
+            android:name="com.example.flutter_study_app.services.MonitoringService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
             <property 
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="parental_controls" />

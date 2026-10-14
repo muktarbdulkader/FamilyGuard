@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../../../../core/constants/app_routes.dart';
+import '../../../../core/models/family_model.dart';
 import '../../../../core/providers/family_provider.dart';
 import '../widgets/family_selector.dart';
 import '../widgets/child_selector.dart';
@@ -17,6 +20,7 @@ class ParentDashboardScreen extends ConsumerStatefulWidget {
 class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  bool _autoSelectDone = false;
 
   @override
   void initState() {
@@ -30,18 +34,50 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
     super.dispose();
   }
 
+  /// Auto-select first family + first child so tabs are immediately usable
+  void _maybeAutoSelect(
+    List<FamilyModel> families,
+    FamilyModel? selectedFamily,
+    List<ChildModel> children,
+    ChildModel? selectedChild,
+  ) {
+    if (_autoSelectDone) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (selectedFamily == null && families.isNotEmpty) {
+        ref.read(selectedFamilyProvider.notifier).state = families.first;
+      }
+      if (selectedChild == null && children.isNotEmpty) {
+        ref.read(selectedChildProvider.notifier).state = children.first;
+      }
+      _autoSelectDone = true;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final familiesAsync = ref.watch(userFamiliesProvider);
     final selectedFamily = ref.watch(selectedFamilyProvider);
     final selectedChild = ref.watch(selectedChildProvider);
+    final childrenAsync = ref.watch(familyChildrenProvider);
+
+    // Auto-select first family and child on load
+    familiesAsync.whenData((families) {
+      childrenAsync.whenData((children) {
+        _maybeAutoSelect(families, selectedFamily, children, selectedChild);
+      });
+    });
+
+    final effectiveFamilyId = selectedFamily?.id ?? '';
+    final effectiveChildId = selectedChild?.id ?? '';
+    final hasSelection = effectiveFamilyId.isNotEmpty && effectiveChildId.isNotEmpty;
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
       body: SafeArea(
         child: Column(
           children: [
-            // Header with family and child selection
+            // ── Header ──────────────────────────────────────────
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -63,11 +99,7 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                         icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
                         onPressed: () => Navigator.of(context).maybePop(),
                       ),
-                      Icon(
-                        Icons.family_restroom,
-                        size: 28,
-                        color: Colors.blue[600],
-                      ),
+                      Icon(Icons.family_restroom, size: 28, color: Colors.blue[600]),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Column(
@@ -97,7 +129,7 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                     ],
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // Family Selector
                   familiesAsync.when(
                     loading: () => const _LoadingSelector(title: 'Loading families...'),
@@ -114,14 +146,6 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                           actionLabel: 'Create Family',
                         );
                       }
-                      
-                      // Auto-select first family if none selected
-                      if (selectedFamily == null && families.isNotEmpty) {
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          ref.read(selectedFamilyProvider.notifier).state = families.first;
-                        });
-                      }
-                      
                       return FamilySelector(
                         families: families,
                         selectedFamily: selectedFamily ?? families.first,
@@ -132,152 +156,139 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                       );
                     },
                   ),
-                  
+
                   const SizedBox(height: 12),
-                  
-                  // Child Selector
-                  if (selectedFamily != null || familiesAsync.value?.isNotEmpty == true) ...[
-                    Consumer(
-                      builder: (context, ref, child) {
-                        final childrenAsync = ref.watch(familyChildrenProvider);
-                        
-                        return childrenAsync.when(
-                          loading: () => const _LoadingSelector(title: 'Loading children...'),
-                          error: (error, stack) => _ErrorSelector(
-                            title: 'Error loading children',
-                            error: error.toString(),
-                          ),
-                          data: (children) {
-                            if (children.isEmpty) {
-                              return _EmptyStateSelector(
-                                title: 'No children in this family',
-                                subtitle: 'Invite children to join this family',
-                                onAction: () => _showInviteChildDialog(),
-                                actionLabel: 'Invite Child',
-                              );
-                            }
-                            
-                            // Auto-select first child if none selected
-                            if (selectedChild == null && children.isNotEmpty) {
-                              WidgetsBinding.instance.addPostFrameCallback((_) {
-                                ref.read(selectedChildProvider.notifier).state = children.first;
-                              });
-                            }
-                            
-                            return ChildSelector(
-                              children: children,
-                              selectedChild: selectedChild ?? children.first,
-                              onChildSelected: (child) {
-                                ref.read(selectedChildProvider.notifier).state = child;
-                              },
-                            );
+
+                  // Child Selector (always show when family available)
+                  if (selectedFamily != null)
+                    childrenAsync.when(
+                      loading: () => const _LoadingSelector(title: 'Loading children...'),
+                      error: (error, stack) => _ErrorSelector(
+                        title: 'Error loading children',
+                        error: error.toString(),
+                      ),
+                      data: (children) {
+                        if (children.isEmpty) {
+                          return _EmptyStateSelector(
+                            title: 'No children in this family',
+                            subtitle: 'Invite children to join this family',
+                            onAction: () => _showInviteChildDialog(),
+                            actionLabel: 'Invite Child',
+                          );
+                        }
+                        return ChildSelector(
+                          children: children,
+                          selectedChild: selectedChild ?? children.first,
+                          onChildSelected: (child) {
+                            ref.read(selectedChildProvider.notifier).state = child;
                           },
                         );
                       },
                     ),
-                  ],
                 ],
               ),
             ),
-            
-            // Tab Bar
-            if (selectedFamily != null && selectedChild != null) ...[
-              Container(
-                color: Colors.white,
-                child: TabBar(
-                  controller: _tabController,
-                  labelColor: Colors.blue[700],
-                  unselectedLabelColor: Colors.grey[600],
-                  indicatorColor: Colors.blue[700],
-                  tabs: const [
-                    Tab(text: 'Apps', icon: Icon(Icons.apps_outlined, size: 20)),
-                    Tab(text: 'Usage', icon: Icon(Icons.bar_chart_outlined, size: 20)),
-                    Tab(text: 'Location', icon: Icon(Icons.location_on_outlined, size: 20)),
-                  ],
-                ),
+
+            // ── Tab Bar — always visible ──────────────────────────
+            Container(
+              color: Colors.white,
+              child: TabBar(
+                controller: _tabController,
+                labelColor: Colors.blue[700],
+                unselectedLabelColor: Colors.grey[600],
+                indicatorColor: Colors.blue[700],
+                tabs: const [
+                  Tab(text: 'Apps', icon: Icon(Icons.apps_outlined, size: 20)),
+                  Tab(text: 'Usage', icon: Icon(Icons.bar_chart_outlined, size: 20)),
+                  Tab(text: 'Location', icon: Icon(Icons.location_on_outlined, size: 20)),
+                ],
               ),
-              
-              // Tab Views
-              Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    // Apps Tab
-                    ParentAppManagementScreen(
-                      childId: selectedChild.id,
-                      familyId: selectedFamily.id,
-                    ),
-                    
-                    // Usage Tab
-                    _buildUsageTab(),
-                    
-                    // Location Tab
-                    _buildLocationTab(),
-                  ],
-                ),
+            ),
+
+            // ── Tab Views ─────────────────────────────────────────
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  // Apps Tab
+                  hasSelection
+                      ? ParentAppManagementScreen(
+                          childId: effectiveChildId,
+                          familyId: effectiveFamilyId,
+                        )
+                      : _buildNoSelectionPrompt(
+                          icon: Icons.apps_rounded,
+                          color: Colors.blue,
+                          title: 'Select a Child to Manage Apps',
+                          subtitle:
+                              'Choose a family and child above to see installed apps and set rules.',
+                        ),
+
+                  // Usage Tab
+                  hasSelection
+                      ? _buildUsageTab()
+                      : _buildNoSelectionPrompt(
+                          icon: Icons.bar_chart_rounded,
+                          color: Colors.green,
+                          title: 'Select a Child to View Usage',
+                          subtitle:
+                              'Choose a child above to view their screen time reports.',
+                        ),
+
+                  // Location Tab
+                  _buildLocationTab(),
+                ],
               ),
-            ] else ...[
-              // Welcome state
-              Expanded(
-                child: _buildWelcomeState(),
-              ),
-            ],
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildWelcomeState() {
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
+  /// Generic "no child selected" prompt shown inside tabs
+  Widget _buildNoSelectionPrompt({
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String subtitle,
+  }) {
+    return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+        padding: const EdgeInsets.all(32.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.family_restroom,
-              size: 88,
-              color: Colors.blue[300],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Welcome to Family Guardian',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Colors.blue[800],
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                shape: BoxShape.circle,
               ),
+              child: Icon(icon, size: 52, color: color),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
-              'Select a family and child above to start managing parental controls',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.grey[600],
-              ),
+              subtitle,
+              style: TextStyle(color: Colors.grey[600], fontSize: 13),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 24),
-            _FeatureCard(
-              icon: Icons.apps,
-              title: 'App Management',
-              description: 'Control which apps your children can use and set time limits',
-              color: Colors.blue,
-            ),
-            const SizedBox(height: 12),
-            _FeatureCard(
-              icon: Icons.schedule,
-              title: 'Screen Time',
-              description: 'Monitor usage and set healthy screen time boundaries',
-              color: Colors.green,
-            ),
-            const SizedBox(height: 12),
-            _FeatureCard(
-              icon: Icons.location_on,
-              title: 'Location Safety',
-              description: 'Keep track of your children\'s location for safety',
-              color: Colors.orange,
+            const SizedBox(height: 20),
+            OutlinedButton.icon(
+              onPressed: () => context.push(AppRoutes.familySetup),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Pair a Child Device'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: color,
+                side: BorderSide(color: color),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              ),
             ),
           ],
         ),
@@ -285,69 +296,143 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
     );
   }
 
+
+
   Widget _buildUsageTab() {
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.bar_chart, size: 64, color: Colors.grey),
-          SizedBox(height: 16),
-          Text(
-            'Usage Analytics',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          SizedBox(height: 8),
-          Text(
-            'Coming Soon',
-            style: TextStyle(color: Colors.grey),
-          ),
-        ],
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.bar_chart_rounded, size: 64, color: Colors.blue[600]),
+            const SizedBox(height: 16),
+            const Text(
+              'Real-Time App Usage',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Usage monitoring is active for this child device.',
+              style: TextStyle(color: Colors.grey[600]),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: () => _tabController.animateTo(0),
+              icon: const Icon(Icons.rule_rounded),
+              label: const Text('Manage App Rules'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF4F46E5),
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildLocationTab() {
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.location_on, size: 64, color: Colors.grey),
-          SizedBox(height: 16),
-          Text(
-            'Location Tracking',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          SizedBox(height: 8),
-          Text(
-            'Coming Soon',
-            style: TextStyle(color: Colors.grey),
-          ),
-        ],
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.location_on_rounded, size: 64, color: Colors.orange[600]),
+            const SizedBox(height: 16),
+            const Text(
+              'Family GPS & Safe Zones',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'View live map tracking and configure safe zone geofences.',
+              style: TextStyle(color: Colors.grey[600]),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: () => context.push(AppRoutes.parentLocation),
+              icon: const Icon(Icons.map_rounded),
+              label: const Text('Open Live Map'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFF59E0B),
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   void _showSettings() {
-    // TODO: Implement settings screen
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Settings coming soon')),
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Parent Controls Settings',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.notifications_active_rounded, color: Color(0xFF4F46E5)),
+                title: const Text('Notification Preferences'),
+                subtitle: const Text('Alerts for requests, new apps, and limits'),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () {
+                  Navigator.pop(context);
+                  context.push('/notifications');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.qr_code_rounded, color: Color(0xFF10B981)),
+                title: const Text('Pair New Device'),
+                subtitle: const Text('Generate 6-digit code or QR for child'),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () {
+                  Navigator.pop(context);
+                  context.push(AppRoutes.familySetup);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.swap_horiz_rounded, color: Color(0xFFD97706)),
+                title: const Text('Switch Role'),
+                subtitle: const Text('Change account mode to child companion'),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () {
+                  Navigator.pop(context);
+                  context.push(AppRoutes.roleSelection);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
   void _showCreateFamilyDialog() {
-    // TODO: Implement create family dialog
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Create family coming soon')),
-    );
+    context.push(AppRoutes.familySetup);
   }
 
   void _showInviteChildDialog() {
-    // TODO: Implement invite child dialog
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Invite child coming soon')),
-    );
+    context.push(AppRoutes.familySetup);
   }
+
 }
+
 
 // Helper widgets
 class _LoadingSelector extends StatelessWidget {
@@ -479,68 +564,6 @@ class _EmptyStateSelector extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             ),
             child: Text(actionLabel),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FeatureCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String description;
-  final Color color;
-
-  const _FeatureCard({
-    required this.icon,
-    required this.title,
-    required this.description,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: color, size: 24),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  description,
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
           ),
         ],
       ),

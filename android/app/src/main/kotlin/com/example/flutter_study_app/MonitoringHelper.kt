@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import com.example.flutter_study_app.services.MonitoringService
 import io.flutter.plugin.common.MethodChannel
 
 /**
@@ -111,6 +112,7 @@ class MonitoringHelper(private val activity: Activity) {
      */
     private fun startMonitoringService(familyId: String, childId: String) {
         val serviceIntent = Intent(activity, MonitoringService::class.java).apply {
+            action = MonitoringService.ACTION_START_MONITORING
             putExtra("familyId", familyId)
             putExtra("childId", childId)
         }
@@ -126,7 +128,9 @@ class MonitoringHelper(private val activity: Activity) {
      * Stop the monitoring service
      */
     private fun stopMonitoringService() {
-        val serviceIntent = Intent(activity, MonitoringService::class.java)
+        val serviceIntent = Intent(activity, MonitoringService::class.java).apply {
+            action = MonitoringService.ACTION_STOP_MONITORING
+        }
         activity.stopService(serviceIntent)
     }
 

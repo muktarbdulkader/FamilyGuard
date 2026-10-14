@@ -31,9 +31,11 @@ final familyChildrenProvider = StreamProvider<List<ChildModel>>((ref) {
     return Stream.value([]);
   }
 
+  // Query by familyId + role=child — works even if childIds array is stale
   return FirebaseFirestore.instance
       .collection('users')
-      .where(FieldPath.documentId, whereIn: family.childIds.isEmpty ? [''] : family.childIds)
+      .where('familyId', isEqualTo: family.id)
+      .where('role', isEqualTo: 'child')
       .snapshots()
       .map((snapshot) => snapshot.docs
           .map((doc) => ChildModel.fromFirestore(doc))
@@ -46,13 +48,16 @@ final selectedChildProvider = StateProvider<ChildModel?>((ref) => null);
 /// Provider for child's apps with real-time updates
 final childAppsProvider = StreamProvider.family<List<AppInfo>, String>((ref, childId) {
   final family = ref.watch(selectedFamilyProvider);
-  if (family == null) {
+  final user = ref.watch(currentUserDataProvider).value;
+  final familyId = family?.id ?? user?.familyId;
+
+  if (familyId == null || familyId.isEmpty) {
     return Stream.value([]);
   }
 
   return FirebaseFirestore.instance
       .collection('families')
-      .doc(family.id)
+      .doc(familyId)
       .collection('children')
       .doc(childId)
       .collection('apps')
@@ -61,7 +66,42 @@ final childAppsProvider = StreamProvider.family<List<AppInfo>, String>((ref, chi
           .map((doc) => AppInfo.fromFirestore(doc))
           .where((app) => app.isAvailable) // Only show available apps
           .toList()
-        ..sort((a, b) => a.name.compareTo(b.name))); // Sort alphabetically
+        ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()))); // Sort alphabetically
+});
+
+class FamilyChildParams {
+  final String familyId;
+  final String childId;
+  const FamilyChildParams({required this.familyId, required this.childId});
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FamilyChildParams &&
+          runtimeType == other.runtimeType &&
+          familyId == other.familyId &&
+          childId == other.childId;
+  @override
+  int get hashCode => familyId.hashCode ^ childId.hashCode;
+}
+
+/// Provider for child apps when both familyId and childId are known
+final familyChildAppsProvider = StreamProvider.family<List<AppInfo>, FamilyChildParams>((ref, params) {
+  if (params.familyId.isEmpty || params.childId.isEmpty) {
+    return Stream.value([]);
+  }
+
+  return FirebaseFirestore.instance
+      .collection('families')
+      .doc(params.familyId)
+      .collection('children')
+      .doc(params.childId)
+      .collection('apps')
+      .snapshots()
+      .map((snapshot) => snapshot.docs
+          .map((doc) => AppInfo.fromFirestore(doc))
+          .where((app) => app.isAvailable)
+          .toList()
+        ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase())));
 });
 
 /// Provider for child's app usage data
@@ -138,7 +178,9 @@ class AppRuleService {
 
     final updates = <String, dynamic>{
       'rule': rule.name,
+      'type': rule.name.toUpperCase(),
       'updatedAt': FieldValue.serverTimestamp(),
+      'lastUpdated': FieldValue.serverTimestamp(),
     };
 
     // Add rule-specific fields
@@ -158,7 +200,7 @@ class AppRuleService {
         break;
     }
 
-    await appRef.update(updates);
+    await appRef.set(updates, SetOptions(merge: true));
   }
 
   /// Batch update multiple app rules
@@ -180,7 +222,9 @@ class AppRuleService {
 
       final data = <String, dynamic>{
         'rule': update.rule.name,
+        'type': update.rule.name.toUpperCase(),
         'updatedAt': FieldValue.serverTimestamp(),
+        'lastUpdated': FieldValue.serverTimestamp(),
       };
 
       if (update.dailyLimitMinutes != null) {
@@ -193,7 +237,7 @@ class AppRuleService {
         data['allowedUntil'] = update.allowedUntil;
       }
 
-      batch.update(appRef, data);
+      batch.set(appRef, data, SetOptions(merge: true));
     }
 
     await batch.commit();

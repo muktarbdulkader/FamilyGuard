@@ -17,6 +17,7 @@ import '../../features/location/presentation/screens/family_map_screen.dart';
 import '../../features/parent/presentation/screens/parent_dashboard_screen.dart';
 import '../../features/notifications/presentation/screens/parent_notifications_screen.dart';
 import '../../features/family/presentation/screens/pairing/qr_code_screen.dart';
+import '../../features/requests/presentation/screens/app_requests_screen.dart';
 import '../constants/app_routes.dart';
 import '../models/user_model.dart';
 import 'auth_provider.dart';
@@ -160,14 +161,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const FamilyMapScreen(),
       ),
 
-      // Parent requests & dashboard route
+      // Parent requests route — dedicated App Requests screen
       GoRoute(
         path: AppRoutes.parentRequests,
         name: 'parent-requests',
-        builder: (context, state) => const ParentDashboardScreen(),
+        builder: (context, state) => const AppRequestsScreen(),
       ),
 
-      // Parent apps overview route
+      // Parent apps overview route — Family Controls dashboard
       GoRoute(
         path: AppRoutes.parentApps,
         name: 'parent-apps',

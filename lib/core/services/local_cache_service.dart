@@ -3,7 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/app_model.dart';
 
 /// Local cache service for offline app rule enforcement
-/// Stores app rules locally for when child device is offline
+
 class LocalCacheService {
   static const String _appRulesKey = 'cached_app_rules';
   static const String _lastSyncKey = 'last_rules_sync';
