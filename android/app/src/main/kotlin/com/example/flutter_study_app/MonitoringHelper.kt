@@ -46,7 +46,8 @@ class MonitoringHelper(private val activity: Activity) {
                     val args = arguments as Map<String, Any>
                     val familyId = args["familyId"] as String
                     val childId = args["childId"] as String
-                    startMonitoringService(familyId, childId)
+                    val childName = args["childName"] as? String
+                    startMonitoringService(familyId, childId, childName)
                     result.success(null)
                 }
                 "stopMonitoring" -> {
@@ -110,21 +111,27 @@ class MonitoringHelper(private val activity: Activity) {
     /**
      * Start the monitoring service and persist context for post-reboot restart.
      */
-    private fun startMonitoringService(familyId: String, childId: String) {
+    private fun startMonitoringService(familyId: String, childId: String, childName: String? = null) {
         // Persist credentials so BootReceiver can restart monitoring after reboot.
         val prefs = activity.getSharedPreferences("family_guardian_prefs", Context.MODE_PRIVATE)
-        prefs.edit()
+        val editor = prefs.edit()
             .putBoolean("monitoring_enabled", true)
             .putBoolean("is_logged_in", true)
             .putString("user_role", "child")
             .putString("family_id", familyId)
             .putString("child_id", childId)
-            .apply()
+        if (!childName.isNullOrEmpty()) {
+            editor.putString("child_name", childName)
+        }
+        editor.apply()
 
         val serviceIntent = Intent(activity, MonitoringService::class.java).apply {
             action = MonitoringService.ACTION_START_MONITORING
             putExtra("familyId", familyId)
             putExtra("childId", childId)
+            if (!childName.isNullOrEmpty()) {
+                putExtra("childName", childName)
+            }
         }
         
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

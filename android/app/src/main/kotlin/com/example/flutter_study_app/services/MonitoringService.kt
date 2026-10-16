@@ -62,6 +62,7 @@ class MonitoringService : Service() {
         private const val PREFS_NAME = "family_guardian_prefs"
         private const val KEY_FAMILY_ID = "family_id"
         private const val KEY_CHILD_ID = "child_id"
+        private const val KEY_CHILD_NAME = "child_name"
         
         const val ACTION_START_MONITORING = "START_MONITORING"
         const val ACTION_STOP_MONITORING = "STOP_MONITORING"
@@ -117,13 +118,17 @@ class MonitoringService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val familyId = intent?.getStringExtra("familyId")
         val childId = intent?.getStringExtra("childId")
+        val childName = intent?.getStringExtra("childName")
         if (!familyId.isNullOrEmpty() && !childId.isNullOrEmpty()) {
             currentFamilyId = familyId
             currentChildId = childId
-            getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+            val editor = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
                 .putString(KEY_FAMILY_ID, familyId)
                 .putString(KEY_CHILD_ID, childId)
-                .apply()
+            if (!childName.isNullOrEmpty()) {
+                editor.putString(KEY_CHILD_NAME, childName)
+            }
+            editor.apply()
             startRuleSync(familyId, childId)
         }
 
@@ -199,6 +204,18 @@ class MonitoringService : Service() {
                     delay(TimeUnit.MINUTES.toMillis(15)) // Run every 15 minutes
                 } catch (e: Exception) {
                     android.util.Log.e("MonitoringService", "Error in cleanup", e)
+                }
+            }
+        }
+
+        // Start usage sync to Firestore coroutine (runs every 30 seconds)
+        serviceScope.launch {
+            while (isActive) {
+                try {
+                    delay(30_000L)
+                    syncUsageToFirestore()
+                } catch (e: Exception) {
+                    android.util.Log.e("MonitoringService", "Error in usage sync coroutine", e)
                 }
             }
         }
@@ -455,11 +472,19 @@ class MonitoringService : Service() {
                 
                 val user = auth.currentUser
                 if (user != null) {
+                    val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                    if (!user.displayName.isNullOrEmpty()) {
+                        prefs.edit().putString(KEY_CHILD_NAME, user.displayName).apply()
+                    }
                     firestore.collection("users").document(user.uid)
                         .get()
                         .addOnSuccessListener { userDoc ->
                             currentFamilyId = userDoc.getString("familyId")
                             currentChildId = user.uid
+                            val name = userDoc.getString("displayName")
+                            if (!name.isNullOrEmpty()) {
+                                prefs.edit().putString(KEY_CHILD_NAME, name).apply()
+                            }
                             
                             // Start device status monitoring and rule sync
                             if (currentFamilyId != null && currentChildId != null) {
@@ -486,19 +511,20 @@ class MonitoringService : Service() {
             if (appInfo != null) {
                 val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
                 
-                // Create notification in Firestore (triggers Cloud Function)
+                val childName = getCurrentChildName()
                 val notificationData = hashMapOf(
                     "familyId" to familyId,
                     "childId" to childId,
-                    "childName" to getCurrentChildName(),
-                    "type" to "new_app_detected",
+                    "childName" to childName,
+                    "type" to "newAppDetected",
                     "priority" to "low",
-                    "title" to "New App Detected",
-                    "body" to "${appInfo.name} was installed on ${getCurrentChildName()}'s device.",
+                    "title" to "$childName: New App Detected",
+                    "body" to "${appInfo.name} was newly installed on $childName's device.",
                     "data" to hashMapOf(
-                        "type" to "new_app_detected",
+                        "type" to "newAppDetected",
                         "familyId" to familyId,
                         "childId" to childId,
+                        "childName" to childName,
                         "appName" to appInfo.name,
                         "packageName" to packageName
                     ),
@@ -525,19 +551,21 @@ class MonitoringService : Service() {
         
         try {
             val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+            val childName = getCurrentChildName()
             
             val notificationData = hashMapOf(
                 "familyId" to familyId,
                 "childId" to childId,
-                "childName" to getCurrentChildName(),
-                "type" to "daily_limit_reached",
+                "childName" to childName,
+                "type" to "dailyLimitReached",
                 "priority" to "normal",
-                "title" to "Daily Limit Reached",
-                "body" to "${getCurrentChildName()} has reached their daily limit for $appName.",
+                "title" to "$childName: Screen Time Limit Reached",
+                "body" to "$childName has reached their daily limit for $appName.",
                 "data" to hashMapOf(
-                    "type" to "daily_limit_reached",
+                    "type" to "dailyLimitReached",
                     "familyId" to familyId,
                     "childId" to childId,
+                    "childName" to childName,
                     "appName" to appName,
                     "packageName" to packageName,
                     "dailyLimitMinutes" to limitMinutes
@@ -582,12 +610,13 @@ class MonitoringService : Service() {
                 "childName" to childName,
                 "type" to "appRequest",
                 "priority" to "urgent",
-                "title" to "🚫 Blocked App Detected",
+                "title" to "🚫 $childName: Blocked App Attempted",
                 "body" to "$childName attempted to open $appName which is blocked.",
                 "data" to hashMapOf(
                     "type" to "blocked_app_attempt",
                     "familyId" to familyId,
                     "childId" to childId,
+                    "childName" to childName,
                     "appName" to appName,
                     "packageName" to packageName
                 ),
@@ -681,13 +710,96 @@ class MonitoringService : Service() {
             android.util.Log.e("MonitoringService", "Error checking daily limit", e)
         }
     }
+
+    /**
+     * Periodically sync all recorded app usage minutes to Firestore
+     */
+    private suspend fun syncUsageToFirestore() = withContext(Dispatchers.IO) {
+        val familyId = currentFamilyId ?: return@withContext
+        val childId = currentChildId ?: return@withContext
+
+        try {
+            val allUsage = database.getAllUsageData()
+            if (allUsage.isEmpty()) return@withContext
+
+            val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+            val batch = firestore.batch()
+            var count = 0
+
+            for ((pkg, usage) in allUsage) {
+                val appInfo = getAppInfo(pkg)
+                val appDoc = firestore.collection("families")
+                    .document(familyId)
+                    .collection("children")
+                    .document(childId)
+                    .collection("usage")
+                    .document(pkg.replace(".", "_"))
+
+                val usageData = hashMapOf(
+                    "packageName" to pkg,
+                    "appName" to (appInfo?.name ?: pkg),
+                    "todayMinutes" to usage.todayMinutes,
+                    "weekMinutes" to usage.todayMinutes,
+                    "monthMinutes" to usage.todayMinutes,
+                    "lastUsed" to com.google.firebase.Timestamp.now(),
+                    "openCount" to 1
+                )
+                batch.set(appDoc, usageData, com.google.firebase.firestore.SetOptions.merge())
+                count++
+                if (count >= 400) break
+            }
+
+            if (count > 0) {
+                batch.commit()
+                android.util.Log.d("MonitoringService", "Synced $count app usage records to Firestore")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MonitoringService", "Failed to sync usage to Firestore", e)
+        }
+    }
     
     /**
      * Get current child name from user data
      */
     private fun getCurrentChildName(): String {
-        // In a real implementation, you'd cache this from user data
-        return "Your child"
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val cached = prefs.getString(KEY_CHILD_NAME, null)
+        if (!cached.isNullOrEmpty() && cached != "Child" && cached != "Your child") return cached
+
+        val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
+        val displayName = auth.currentUser?.displayName
+        if (!displayName.isNullOrEmpty()) {
+            prefs.edit().putString(KEY_CHILD_NAME, displayName).apply()
+            return displayName
+        }
+
+        // Fetch from child document in Firestore if not cached
+        val childId = currentChildId ?: auth.currentUser?.uid
+        val familyId = currentFamilyId
+        if (childId != null) {
+            try {
+                val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                if (familyId != null) {
+                    db.collection("families").document(familyId)
+                        .collection("children").document(childId)
+                        .get().addOnSuccessListener { doc ->
+                            val name = doc.getString("displayName") ?: doc.getString("name")
+                            if (!name.isNullOrEmpty()) {
+                                prefs.edit().putString(KEY_CHILD_NAME, name).apply()
+                            }
+                        }
+                }
+                db.collection("users").document(childId)
+                    .get().addOnSuccessListener { doc ->
+                        val name = doc.getString("displayName") ?: doc.getString("name")
+                        if (!name.isNullOrEmpty()) {
+                            prefs.edit().putString(KEY_CHILD_NAME, name).apply()
+                        }
+                    }
+            } catch (_: Exception) {}
+        }
+
+        return cached ?: "Child"
     }
     
     /**

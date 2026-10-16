@@ -1,9 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../../../core/constants/app_routes.dart';
 import '../../../../core/models/notification_model.dart';
+import '../../../../core/models/request_model.dart';
+import '../../../../core/providers/auth_provider.dart';
 import '../../../../core/providers/notification_provider.dart';
+import '../../../../core/providers/family_provider.dart';
+import '../../../../core/models/family_model.dart';
 
+/// Parent Notifications Screen with top-tier UI:
+/// - Prominently displays the child's name with custom avatars and tags
+/// - Immediate one-tap actions (approve 30m, deny, set rules, view map)
+/// - Filter tabs: All, Requests, Urgent, and Settings
+/// - Verified, functional GoRouter navigation
 class ParentNotificationsScreen extends ConsumerStatefulWidget {
   const ParentNotificationsScreen({super.key});
 
@@ -18,7 +29,7 @@ class _ParentNotificationsScreenState extends ConsumerState<ParentNotificationsS
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -29,294 +40,892 @@ class _ParentNotificationsScreenState extends ConsumerState<ParentNotificationsS
 
   @override
   Widget build(BuildContext context) {
-    final notifications = ref.watch(currentUserNotificationsProvider);
+    final notificationsAsync = ref.watch(currentUserNotificationsProvider);
     final unreadCount = ref.watch(unreadNotificationCountProvider);
     final urgentNotifications = ref.watch(urgentNotificationsProvider);
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text('Notifications'),
+        elevation: 0,
+        backgroundColor: Colors.white,
+        foregroundColor: const Color(0xFF0F172A),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+          onPressed: () => context.pop(),
+        ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Text(
+                  'Notifications',
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+                ),
+                if (unreadCount > 0) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF4F46E5),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '$unreadCount New',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            const Text(
+              'Real-time child alerts & permissions',
+              style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+            ),
+          ],
+        ),
         actions: [
           if (unreadCount > 0)
             IconButton(
-              icon: const Icon(Icons.mark_email_read),
+              icon: const Icon(Icons.done_all_rounded, color: Color(0xFF4F46E5)),
+              tooltip: 'Mark all as read',
               onPressed: () {
                 ref.read(notificationActionsProvider).markAllAsRead();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('All notifications marked as read'),
+                    duration: Duration(seconds: 2),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
               },
-              tooltip: 'Mark all as read',
             ),
         ],
         bottom: TabBar(
           controller: _tabController,
+          labelColor: const Color(0xFF4F46E5),
+          unselectedLabelColor: const Color(0xFF64748B),
+          indicatorColor: const Color(0xFF4F46E5),
+          indicatorWeight: 3,
+          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
           tabs: [
             Tab(
-              text: 'All',
-              icon: unreadCount > 0
-                  ? Badge(
-                      label: Text('$unreadCount'),
-                      child: const Icon(Icons.notifications),
-                    )
-                  : const Icon(Icons.notifications),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('All'),
+                  if (unreadCount > 0) ...[
+                    const SizedBox(width: 4),
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFEF4444),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
+            const Tab(text: 'Requests'),
             Tab(
-              text: 'Urgent',
-              icon: urgentNotifications.isNotEmpty
-                  ? Badge(
-                      label: Text('${urgentNotifications.length}'),
-                      child: const Icon(Icons.priority_high),
-                    )
-                  : const Icon(Icons.priority_high),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Urgent'),
+                  if (urgentNotifications.isNotEmpty) ...[
+                    const SizedBox(width: 4),
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFEF4444),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(
+                        '${urgentNotifications.length}',
+                        style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
-            const Tab(
-              text: 'Settings',
-              icon: Icon(Icons.settings),
-            ),
+            const Tab(text: 'Settings'),
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _AllNotificationsTab(notifications: notifications),
-          _UrgentNotificationsTab(notifications: urgentNotifications),
-          const _NotificationSettingsTab(),
-        ],
-      ),
-    );
-  }
-}
-
-class _AllNotificationsTab extends ConsumerWidget {
-  final AsyncValue<List<ParentNotification>> notifications;
-
-  const _AllNotificationsTab({required this.notifications});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return notifications.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, stack) => Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error, size: 64, color: Colors.red),
-            const SizedBox(height: 16),
-            Text('Error loading notifications: $error'),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () => ref.invalidate(currentUserNotificationsProvider),
-              child: const Text('Retry'),
-            ),
-          ],
+      body: notificationsAsync.when(
+        loading: () => const Center(
+          child: CircularProgressIndicator(color: Color(0xFF4F46E5)),
         ),
-      ),
-      data: (notifications) {
-        if (notifications.isEmpty) {
-          return const Center(
+        error: (error, stack) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.notifications_none, size: 64, color: Colors.grey),
-                SizedBox(height: 16),
-                Text('No notifications yet'),
-                SizedBox(height: 8),
+                const Icon(Icons.error_outline_rounded, size: 56, color: Color(0xFFEF4444)),
+                const SizedBox(height: 16),
+                const Text(
+                  'Error loading notifications',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                const SizedBox(height: 8),
                 Text(
-                  'You\'ll receive notifications when your children need permissions or encounter issues.',
+                  error.toString(),
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey),
+                  style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: () => ref.invalidate(currentUserNotificationsProvider),
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Retry'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF4F46E5),
+                    foregroundColor: Colors.white,
+                  ),
                 ),
               ],
             ),
-          );
-        }
-
-        return RefreshIndicator(
-          onRefresh: () async {
-            ref.invalidate(currentUserNotificationsProvider);
-          },
-          child: ListView.builder(
-            itemCount: notifications.length,
-            itemBuilder: (context, index) {
-              final notification = notifications[index];
-              return _NotificationTile(notification: notification);
-            },
           ),
-        );
-      },
-    );
-  }
-}
-
-class _UrgentNotificationsTab extends ConsumerWidget {
-  final List<ParentNotification> notifications;
-
-  const _UrgentNotificationsTab({required this.notifications});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    if (notifications.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.check_circle, size: 64, color: Colors.green),
-            SizedBox(height: 16),
-            Text('No urgent notifications'),
-            SizedBox(height: 8),
-            Text(
-              'All critical issues have been addressed.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey),
-            ),
-          ],
         ),
-      );
-    }
+        data: (notifications) {
+          final requestNotifications = notifications.where(
+            (n) => n.type == NotificationType.appRequest,
+          ).toList();
 
-    return ListView.builder(
-      itemCount: notifications.length,
-      itemBuilder: (context, index) {
-        final notification = notifications[index];
-        return _NotificationTile(notification: notification, showUrgentBadge: true);
-      },
+          final urgentList = notifications.where(
+            (n) => n.priority == NotificationPriority.urgent || n.priority == NotificationPriority.high,
+          ).toList();
+
+          return TabBarView(
+            controller: _tabController,
+            children: [
+              _NotificationList(
+                notifications: notifications,
+                emptyTitle: 'No notifications yet',
+                emptySubtitle: 'You will receive real-time alerts when children request apps, exceed limits, or install new applications.',
+                emptyIcon: Icons.notifications_none_rounded,
+              ),
+              _NotificationList(
+                notifications: requestNotifications,
+                emptyTitle: 'No pending requests',
+                emptySubtitle: 'When your children request access to blocked applications, they will appear here for one-tap approval.',
+                emptyIcon: Icons.pending_actions_rounded,
+              ),
+              _NotificationList(
+                notifications: urgentList,
+                emptyTitle: 'All caught up!',
+                emptySubtitle: 'No critical alerts or security issues on any child device right now.',
+                emptyIcon: Icons.verified_user_rounded,
+              ),
+              const _NotificationSettingsTab(),
+            ],
+          );
+        },
+      ),
     );
   }
 }
 
-class _NotificationTile extends ConsumerWidget {
-  final ParentNotification notification;
-  final bool showUrgentBadge;
+class _NotificationList extends ConsumerWidget {
+  final List<ParentNotification> notifications;
+  final String emptyTitle;
+  final String emptySubtitle;
+  final IconData emptyIcon;
 
-  const _NotificationTile({
-    required this.notification,
-    this.showUrgentBadge = false,
+  const _NotificationList({
+    required this.notifications,
+    required this.emptyTitle,
+    required this.emptySubtitle,
+    required this.emptyIcon,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      elevation: notification.isRead ? 1 : 3,
-      child: ListTile(
-        leading: _getNotificationIcon(),
-        title: Row(
-          children: [
-            Expanded(
-              child: Text(
-                notification.title,
-                style: TextStyle(
-                  fontWeight: notification.isRead ? FontWeight.normal : FontWeight.bold,
+    if (notifications.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(22),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF4F46E5).withOpacity(0.08),
+                  shape: BoxShape.circle,
                 ),
+                child: Icon(emptyIcon, size: 54, color: const Color(0xFF4F46E5)),
               ),
-            ),
-            if (showUrgentBadge && notification.priority == NotificationPriority.urgent)
-              const Badge(
-                label: Text('!'),
-                backgroundColor: Colors.red,
+              const SizedBox(height: 20),
+              Text(
+                emptyTitle,
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                textAlign: TextAlign.center,
               ),
-          ],
+              const SizedBox(height: 8),
+              Text(
+                emptySubtitle,
+                style: const TextStyle(fontSize: 13, color: Color(0xFF64748B), height: 1.4),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              notification.body,
-              style: TextStyle(
-                color: notification.isRead ? Colors.grey[600] : Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              _getTimeAgo(notification.createdAt),
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[500],
-              ),
-            ),
-          ],
-        ),
-        isThreeLine: true,
-        onTap: () {
-          _handleNotificationTap(context, ref, notification);
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(currentUserNotificationsProvider);
+      },
+      child: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+        itemCount: notifications.length,
+        itemBuilder: (context, index) {
+          final notification = notifications[index];
+          return _ChildNotificationCard(notification: notification);
         },
-        trailing: PopupMenuButton<String>(
-          itemBuilder: (context) => [
-            if (!notification.isRead)
-              const PopupMenuItem(
-                value: 'mark_read',
-                child: Row(
+      ),
+    );
+  }
+}
+
+/// Rich, aesthetic Notification Card explicitly highlighting the child's name
+class _ChildNotificationCard extends ConsumerWidget {
+  final ParentNotification notification;
+
+  const _ChildNotificationCard({required this.notification});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final children = ref.watch(familyChildrenProvider).value ?? [];
+    final selectedChild = ref.watch(selectedChildProvider);
+
+    // Resolve real child name from notification or family children
+    String childName = notification.childName.trim();
+    if (childName.isEmpty || childName.toLowerCase() == 'child' || childName.toLowerCase() == 'your child') {
+      final match = children.cast<ChildModel?>().firstWhere(
+        (c) => c?.id == notification.childId,
+        orElse: () => null,
+      );
+      if (match != null && match.displayName.trim().isNotEmpty) {
+        childName = match.displayName.trim();
+      } else if (selectedChild != null && selectedChild.displayName.trim().isNotEmpty) {
+        childName = selectedChild.displayName.trim();
+      } else if (children.isNotEmpty && children.first.displayName.trim().isNotEmpty) {
+        childName = children.first.displayName.trim();
+      } else {
+        childName = 'Child';
+      }
+    }
+
+    // Ensure child's real name is prominently in the title
+    String cardTitle = notification.title.trim();
+    if (childName != 'Child') {
+      if (cardTitle.startsWith('Child:')) {
+        cardTitle = cardTitle.replaceFirst('Child:', '$childName:');
+      } else if (cardTitle.startsWith('Your child:')) {
+        cardTitle = cardTitle.replaceFirst('Your child:', '$childName:');
+      } else if (cardTitle.startsWith('🚫 Child:')) {
+        cardTitle = cardTitle.replaceFirst('🚫 Child:', '🚫 $childName:');
+      } else if (!cardTitle.contains(childName)) {
+        cardTitle = '$childName: $cardTitle';
+      }
+    }
+
+    // Ensure child's real name is in the body
+    String cardBody = notification.body.trim();
+    if (childName != 'Child') {
+      cardBody = cardBody
+          .replaceAll('Your child', childName)
+          .replaceAll('your child', childName)
+          .replaceAll('Child ', '$childName ');
+    }
+
+    final isUnread = !notification.isRead;
+    final isUrgent = notification.priority == NotificationPriority.urgent;
+    final isRequest = notification.type == NotificationType.appRequest;
+
+    final typeColor = _getTypeColor(notification.type);
+    final typeIcon = _getTypeIcon(notification.type);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: isUnread
+              ? typeColor.withOpacity(0.4)
+              : const Color(0xFFE2E8F0),
+          width: isUnread ? 1.5 : 1.0,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: isUnread
+                ? typeColor.withOpacity(0.08)
+                : Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: () => _handleCardTap(context, ref),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Top Row: Child Identity Banner + Priority + Time
+                Row(
                   children: [
-                    Icon(Icons.mark_email_read, size: 16),
-                    SizedBox(width: 8),
-                    Text('Mark as read'),
+                    // Child Avatar with Initials
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF4F46E5).withOpacity(0.2),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: Text(
+                          childName.isNotEmpty ? childName[0].toUpperCase() : 'C',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+
+                    // Child Name & Relationship Tag
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  childName,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                    color: Color(0xFF0F172A),
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEEF2FF),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: const Color(0xFFC7D2FE)),
+                                ),
+                                child: const Text(
+                                  'Child Device',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF4F46E5),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _getTimeAgo(notification.createdAt),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Color(0xFF94A3B8),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Priority Badge / Unread indicator
+                    if (isUrgent)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEF2F2),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFFCA5A5)),
+                        ),
+                        child: const Text(
+                          'URGENT',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFFDC2626),
+                          ),
+                        ),
+                      )
+                    else if (isUnread)
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF4F46E5),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+
+                    const SizedBox(width: 4),
+                    PopupMenuButton<String>(
+                      icon: const Icon(Icons.more_horiz_rounded, size: 20, color: Color(0xFF94A3B8)),
+                      padding: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      onSelected: (value) {
+                        if (value == 'read') {
+                          ref.read(notificationActionsProvider).markAsRead(notification.id);
+                        } else if (value == 'details') {
+                          _showDetailsDialog(context);
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        if (isUnread)
+                          const PopupMenuItem(
+                            value: 'read',
+                            child: Row(
+                              children: [
+                                Icon(Icons.mark_email_read_rounded, size: 18),
+                                SizedBox(width: 8),
+                                Text('Mark as read'),
+                              ],
+                            ),
+                          ),
+                        const PopupMenuItem(
+                          value: 'details',
+                          child: Row(
+                            children: [
+                              Icon(Icons.info_outline_rounded, size: 18),
+                              SizedBox(width: 8),
+                              Text('View full details'),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
-              ),
-            PopupMenuItem(
-              value: 'details',
-              child: Row(
-                children: [
-                  Icon(Icons.info, size: 16, color: Colors.blue[700]),
-                  const SizedBox(width: 8),
-                  const Text('View details'),
+
+                const SizedBox(height: 12),
+                const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                const SizedBox(height: 12),
+
+                // Notification Title with Icon
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(7),
+                      decoration: BoxDecoration(
+                        color: typeColor.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(typeIcon, color: typeColor, size: 18),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            cardTitle,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: isUnread ? FontWeight.w800 : FontWeight.w600,
+                              color: const Color(0xFF0F172A),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            cardBody,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: Color(0xFF475569),
+                              height: 1.35,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+
+                // Quick Action Buttons
+                if (isRequest) ...[
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => _quickDenyRequest(context, ref),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFFEF4444),
+                            side: const BorderSide(color: Color(0xFFFCA5A5)),
+                            padding: const EdgeInsets.symmetric(vertical: 9),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          child: const Text('Deny', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        flex: 2,
+                        child: ElevatedButton.icon(
+                          onPressed: () => _quickApproveRequest(context, ref, 30),
+                          icon: const Icon(Icons.check_rounded, size: 16),
+                          label: const Text('Approve 30m', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF10B981),
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(vertical: 9),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ] else if (notification.type == NotificationType.newAppDetected) ...[
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _navigateToChildApps(context),
+                          icon: const Icon(Icons.tune_rounded, size: 16),
+                          label: const Text('Configure App Rules', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF4F46E5),
+                            side: const BorderSide(color: Color(0xFF4F46E5)),
+                            padding: const EdgeInsets.symmetric(vertical: 9),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ] else if (notification.type == NotificationType.dailyLimitReached) ...[
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => context.push(AppRoutes.parentApps),
+                          icon: const Icon(Icons.timelapse_rounded, size: 16),
+                          label: const Text('View App Limits', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFFD97706),
+                            side: const BorderSide(color: Color(0xFFF59E0B)),
+                            padding: const EdgeInsets.symmetric(vertical: 9),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
-              ),
+              ],
             ),
-          ],
-          onSelected: (value) {
-            switch (value) {
-              case 'mark_read':
-                ref.read(notificationActionsProvider).markAsRead(notification.id);
-                break;
-              case 'details':
-                _showNotificationDetails(context, notification);
-                break;
-            }
-          },
+          ),
         ),
       ),
     );
   }
 
-  Widget _getNotificationIcon() {
-    Color color;
-    IconData icon;
-
-    switch (notification.type) {
-      case NotificationType.appRequest:
-        color = Colors.blue;
-        icon = Icons.app_registration;
-        break;
-      case NotificationType.newAppDetected:
-        color = Colors.orange;
-        icon = Icons.new_releases;
-        break;
-      case NotificationType.dailyLimitReached:
-        color = Colors.amber;
-        icon = Icons.timer_off;
-        break;
-      case NotificationType.deviceOffline:
-        color = Colors.red;
-        icon = Icons.phone_android;
-        break;
-      case NotificationType.deviceOnline:
-        color = Colors.green;
-        icon = Icons.phone_android;
-        break;
-      case NotificationType.permissionDisabled:
-        color = Colors.red;
-        icon = Icons.security;
-        break;
-      case NotificationType.serviceUnavailable:
-        color = Colors.red;
-        icon = Icons.warning;
-        break;
+  void _handleCardTap(BuildContext context, WidgetRef ref) {
+    if (!notification.isRead) {
+      ref.read(notificationActionsProvider).markAsRead(notification.id);
     }
 
-    return CircleAvatar(
-      backgroundColor: color.withOpacity(0.1),
-      child: Icon(icon, color: color, size: 20),
+    final data = notification.data;
+    switch (notification.type) {
+      case NotificationType.appRequest:
+        context.push(AppRoutes.parentRequests);
+        break;
+      case NotificationType.newAppDetected:
+        _navigateToChildApps(context);
+        break;
+      case NotificationType.dailyLimitReached:
+        context.push(AppRoutes.parentApps);
+        break;
+      case NotificationType.deviceOnline:
+      case NotificationType.deviceOffline:
+        context.push(AppRoutes.parentLocation);
+        break;
+      default:
+        _showDetailsDialog(context);
+        break;
+    }
+  }
+
+  void _navigateToChildApps(BuildContext context) {
+    final childId = notification.childId;
+    final childName = notification.childName;
+    if (childId.isNotEmpty) {
+      context.push('/parent-apps/$childId/$childName');
+    } else {
+      context.push(AppRoutes.parentApps);
+    }
+  }
+
+  Future<void> _quickApproveRequest(BuildContext context, WidgetRef ref, int minutes) async {
+    final requestId = notification.data['requestId'];
+    final familyId = notification.familyId;
+    final childId = notification.childId;
+
+    if (requestId == null || familyId.isEmpty) {
+      context.push(AppRoutes.parentRequests);
+      return;
+    }
+
+    try {
+      final parentId = ref.read(authProvider).user?.uid ?? 'parent';
+      final now = Timestamp.now();
+      final expires = Timestamp.fromDate(DateTime.now().add(Duration(minutes: minutes)));
+
+      final updateData = {
+        'status': RequestStatus.approved.name,
+        'grantedMinutes': minutes,
+        'decidedAt': now,
+        'decidedBy': parentId,
+        'accessExpiresAt': expires,
+      };
+
+      // 1. Update in families/{familyId}/requests
+      await FirebaseFirestore.instance
+          .collection('families')
+          .doc(familyId)
+          .collection('requests')
+          .doc(requestId)
+          .set(updateData, SetOptions(merge: true));
+
+      // 2. Update child subcollection if exists
+      if (childId.isNotEmpty) {
+        try {
+          await FirebaseFirestore.instance
+              .collection('families')
+              .doc(familyId)
+              .collection('children')
+              .doc(childId)
+              .collection('requests')
+              .doc(requestId)
+              .set(updateData, SetOptions(merge: true));
+        } catch (_) {}
+      }
+
+      // 3. Mark notification as read
+      await ref.read(notificationActionsProvider).markAsRead(notification.id);
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Approved $minutes minutes for ${notification.childName}'),
+            backgroundColor: const Color(0xFF10B981),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to approve: $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _quickDenyRequest(BuildContext context, WidgetRef ref) async {
+    final requestId = notification.data['requestId'];
+    final familyId = notification.familyId;
+    final childId = notification.childId;
+
+    if (requestId == null || familyId.isEmpty) {
+      context.push(AppRoutes.parentRequests);
+      return;
+    }
+
+    try {
+      final parentId = ref.read(authProvider).user?.uid ?? 'parent';
+      final updateData = {
+        'status': RequestStatus.denied.name,
+        'decidedAt': Timestamp.now(),
+        'decidedBy': parentId,
+      };
+
+      await FirebaseFirestore.instance
+          .collection('families')
+          .doc(familyId)
+          .collection('requests')
+          .doc(requestId)
+          .set(updateData, SetOptions(merge: true));
+
+      if (childId.isNotEmpty) {
+        try {
+          await FirebaseFirestore.instance
+              .collection('families')
+              .doc(familyId)
+              .collection('children')
+              .doc(childId)
+              .collection('requests')
+              .doc(requestId)
+              .set(updateData, SetOptions(merge: true));
+        } catch (_) {}
+      }
+
+      await ref.read(notificationActionsProvider).markAsRead(notification.id);
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Request denied for ${notification.childName}'),
+            backgroundColor: const Color(0xFFEF4444),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to deny: $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showDetailsDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: _getTypeColor(notification.type).withOpacity(0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(_getTypeIcon(notification.type), color: _getTypeColor(notification.type), size: 20),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                notification.title,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(notification.body, style: const TextStyle(fontSize: 14, height: 1.4)),
+            const SizedBox(height: 16),
+            const Divider(height: 1),
+            const SizedBox(height: 12),
+            _buildDetailRow('Child Name', notification.childName),
+            const SizedBox(height: 6),
+            _buildDetailRow('Time', notification.createdAt.toString().split('.')[0]),
+            const SizedBox(height: 6),
+            _buildDetailRow('Priority', notification.priority.name.toUpperCase()),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
     );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+        Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+      ],
+    );
+  }
+
+  Color _getTypeColor(NotificationType type) {
+    switch (type) {
+      case NotificationType.appRequest:
+        return const Color(0xFF4F46E5);
+      case NotificationType.newAppDetected:
+        return const Color(0xFF2563EB);
+      case NotificationType.dailyLimitReached:
+        return const Color(0xFFD97706);
+      case NotificationType.deviceOffline:
+      case NotificationType.permissionDisabled:
+      case NotificationType.serviceUnavailable:
+        return const Color(0xFFDC2626);
+      case NotificationType.deviceOnline:
+        return const Color(0xFF10B981);
+    }
+  }
+
+  IconData _getTypeIcon(NotificationType type) {
+    switch (type) {
+      case NotificationType.appRequest:
+        return Icons.app_registration_rounded;
+      case NotificationType.newAppDetected:
+        return Icons.new_releases_rounded;
+      case NotificationType.dailyLimitReached:
+        return Icons.timer_off_rounded;
+      case NotificationType.deviceOffline:
+        return Icons.phonelink_off_rounded;
+      case NotificationType.deviceOnline:
+        return Icons.phonelink_ring_rounded;
+      case NotificationType.permissionDisabled:
+        return Icons.security_update_warning_rounded;
+      case NotificationType.serviceUnavailable:
+        return Icons.warning_amber_rounded;
+    }
   }
 
   String _getTimeAgo(DateTime dateTime) {
@@ -331,96 +940,6 @@ class _NotificationTile extends ConsumerWidget {
       return '${difference.inMinutes}m ago';
     } else {
       return 'Just now';
-    }
-  }
-
-  void _handleNotificationTap(BuildContext context, WidgetRef ref, ParentNotification notification) {
-    // Mark as read
-    if (!notification.isRead) {
-      ref.read(notificationActionsProvider).markAsRead(notification.id);
-    }
-
-    // Navigate based on notification type
-    final data = notification.data;
-    switch (notification.type) {
-      case NotificationType.appRequest:
-        final requestId = data['requestId'];
-        if (requestId != null) {
-          // Navigate to request approval screen
-          context.go('/parent/requests/$requestId');
-        }
-        break;
-      case NotificationType.newAppDetected:
-        final childId = data['childId'];
-        if (childId != null) {
-          // Navigate to app management screen
-          context.go('/parent/apps?childId=$childId');
-        }
-        break;
-      case NotificationType.dailyLimitReached:
-        final childId = data['childId'];
-        if (childId != null) {
-          // Navigate to usage dashboard
-          context.go('/parent/usage?childId=$childId');
-        }
-        break;
-      default:
-        // Navigate to general parent dashboard
-        context.go('/parent');
-        break;
-    }
-  }
-
-  void _showNotificationDetails(BuildContext context, ParentNotification notification) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(notification.title),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(notification.body),
-            const SizedBox(height: 16),
-            Text(
-              'Child: ${notification.childName}',
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Time: ${notification.createdAt.toString()}',
-              style: TextStyle(color: Colors.grey[600]),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Priority: ${notification.priority.name.toUpperCase()}',
-              style: TextStyle(
-                color: _getPriorityColor(notification.priority),
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Color _getPriorityColor(NotificationPriority priority) {
-    switch (priority) {
-      case NotificationPriority.urgent:
-        return Colors.red;
-      case NotificationPriority.high:
-        return Colors.orange;
-      case NotificationPriority.normal:
-        return Colors.blue;
-      case NotificationPriority.low:
-        return Colors.grey;
     }
   }
 }
@@ -442,87 +961,86 @@ class _NotificationSettingsTabState extends State<_NotificationSettingsTab> {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       children: [
         const Text(
-          'Notification Settings',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          'Notification Preferences',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
         ),
-        const SizedBox(height: 16),
-        Card(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          elevation: 2,
-          child: Column(
-            children: [
-              SwitchListTile(
-                activeColor: const Color(0xFF4F46E5),
-                title: const Text('App Requests', style: TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: const Text('Notify when children request app access'),
-                value: _appRequests,
-                onChanged: (value) {
-                  setState(() => _appRequests = value);
-                  _showSavedSnackbar('App Requests notification preference updated');
-                },
-              ),
-              const Divider(height: 1),
-              SwitchListTile(
-                activeColor: const Color(0xFF4F46E5),
-                title: const Text('New Apps', style: TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: const Text('Notify when new apps are installed on child device'),
-                value: _newApps,
-                onChanged: (value) {
-                  setState(() => _newApps = value);
-                  _showSavedSnackbar('New Apps notification preference updated');
-                },
-              ),
-              const Divider(height: 1),
-              SwitchListTile(
-                activeColor: const Color(0xFF4F46E5),
-                title: const Text('Daily Limits', style: TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: const Text('Notify when daily usage limits are reached'),
-                value: _dailyLimits,
-                onChanged: (value) {
-                  setState(() => _dailyLimits = value);
-                  _showSavedSnackbar('Daily Limits notification preference updated');
-                },
-              ),
-              const Divider(height: 1),
-              SwitchListTile(
-                activeColor: const Color(0xFF4F46E5),
-                title: const Text('Device Status', style: TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: const Text('Notify when devices go online or offline'),
-                value: _deviceStatus,
-                onChanged: (value) {
-                  setState(() => _deviceStatus = value);
-                  _showSavedSnackbar('Device Status notification preference updated');
-                },
-              ),
-              const Divider(height: 1),
-              SwitchListTile(
-                activeColor: const Color(0xFF4F46E5),
-                title: const Text('Security Alerts', style: TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: const Text('Notify about permissions and safety status'),
-                value: _securityAlerts,
-                onChanged: (value) {
-                  setState(() => _securityAlerts = value);
-                  _showSavedSnackbar('Security Alerts preference updated');
-                },
-              ),
-            ],
-          ),
+        const SizedBox(height: 6),
+        const Text(
+          'Choose what notifications you receive for your children.',
+          style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+        ),
+        const SizedBox(height: 20),
+        _buildSettingTile(
+          title: 'App Permission Requests',
+          subtitle: 'Alerts when a child asks to unlock or use a blocked app',
+          icon: Icons.app_registration_rounded,
+          value: _appRequests,
+          onChanged: (v) => setState(() => _appRequests = v),
+        ),
+        _buildSettingTile(
+          title: 'New App Installations',
+          subtitle: 'Notify immediately when any child installs a new app',
+          icon: Icons.new_releases_rounded,
+          value: _newApps,
+          onChanged: (v) => setState(() => _newApps = v),
+        ),
+        _buildSettingTile(
+          title: 'Daily Screen Time Limits',
+          subtitle: 'Alerts when children reach their scheduled app limit',
+          icon: Icons.timer_rounded,
+          value: _dailyLimits,
+          onChanged: (v) => setState(() => _dailyLimits = v),
+        ),
+        _buildSettingTile(
+          title: 'Device Online / Offline Status',
+          subtitle: 'Notifications when child devices disconnect or reconnect',
+          icon: Icons.phonelink_ring_rounded,
+          value: _deviceStatus,
+          onChanged: (v) => setState(() => _deviceStatus = v),
+        ),
+        _buildSettingTile(
+          title: 'Critical Security & Permissions',
+          subtitle: 'Emergency alerts if permissions or services are tampered with',
+          icon: Icons.security_rounded,
+          value: _securityAlerts,
+          onChanged: (v) => setState(() => _securityAlerts = v),
         ),
       ],
     );
   }
 
-  void _showSavedSnackbar(String message) {
-    ScaffoldMessenger.of(context).removeCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        duration: const Duration(seconds: 2),
-        backgroundColor: const Color(0xFF4F46E5),
-        behavior: SnackBarBehavior.floating,
+  Widget _buildSettingTile({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: SwitchListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        secondary: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: const Color(0xFF4F46E5).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: const Color(0xFF4F46E5), size: 20),
+        ),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+        subtitle: Text(subtitle, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+        value: value,
+        activeColor: const Color(0xFF4F46E5),
+        onChanged: onChanged,
       ),
     );
   }

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:async';
 import '../../../../core/models/location_model.dart';
 import '../../../../core/services/location_service.dart';
+import '../../../../core/services/geocoding_service.dart';
 import '../../../../core/providers/user_provider.dart';
 import '../../../../core/providers/family_provider.dart';
 
@@ -467,14 +468,23 @@ class _LocationCard extends StatelessWidget {
                 value: '±${location.accuracy!.toInt()} m',
               ),
             ],
-            if (location.address != null && location.address!.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              _InfoRow(
-                icon: Icons.place_rounded,
-                label: 'Address',
-                value: location.address!,
-              ),
-            ],
+            FutureBuilder<String?>(
+              future: (location.address != null && location.address!.isNotEmpty)
+                  ? Future.value(location.address)
+                  : GeocodingService.instance.getPlaceName(location.latitude, location.longitude),
+              builder: (context, snapshot) {
+                final place = snapshot.data ?? location.address;
+                if (place == null || place.isEmpty) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: _InfoRow(
+                    icon: Icons.location_city_rounded,
+                    label: 'City / Area',
+                    value: place,
+                  ),
+                );
+              },
+            ),
 
             const SizedBox(height: 12),
 

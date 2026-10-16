@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crypto/crypto.dart';
 import '../models/request_model.dart';
+import 'notification_service.dart';
 
 /// Service for managing app access requests on the child device
 class RequestService {
@@ -309,31 +310,22 @@ class RequestService {
 
   Future<void> _notifyParents(String familyId, AppRequest request) async {
     try {
-      // Get parent FCM tokens
-      final familyDoc = await _firestore
-          .collection(_collectionFamilies)
-          .doc(familyId)
-          .get();
+      final childName = request.childName?.trim().isNotEmpty == true
+          ? request.childName!.trim()
+          : 'Child';
 
-      final familyData = familyDoc.data();
-      if (familyData == null) return;
-
-      final parentIds = List<String>.from(familyData['parentIds'] ?? []);
-      
-      // Send notification via Cloud Function (implemented later)
-      await _firestore.collection('notifications').add({
-        'type': 'app_request',
-        'familyId': familyId,
-        'childId': request.childId,
-        'requestId': request.id,
-        'parentIds': parentIds,
-        'packageName': request.packageName,
-        'appName': request.appName,
-        'createdAt': Timestamp.now(),
-      });
-
+      // Use NotificationService to create structured notification with correct childName
+      await NotificationService.instance.sendAppRequestNotification(
+        familyId: familyId,
+        childId: request.childId,
+        childName: childName,
+        appName: request.appName,
+        packageName: request.packageName,
+        requestedMinutes: 30,
+        requestId: request.id,
+      );
     } catch (e) {
-      print('Error notifying parents: $e');
+      print('Error notifying parents of app request: $e');
     }
   }
 

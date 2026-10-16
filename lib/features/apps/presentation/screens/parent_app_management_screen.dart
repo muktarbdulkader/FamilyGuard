@@ -7,6 +7,7 @@ import '../../../../core/models/family_model.dart';
 import '../../../../core/providers/family_provider.dart';
 import '../../../../core/providers/user_provider.dart';
 import '../../../parent/presentation/widgets/app_rule_editor_sheet.dart';
+import '../../../parent/presentation/widgets/app_usage_indicator.dart';
 
 /// Parent app management screen allowing real-time monitoring and control
 /// of child's applications: blocking, allowing, notifying (ask parent),
@@ -768,6 +769,64 @@ class _ParentAppManagementScreenState
                     ),
                   ),
                 ],
+              ),
+
+              // Live App Usage status & limit progress
+              Builder(
+                builder: (context) {
+                  final appUsage = usageMap[app.packageName];
+                  final hasUsage = appUsage != null && appUsage.todayMinutes > 0;
+                  final isTimed = app.rule == AppControlRule.timeLimited;
+
+                  if (!hasUsage && !isTimed) return const SizedBox.shrink();
+
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (hasUsage)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEEF2FF),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFFC7D2FE)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.timer_outlined, size: 14, color: Color(0xFF4F46E5)),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Used today: ${appUsage.usageStatusText}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF3730A3),
+                                  ),
+                                ),
+                                if (appUsage.openCount > 0) ...[
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    '• ${appUsage.openCount} opens',
+                                    style: const TextStyle(fontSize: 11, color: Color(0xFF6366F1)),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        if (isTimed) ...[
+                          if (hasUsage) const SizedBox(height: 6),
+                          AppUsageIndicator(
+                            usedMinutes: appUsage?.todayMinutes ?? 0,
+                            limitMinutes: app.dailyLimitMinutes ?? 60,
+                          ),
+                        ],
+                      ],
+                    ),
+                  );
+                },
               ),
 
               const SizedBox(height: 12),

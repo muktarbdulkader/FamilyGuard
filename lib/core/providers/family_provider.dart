@@ -107,15 +107,42 @@ final familyChildAppsProvider = StreamProvider.family<List<AppInfo>, FamilyChild
 /// Provider for child's app usage data
 final childAppUsageProvider = StreamProvider.family<Map<String, AppUsageModel>, String>((ref, childId) {
   final family = ref.watch(selectedFamilyProvider);
-  if (family == null) {
+  final familyId = (family != null && family.id.isNotEmpty)
+      ? family.id
+      : (ref.watch(currentUserDataProvider).value?.familyId ?? '');
+
+  if (familyId.isEmpty || childId.isEmpty) {
     return Stream.value({});
   }
 
   return FirebaseFirestore.instance
       .collection('families')
-      .doc(family.id)
+      .doc(familyId)
       .collection('children')
       .doc(childId)
+      .collection('usage')
+      .snapshots()
+      .map((snapshot) {
+    final usageMap = <String, AppUsageModel>{};
+    for (final doc in snapshot.docs) {
+      final usage = AppUsageModel.fromFirestore(doc.data());
+      usageMap[usage.packageName] = usage;
+    }
+    return usageMap;
+  });
+});
+
+/// Provider for child's app usage data when both familyId and childId are known
+final familyChildAppUsageProvider = StreamProvider.family<Map<String, AppUsageModel>, FamilyChildParams>((ref, params) {
+  if (params.familyId.isEmpty || params.childId.isEmpty) {
+    return Stream.value({});
+  }
+
+  return FirebaseFirestore.instance
+      .collection('families')
+      .doc(params.familyId)
+      .collection('children')
+      .doc(params.childId)
       .collection('usage')
       .snapshots()
       .map((snapshot) {

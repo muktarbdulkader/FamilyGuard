@@ -6,8 +6,11 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/notification_model.dart';
+import '../constants/app_routes.dart';
+import '../providers/router_provider.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -25,6 +28,8 @@ class NotificationService {
   
   StreamSubscription<RemoteMessage>? _foregroundSubscription;
   StreamSubscription<String>? _tokenRefreshSubscription;
+  StreamSubscription<QuerySnapshot>? _familyNotificationsSubscription;
+  String? _listeningFamilyId;
   bool _isInitialized = false;
 
   // Notification channels
@@ -216,17 +221,16 @@ class NotificationService {
       final oldTokens = await _firestore
           .collection('fcm_tokens')
           .where('userId', isEqualTo: userId)
-          .where('token', isNotEqualTo: currentToken)
           .get();
 
       final batch = _firestore.batch();
       for (final doc in oldTokens.docs) {
-        batch.delete(doc.reference);
+        if (doc.id != currentToken) {
+          batch.delete(doc.reference);
+        }
       }
       
-      if (oldTokens.docs.isNotEmpty) {
-        await batch.commit();
-      }
+      await batch.commit();
     } catch (e) {
       if (kDebugMode) {
         print('Error cleaning up old tokens: $e');
@@ -289,36 +293,105 @@ class NotificationService {
     }
   }
 
-  void _navigateFromNotification(Map<String, dynamic> data) {
-    final type = data['type'];
-    final familyId = data['familyId'];
-    final childId = data['childId'];
-    final requestId = data['requestId'];
+    void _navigateFromNotification(Map<String, dynamic> data) {
+    final context = rootNavigatorKey.currentContext;
+    if (context == null) return;
+    
+    final rawType = (data['type'] ?? '').toString();
+    final childId = (data['childId'] ?? '').toString();
+    final childName = (data['childName'] ?? 'Child').toString();
+    final requestId = (data['requestId'] ?? '').toString();
 
-    // Navigation logic based on notification type
-    switch (type) {
-      case 'app_request':
-        if (requestId != null && familyId != null && childId != null) {
-          // Navigate to request approval screen
-          // GoRouter.of(context).go('/parent/requests/$requestId');
+    if (rawType.contains('request') || rawType == 'appRequest' || rawType == 'blocked_app_attempt' || requestId.isNotEmpty) {
+      context.push(AppRoutes.parentRequests);
+    } else if (rawType.contains('app') || rawType == 'newAppDetected') {
+      if (childId.isNotEmpty) {
+        context.push('/parent-apps/$childId/$childName');
+      } else {
+        context.push(AppRoutes.parentApps);
+      }
+    } else if (rawType.contains('limit') || rawType == 'dailyLimitReached') {
+      context.push(AppRoutes.parentApps);
+    } else if (rawType.contains('location')) {
+      context.push(AppRoutes.parentLocation);
+    } else {
+      context.push('/notifications');
+    }
+  }
+
+  /// Start real-time Firestore listener for parent to receive instant device notifications
+  void startParentNotificationListener(String familyId) {
+    if (familyId.isEmpty || _listeningFamilyId == familyId) return;
+    _listeningFamilyId = familyId;
+    _familyNotificationsSubscription?.cancel();
+
+    final listenStartTime = DateTime.now().subtract(const Duration(seconds: 15));
+
+    _familyNotificationsSubscription = _firestore
+        .collection('notifications')
+        .where('familyId', isEqualTo: familyId)
+        .snapshots()
+        .listen(
+      (snapshot) {
+        for (final change in snapshot.docChanges) {
+          if (change.type == DocumentChangeType.added) {
+            try {
+              final notif = ParentNotification.fromFirestore(change.doc);
+              // Only alert for unread notifications created around or after listener started
+              if (!notif.isRead && notif.createdAt.isAfter(listenStartTime)) {
+                _showLocalNotification(notif);
+              }
+            } catch (e) {
+              if (kDebugMode) {
+                print('Error processing incoming parent notification: $e');
+              }
+            }
+          }
         }
-        break;
-      case 'new_app_detected':
-        if (familyId != null && childId != null) {
-          // Navigate to app management screen
-          // GoRouter.of(context).go('/parent/apps?childId=$childId');
+      },
+      onError: (e) {
+        if (kDebugMode) {
+          print('Error in family notifications subscription: $e');
         }
-        break;
-      case 'daily_limit_reached':
-        if (familyId != null && childId != null) {
-          // Navigate to usage screen
-          // GoRouter.of(context).go('/parent/usage?childId=$childId');
-        }
-        break;
-      default:
-        // Navigate to general parent dashboard
-        // GoRouter.of(context).go('/parent');
-        break;
+      },
+    );
+  }
+
+  /// Show a real system notification directly on this device
+  Future<void> _showLocalNotification(ParentNotification notification) async {
+    try {
+      final channelId = _getChannelForPriority(notification.priority);
+      final id = notification.id.hashCode;
+
+      await _localNotifications.show(
+        id,
+        notification.title,
+        notification.body,
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            channelId,
+            _getChannelName(channelId),
+            channelDescription: _getChannelDescription(channelId),
+            importance: _getImportanceForPriority(notification.priority),
+            priority: _getPriorityForPriority(notification.priority),
+            playSound: true,
+            enableVibration: true,
+            icon: '@mipmap/ic_launcher',
+          ),
+        ),
+        payload: jsonEncode({
+          ...notification.data,
+          'type': notification.type.name,
+          'familyId': notification.familyId,
+          'childId': notification.childId,
+          'childName': notification.childName,
+          'requestId': notification.data['requestId'],
+        }),
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error showing local notification: $e');
+      }
     }
   }
 
@@ -484,9 +557,11 @@ class NotificationService {
           .doc(notification.id)
           .set(notification.toFirestore());
 
-      // This will trigger the Cloud Function to send FCM messages
+      // Show local system tray notification immediately on current device if active
+      await _showLocalNotification(notification);
+
       if (kDebugMode) {
-        print('Created notification: $title - $body');
+        print('Created and alerted notification: $title - $body');
       }
 
     } catch (e) {
@@ -644,6 +719,8 @@ class NotificationService {
   Future<void> dispose() async {
     await _foregroundSubscription?.cancel();
     await _tokenRefreshSubscription?.cancel();
+    await _familyNotificationsSubscription?.cancel();
+    _listeningFamilyId = null;
     _isInitialized = false;
   }
 }

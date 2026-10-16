@@ -36,6 +36,11 @@ class LocationHelper(private val context: Context) {
             "openLocationSettings" -> openLocationSettings(result)
             "checkBatteryOptimization" -> checkBatteryOptimization(result)
             "requestBatteryOptimizationExemption" -> requestBatteryOptimizationExemption(result)
+            "getAddressFromCoordinates" -> {
+                val lat = call.argument<Double>("latitude") ?: 0.0
+                val lng = call.argument<Double>("longitude") ?: 0.0
+                getAddressFromCoordinates(lat, lng, result)
+            }
             else -> result.notImplemented()
         }
     }
@@ -269,10 +274,49 @@ class LocationHelper(private val context: Context) {
     /**
      * Check if we should show permission rationale
      */
-    fun shouldShowLocationPermissionRationale(activity: Activity): Boolean {
-        return ActivityCompat.shouldShowRequestPermissionRationale(activity, FINE_LOCATION) ||
-               ActivityCompat.shouldShowRequestPermissionRationale(activity, COARSE_LOCATION) ||
-               (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && 
-                ActivityCompat.shouldShowRequestPermissionRationale(activity, BACKGROUND_LOCATION))
+    /**
+     * Reverse geocode latitude and longitude to obtain City, Town, Village, and Country
+     */
+     fun getAddressFromCoordinates(latitude: Double, longitude: Double, result: MethodChannel.Result) {
+        Thread {
+            try {
+                if (!android.location.Geocoder.isPresent()) {
+                    android.os.Handler(android.os.Looper.getMainLooper()).post {
+                        result.success(null)
+                    }
+                    return@Thread
+                }
+                val geocoder = android.location.Geocoder(context, java.util.Locale.getDefault())
+                @Suppress("DEPRECATION")
+                val addresses = geocoder.getFromLocation(latitude, longitude, 1)
+                if (!addresses.isNullOrEmpty()) {
+                    val addr = addresses[0]
+                    val city = addr.locality ?: addr.subAdminArea ?: addr.subLocality ?: addr.adminArea ?: ""
+                    val country = addr.countryName ?: ""
+                    val fullAddress = if (city.isNotEmpty() && country.isNotEmpty()) {
+                        "$city, $country"
+                    } else {
+                        addr.getAddressLine(0) ?: city
+                    }
+                    val data = mapOf(
+                        "city" to city,
+                        "country" to country,
+                        "formattedAddress" to (addr.getAddressLine(0) ?: fullAddress),
+                        "displayName" to fullAddress
+                    )
+                    android.os.Handler(android.os.Looper.getMainLooper()).post {
+                        result.success(data)
+                    }
+                } else {
+                    android.os.Handler(android.os.Looper.getMainLooper()).post {
+                        result.success(null)
+                    }
+                }
+            } catch (e: Exception) {
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    result.success(null)
+                }
+            }
+        }.start()
     }
 }

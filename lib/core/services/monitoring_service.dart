@@ -13,6 +13,7 @@ class MonitoringService {
   Future<void> startMonitoring({
     required String familyId,
     required String childId,
+    String? childName,
     required List<AppModel> appRules,
   }) async {
     try {
@@ -26,6 +27,7 @@ class MonitoringService {
       await _channel.invokeMethod('startMonitoring', {
         'familyId': familyId,
         'childId': childId,
+        if (childName != null && childName.isNotEmpty) 'childName': childName,
       });
 
       // Mark as child device for boot receiver

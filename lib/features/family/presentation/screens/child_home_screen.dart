@@ -66,6 +66,7 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
         await MonitoringService().startMonitoring(
           familyId: familyId,
           childId: childId,
+          childName: childName,
           appRules: [],
         );
         // Start child location sharing

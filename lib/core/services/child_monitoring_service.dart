@@ -24,11 +24,13 @@ class ChildMonitoringService {
   Future<bool> startMonitoring({
     required String familyId,
     required String childId,
+    String? childName,
   }) async {
     try {
       final result = await _methodChannel.invokeMethod('startMonitoring', {
         'familyId': familyId,
         'childId': childId,
+        if (childName != null && childName.isNotEmpty) 'childName': childName,
       });
       
       // Start listening to events

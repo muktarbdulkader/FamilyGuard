@@ -6,6 +6,7 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../../core/constants/app_routes.dart';
 import '../../../../core/providers/auth_provider.dart';
 import '../../../../core/providers/user_provider.dart';
+import '../../../../core/services/notification_service.dart';
 
 /// Premium Parent Home Dashboard with modern UI, live children status, and quick tools
 class ParentHomeScreen extends ConsumerWidget {
@@ -14,6 +15,10 @@ class ParentHomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final userData = ref.watch(currentUserDataProvider);
+    final familyId = userData.value?.familyId;
+    if (familyId != null && familyId.isNotEmpty) {
+      NotificationService.instance.startParentNotificationListener(familyId);
+    }
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 

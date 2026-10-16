@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/location_model.dart';
+import 'geocoding_service.dart';
 
 class LocationService {
   static final LocationService _instance = LocationService._internal();
@@ -424,6 +425,11 @@ class LocationService {
     }
 
     try {
+      final readableAddress = await GeocodingService.instance.getPlaceName(
+        position.latitude,
+        position.longitude,
+      );
+
       final location = FamilyLocation(
         id: now.millisecondsSinceEpoch.toString(),
         familyId: familyId,
@@ -436,6 +442,7 @@ class LocationService {
         speed: position.speed,
         heading: position.heading,
         timestamp: now,
+        address: readableAddress,
       );
 
       final locationMap = location.toFirestore();

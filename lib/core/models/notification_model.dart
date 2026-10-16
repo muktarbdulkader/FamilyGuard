@@ -49,24 +49,77 @@ class ParentNotification {
   });
 
   factory ParentNotification.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+    final data = doc.data() as Map<String, dynamic>? ?? {};
+    final nestedData = Map<String, dynamic>.from(data['data'] ?? {});
+    
+    // Resolve child name with comprehensive multi-field fallbacks
+    String resolvedChildName = (data['childName'] as String?)?.trim() ?? '';
+    if (resolvedChildName.isEmpty) resolvedChildName = (data['child_name'] as String?)?.trim() ?? '';
+    if (resolvedChildName.isEmpty) resolvedChildName = (data['childDisplayName'] as String?)?.trim() ?? '';
+    if (resolvedChildName.isEmpty) resolvedChildName = (data['displayName'] as String?)?.trim() ?? '';
+    if (resolvedChildName.isEmpty) resolvedChildName = (data['name'] as String?)?.trim() ?? '';
+    if (resolvedChildName.isEmpty) resolvedChildName = (nestedData['childName'] as String?)?.trim() ?? '';
+    if (resolvedChildName.isEmpty) resolvedChildName = (nestedData['child_name'] as String?)?.trim() ?? '';
+    if (resolvedChildName.isEmpty) resolvedChildName = (nestedData['childDisplayName'] as String?)?.trim() ?? '';
+    if (resolvedChildName.isEmpty) resolvedChildName = (nestedData['displayName'] as String?)?.trim() ?? '';
+    if (resolvedChildName.isEmpty) resolvedChildName = (nestedData['name'] as String?)?.trim() ?? '';
+
+    // If still empty or generic, check if the raw title contains the child's name (e.g. "Maya: App Request")
+    final rawTitle = (data['title'] as String?)?.trim() ?? '';
+    if ((resolvedChildName.isEmpty || resolvedChildName.toLowerCase() == 'child' || resolvedChildName.toLowerCase() == 'your child') && rawTitle.contains(':')) {
+      final prefix = rawTitle.split(':').first.replaceAll('🚫', '').trim();
+      if (prefix.isNotEmpty && prefix.toLowerCase() != 'child' && prefix.toLowerCase() != 'your child') {
+        resolvedChildName = prefix;
+      }
+    }
+
+    if (resolvedChildName.isEmpty) {
+      resolvedChildName = 'Child';
+    }
+
+    // Resolve type supporting both camelCase and snake_case
+    final rawType = (data['type'] ?? nestedData['type'] ?? '').toString();
+    final NotificationType resolvedType = switch (rawType) {
+      'appRequest' || 'app_request' || 'blocked_app_attempt' => NotificationType.appRequest,
+      'newAppDetected' || 'new_app_detected' => NotificationType.newAppDetected,
+      'dailyLimitReached' || 'daily_limit_reached' => NotificationType.dailyLimitReached,
+      'deviceOffline' || 'device_offline' => NotificationType.deviceOffline,
+      'deviceOnline' || 'device_online' => NotificationType.deviceOnline,
+      'permissionDisabled' || 'permission_disabled' => NotificationType.permissionDisabled,
+      'serviceUnavailable' || 'service_unavailable' => NotificationType.serviceUnavailable,
+      _ => NotificationType.values.firstWhere(
+          (e) => e.name == rawType,
+          orElse: () => NotificationType.appRequest,
+        ),
+    };
+
+    final rawPriority = (data['priority'] ?? '').toString();
+    final NotificationPriority resolvedPriority = NotificationPriority.values.firstWhere(
+      (e) => e.name.toLowerCase() == rawPriority.toLowerCase(),
+      orElse: () => NotificationTemplate.getPriority(resolvedType),
+    );
+
+    // Resolve title and body with smart fallback using NotificationTemplate
+    String resolvedTitle = (data['title'] as String?)?.trim() ?? '';
+    if (resolvedTitle.isEmpty) {
+      resolvedTitle = NotificationTemplate.getTitle(resolvedType, resolvedChildName);
+    }
+
+    String resolvedBody = (data['body'] as String?)?.trim() ?? '';
+    if (resolvedBody.isEmpty) {
+      resolvedBody = NotificationTemplate.getBody(resolvedType, resolvedChildName, nestedData);
+    }
     
     return ParentNotification(
       id: doc.id,
-      familyId: data['familyId'] ?? '',
-      childId: data['childId'] ?? '',
-      childName: data['childName'] ?? '',
-      type: NotificationType.values.firstWhere(
-        (e) => e.name == data['type'],
-        orElse: () => NotificationType.appRequest,
-      ),
-      priority: NotificationPriority.values.firstWhere(
-        (e) => e.name == data['priority'],
-        orElse: () => NotificationPriority.normal,
-      ),
-      title: data['title'] ?? '',
-      body: data['body'] ?? '',
-      data: Map<String, dynamic>.from(data['data'] ?? {}),
+      familyId: data['familyId'] ?? nestedData['familyId'] ?? '',
+      childId: data['childId'] ?? nestedData['childId'] ?? '',
+      childName: resolvedChildName,
+      type: resolvedType,
+      priority: resolvedPriority,
+      title: resolvedTitle,
+      body: resolvedBody,
+      data: nestedData.isNotEmpty ? nestedData : data,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       readAt: (data['readAt'] as Timestamp?)?.toDate(),
       expiresAt: (data['expiresAt'] as Timestamp?)?.toDate(),
@@ -192,51 +245,53 @@ class FCMToken {
 
 class NotificationTemplate {
   static String getTitle(NotificationType type, String childName) {
+    final name = childName.trim().isNotEmpty ? childName.trim() : 'Child';
     switch (type) {
       case NotificationType.appRequest:
-        return 'App Permission Request';
+        return '$name: App Permission Request';
       case NotificationType.newAppDetected:
-        return 'New App Detected';
+        return '$name: New App Detected';
       case NotificationType.dailyLimitReached:
-        return 'Daily Limit Reached';
+        return '$name: Daily Screen Limit Reached';
       case NotificationType.deviceOffline:
-        return 'Device Offline';
+        return '$name: Device Offline';
       case NotificationType.deviceOnline:
-        return 'Device Online';
+        return '$name: Device Back Online';
       case NotificationType.permissionDisabled:
-        return 'Permission Disabled';
+        return '$name: Permission Disabled';
       case NotificationType.serviceUnavailable:
-        return 'Monitoring Unavailable';
+        return '$name: Monitoring Service Stopped';
     }
   }
 
   static String getBody(NotificationType type, String childName, Map<String, dynamic> data) {
+    final name = childName.trim().isNotEmpty ? childName.trim() : 'Child';
     switch (type) {
       case NotificationType.appRequest:
         final appName = data['appName'] ?? 'an app';
         final requestedMinutes = data['requestedMinutes'] ?? 30;
-        return '$childName wants to use $appName for $requestedMinutes minutes.';
+        return '$name requested to use $appName for $requestedMinutes minutes.';
       
       case NotificationType.newAppDetected:
-        final appName = data['appName'] ?? 'New app';
-        return '$appName was installed on $childName\'s device.';
+        final appName = data['appName'] ?? 'A new app';
+        return '$appName was installed on $name\'s device.';
       
       case NotificationType.dailyLimitReached:
-        final appName = data['appName'] ?? 'App';
-        return '$childName has reached their daily limit for $appName.';
+        final appName = data['appName'] ?? 'an app';
+        return '$name reached their daily limit for $appName.';
       
       case NotificationType.deviceOffline:
-        return '$childName\'s device went offline.';
+        return '$name\'s device went offline.';
       
       case NotificationType.deviceOnline:
-        return '$childName\'s device is back online.';
+        return '$name\'s device is back online and protected.';
       
       case NotificationType.permissionDisabled:
-        final permission = data['permission'] ?? 'A permission';
-        return '$permission was disabled on $childName\'s device.';
+        final permission = data['permission'] ?? 'A required permission';
+        return '$permission was disabled on $name\'s device.';
       
       case NotificationType.serviceUnavailable:
-        return 'Monitoring service stopped on $childName\'s device.';
+        return 'Monitoring service stopped on $name\'s device.';
     }
   }
 

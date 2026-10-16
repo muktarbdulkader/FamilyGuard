@@ -38,12 +38,16 @@ final routerNotifierProvider = Provider<RouterNotifier>((ref) {
   return RouterNotifier(ref);
 });
 
+/// Global navigator key for navigation outside of build context (e.g. notifications)
+final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
+
 /// Router provider using GoRouter for navigation
 /// Handles authentication-based routing and role-based navigation
 final routerProvider = Provider<GoRouter>((ref) {
   final notifier = ref.watch(routerNotifierProvider);
 
   return GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: AppRoutes.splash,
     refreshListenable: notifier,
     debugLogDiagnostics: true,
