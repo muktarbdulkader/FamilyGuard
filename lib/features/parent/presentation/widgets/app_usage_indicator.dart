@@ -37,12 +37,15 @@ class AppUsageIndicator extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                _formatUsageText(),
-                style: TextStyle(
-                  fontSize: 11,
-                  color: progressColor,
-                  fontWeight: FontWeight.w500,
+              Flexible(
+                child: Text(
+                  _formatUsageText(),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: progressColor,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               if (!isOverLimit)

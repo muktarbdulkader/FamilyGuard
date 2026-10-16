@@ -1,7 +1,10 @@
 package com.example.flutter_study_app.enforcement
 
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.PixelFormat
 import android.net.Uri
 import android.os.Build
@@ -9,28 +12,35 @@ import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.View
 import android.view.WindowManager
+import android.widget.Button
+import android.widget.ImageView
 import android.widget.TextView
+import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.example.flutter_study_app.R
 import com.example.flutter_study_app.database.LocalDatabase
-import kotlinx.coroutines.*
+import com.google.firebase.Timestamp
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import java.time.LocalDateTime
+import java.util.UUID
 
 /**
- * Manages the enforcement of parental control rules.
+ * Legitimate Android parental control enforcement manager.
  * 
- * IMPORTANT: This class does NOT terminate applications, as that requires
- * system-level permissions not available to regular apps. Instead, it
- * provides enforcement through:
- * 
- * 1. BLOCKED apps: Shows overlay warning, requests user to close app
- * 2. ASK_PARENT rules: Sends notification to parents, logs request
- * 3. TIME_LIMIT rules: Shows time warnings and usage notifications
+ * Provides transparent, policy-compliant enforcement using standard Android APIs:
+ * 1. Screen overlays (SYSTEM_ALERT_WINDOW) - explicitly granted by user
+ * 2. Notifications to child and parent
+ * 3. App switcher guidance to help child exit restricted apps
  * 4. TIME_WINDOW rules: Shows "outside allowed hours" overlay
- * 
- * This is the correct and legitimate approach for parental control apps
- * on Android, as demonstrated by established apps like Qustodio, Circle, etc.
  */
 class EnforcementManager(
     private val context: Context,
@@ -40,11 +50,17 @@ class EnforcementManager(
     private val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     private val notificationManager = NotificationManagerCompat.from(context)
     private var currentOverlay: View? = null
-    private var currentOverlayPackage: String? = null
+    var currentOverlayPackage: String? = null
+        private set
+    
+    private val enforcementScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val pendingRequestPackages = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+    private val notifiedApprovalPackages = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
     
     companion object {
         private const val NOTIFICATION_CHANNEL_ENFORCEMENT = "enforcement_notifications"
         private const val NOTIFICATION_CHANNEL_PARENT_REQUEST = "parent_requests"
+        private const val PREFS_NAME = "family_guardian_prefs"
     }
     
     /**
@@ -72,7 +88,6 @@ class EnforcementManager(
                 
                 RuleEngine.EvaluationResult.REQUEST -> {
                     showAskParentOverlay(packageName, rule)
-                    notifyParentsOfRequest(packageName, currentTime)
                 }
                 
                 RuleEngine.EvaluationResult.TIME_EXPIRED -> {
@@ -100,15 +115,11 @@ class EnforcementManager(
      * Show overlay for blocked apps
      */
     private fun showBlockedAppOverlay(packageName: String, rule: RuleEngine.AppRule?) {
-        // Immediately kick child out of blocked app to home screen
-        showAppSwitcher()
-        
         if (currentOverlayPackage == packageName) return // Already showing
         
         removeCurrentOverlay()
         
         if (!canDrawOverlays()) {
-            // Show notification instead
             showEnforcementNotification(
                 "App Blocked",
                 "This app is not allowed. Please choose a different activity.",
@@ -119,13 +130,11 @@ class EnforcementManager(
         
         val appName = getAppName(packageName)
         val overlayView = createOverlay(
+            packageName = packageName,
             title = "App Blocked",
-            message = "$appName is not allowed on this device.\n\nPlease close the app and choose a different activity.",
-            actionText = "Close App",
-            onAction = {
-                removeCurrentOverlay()
-                showAppSwitcher()
-            }
+            message = "$appName is currently blocked by your parents. Tap below to ask for permission.",
+            actionText = "Ask Parent",
+            secondaryActionText = "Close App"
         )
         
         showOverlay(overlayView, packageName)
@@ -150,13 +159,11 @@ class EnforcementManager(
         
         val appName = getAppName(packageName)
         val overlayView = createOverlay(
-            title = "Ask Parent Permission",
-            message = "You need permission to use $appName.\n\nA request has been sent to your parents.",
-            actionText = "Wait for Approval",
-            onAction = {
-                removeCurrentOverlay()
-                showAppSwitcher()
-            }
+            packageName = packageName,
+            title = "Permission Required",
+            message = "You need permission to use $appName. Tap below to send a request to your parents.",
+            actionText = "Ask Parent",
+            secondaryActionText = "Close App"
         )
         
         showOverlay(overlayView, packageName)
@@ -166,7 +173,6 @@ class EnforcementManager(
      * Show overlay for time expired apps
      */
     private fun showTimeExpiredOverlay(packageName: String, rule: RuleEngine.AppRule?, remainingMinutes: Int) {
-        showAppSwitcher()
         if (currentOverlayPackage == packageName) return
         
         removeCurrentOverlay()
@@ -185,13 +191,11 @@ class EnforcementManager(
         val limitMins = (rule?.dailyLimitMinutes ?: 0) % 60
         
         val overlayView = createOverlay(
-            title = "Daily Time Limit Reached",
-            message = "$appName time is up!\n\nDaily limit: ${limitHours}h ${limitMins}m\nTry again tomorrow.",
-            actionText = "Close App",
-            onAction = {
-                removeCurrentOverlay()
-                showAppSwitcher()
-            }
+            packageName = packageName,
+            title = "Daily Limit Reached",
+            message = "$appName time is up today (limit: ${limitHours}h ${limitMins}m). You can ask your parents for extra time.",
+            actionText = "Ask Parent for More Time",
+            secondaryActionText = "Close App"
         )
         
         showOverlay(overlayView, packageName)
@@ -201,30 +205,28 @@ class EnforcementManager(
      * Show overlay for time window restrictions
      */
     private fun showTimeWindowOverlay(packageName: String, rule: RuleEngine.AppRule?, minutesUntilAllowed: Int?) {
-        showAppSwitcher()
         if (currentOverlayPackage == packageName) return
         
         removeCurrentOverlay()
         
         val appName = getAppName(packageName)
-        val startTime = rule?.allowedStartTime?.toString() ?: "unknown"
-        val endTime = rule?.allowedEndTime?.toString() ?: "unknown"
+        val startTime = rule?.allowedStartTime?.toString() ?: "allowed hours"
+        val endTime = rule?.allowedEndTime?.toString() ?: ""
         
-        val timeMessage = if (minutesUntilAllowed != null && minutesUntilAllowed < 1440) { // Less than 24 hours
+        val timeMessage = if (minutesUntilAllowed != null && minutesUntilAllowed < 1440) {
             val hours = minutesUntilAllowed / 60
             val mins = minutesUntilAllowed % 60
-            "\n\nAvailable in ${hours}h ${mins}m"
+            " Available in ${hours}h ${mins}m."
         } else {
             ""
         }
         
         val overlayView = createOverlay(
+            packageName = packageName,
             title = "Outside Allowed Hours",
-            message = "$appName is only available from $startTime to $endTime.$timeMessage",
-            actionText = "Close App",
-            onAction = {
-                showAppSwitcher()
-            }
+            message = "$appName is only available from $startTime to $endTime.$timeMessage Tap below to ask for permission.",
+            actionText = "Ask Parent",
+            secondaryActionText = "Close App"
         )
         
         showOverlay(overlayView, packageName)
@@ -233,19 +235,51 @@ class EnforcementManager(
     /**
      * Create enforcement overlay view
      */
-    private fun createOverlay(title: String, message: String, actionText: String, onAction: () -> Unit): View {
+    private fun createOverlay(
+        packageName: String,
+        title: String,
+        message: String,
+        actionText: String,
+        secondaryActionText: String
+    ): View {
         val inflater = LayoutInflater.from(context)
         val overlayView = inflater.inflate(R.layout.enforcement_overlay, null)
         
         overlayView.findViewById<TextView>(R.id.overlay_title)?.text = title
         overlayView.findViewById<TextView>(R.id.overlay_message)?.text = message
-        overlayView.findViewById<TextView>(R.id.overlay_action)?.apply {
-            text = actionText
-            setOnClickListener { onAction() }
+        
+        val statusContainer = overlayView.findViewById<View>(R.id.overlay_status_container)
+        val statusText = overlayView.findViewById<TextView>(R.id.overlay_status_text)
+        val actionBtn = overlayView.findViewById<Button>(R.id.overlay_action)
+        val secondaryBtn = overlayView.findViewById<Button>(R.id.overlay_secondary_action)
+        val closeBtn = overlayView.findViewById<View>(R.id.overlay_close)
+        
+        // Check if there is already a pending request for this app
+        if (pendingRequestPackages.contains(packageName)) {
+            statusContainer?.visibility = View.VISIBLE
+            statusText?.text = "⏳ Request Sent! Waiting for parent..."
+            actionBtn?.isEnabled = false
+            actionBtn?.text = "Request Pending"
+        } else {
+            statusContainer?.visibility = View.GONE
+            actionBtn?.isEnabled = true
+            actionBtn?.text = actionText
+            actionBtn?.setOnClickListener {
+                requestParentPermission(packageName, overlayView)
+            }
         }
         
-        // Close button
-        overlayView.findViewById<View>(R.id.overlay_close)?.setOnClickListener {
+        // Secondary action: close app & switch to home screen
+        secondaryBtn?.apply {
+            text = secondaryActionText
+            setOnClickListener {
+                removeCurrentOverlay()
+                showAppSwitcher()
+            }
+        }
+        
+        // Top-right close button
+        closeBtn?.setOnClickListener {
             removeCurrentOverlay()
             showAppSwitcher()
         }
@@ -253,6 +287,176 @@ class EnforcementManager(
         return overlayView
     }
     
+    /**
+     * Send real request to Firestore and notify parents
+     */
+    fun requestParentPermission(packageName: String, overlayView: View?) {
+        val appName = getAppName(packageName)
+        val childId = getCachedChildId()
+        if (childId.isNullOrEmpty()) {
+            Toast.makeText(context, "Child account not found. Please open Family Guardian.", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        val actionBtn = overlayView?.findViewById<Button>(R.id.overlay_action)
+        val statusContainer = overlayView?.findViewById<View>(R.id.overlay_status_container)
+        val statusText = overlayView?.findViewById<TextView>(R.id.overlay_status_text)
+        
+        actionBtn?.isEnabled = false
+        actionBtn?.text = "Sending Request..."
+        
+        enforcementScope.launch {
+            try {
+                val familyId = resolveFamilyId(childId)
+                if (familyId.isNullOrEmpty()) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Family ID not found. Please connect to a family.", Toast.LENGTH_LONG).show()
+                        actionBtn?.isEnabled = true
+                        actionBtn?.text = "Ask Parent"
+                    }
+                    return@launch
+                }
+
+                val childName = getCachedChildName()
+                val firestore = FirebaseFirestore.getInstance()
+                val reqId = "${childId}_${packageName.replace(".", "_")}"
+                val now = Timestamp.now()
+                val expiresAt = Timestamp(java.util.Date(System.currentTimeMillis() + 86400000L)) // 24 hours
+
+                val requestData = hashMapOf(
+                    "id" to reqId,
+                    "familyId" to familyId,
+                    "childId" to childId,
+                    "childName" to childName,
+                    "packageName" to packageName,
+                    "appName" to appName,
+                    "status" to "pending",
+                    "requestedMinutes" to 30,
+                    "createdAt" to now,
+                    "expiresAt" to expiresAt,
+                    "deviceInfo" to Build.MODEL,
+                    "requestNonce" to UUID.randomUUID().toString()
+                )
+
+                // 1. Write to families/{familyId}/requests/{reqId} (read by Parent AppRequestsScreen!)
+                firestore.collection("families")
+                    .document(familyId)
+                    .collection("requests")
+                    .document(reqId)
+                    .set(requestData, SetOptions.merge())
+                    .await()
+
+                // 2. Write to families/{familyId}/children/{childId}/requests/{reqId}
+                firestore.collection("families")
+                    .document(familyId)
+                    .collection("children")
+                    .document(childId)
+                    .collection("requests")
+                    .document(reqId)
+                    .set(requestData, SetOptions.merge())
+                    .await()
+
+                // 3. Create high-priority notification in notifications collection for parent app
+                val notificationData = hashMapOf(
+                    "familyId" to familyId,
+                    "childId" to childId,
+                    "childName" to childName,
+                    "type" to "appRequest",
+                    "priority" to "urgent",
+                    "title" to "📱 $childName: App Permission Request",
+                    "body" to "$childName requested access to use $appName (30 min). Tap to approve or deny.",
+                    "data" to hashMapOf(
+                        "type" to "app_request",
+                        "requestId" to reqId,
+                        "familyId" to familyId,
+                        "childId" to childId,
+                        "childName" to childName,
+                        "appName" to appName,
+                        "packageName" to packageName
+                    ),
+                    "createdAt" to now,
+                    "isRead" to false
+                )
+                firestore.collection("notifications").add(notificationData).await()
+
+                // 4. Log event in families/{familyId}/events
+                firestore.collection("families")
+                    .document(familyId)
+                    .collection("events")
+                    .add(hashMapOf(
+                        "type" to "app_request",
+                        "familyId" to familyId,
+                        "childId" to childId,
+                        "childName" to childName,
+                        "appName" to appName,
+                        "packageName" to packageName,
+                        "timestamp" to now
+                    ))
+
+                pendingRequestPackages.add(packageName)
+
+                withContext(Dispatchers.Main) {
+                    statusContainer?.visibility = View.VISIBLE
+                    statusText?.text = "⏳ Request Sent! Waiting for parent..."
+                    actionBtn?.isEnabled = false
+                    actionBtn?.text = "Request Pending"
+                    Toast.makeText(context, "Request sent to parents!", Toast.LENGTH_SHORT).show()
+                }
+
+                android.util.Log.d("EnforcementManager", "Successfully created pending app request for $appName ($packageName)")
+            } catch (e: Exception) {
+                android.util.Log.e("EnforcementManager", "Failed to create app request for $packageName", e)
+                withContext(Dispatchers.Main) {
+                    actionBtn?.isEnabled = true
+                    actionBtn?.text = "Ask Parent"
+                    Toast.makeText(context, "Failed to send request: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+    
+    private fun getCachedFamilyId(): String? {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val fid = prefs.getString("family_id", null)
+        if (!fid.isNullOrBlank()) return fid
+        return context.getSharedPreferences("family_guardian", Context.MODE_PRIVATE).getString("family_id", null)
+    }
+
+    private fun getCachedChildId(): String? {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val cid = prefs.getString("child_id", null)
+        if (!cid.isNullOrBlank()) return cid
+        return FirebaseAuth.getInstance().currentUser?.uid
+    }
+
+    private fun getCachedChildName(): String {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val name = prefs.getString("child_name", null)
+        if (!name.isNullOrBlank()) return name
+        val user = FirebaseAuth.getInstance().currentUser
+        val displayName = user?.displayName
+        if (!displayName.isNullOrBlank()) return displayName
+        return "Child"
+    }
+
+    private suspend fun resolveFamilyId(childId: String): String? {
+        val cached = getCachedFamilyId()
+        if (!cached.isNullOrBlank()) return cached
+        return try {
+            val firestore = FirebaseFirestore.getInstance()
+            val userDoc = firestore.collection("users").document(childId).get().await()
+            val fid = userDoc.getString("familyId")
+            if (!fid.isNullOrBlank()) {
+                context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                    .edit().putString("family_id", fid).apply()
+                fid
+            } else null
+        } catch (e: Exception) {
+            android.util.Log.e("EnforcementManager", "Error resolving familyId from user doc", e)
+            null
+        }
+    }
+
     /**
      * Show overlay on screen
      */
@@ -282,7 +486,6 @@ class EnforcementManager(
             
         } catch (e: Exception) {
             android.util.Log.e("EnforcementManager", "Failed to show overlay", e)
-            // Fallback to notification
             showEnforcementNotification("App Restricted", "This app has usage restrictions.", packageName)
         }
     }
@@ -290,7 +493,8 @@ class EnforcementManager(
     /**
      * Remove current overlay if it belongs to the specified package
      */
-    private fun removeOverlayIfPresent(packageName: String) {
+    fun removeOverlayIfPresent(packageName: String) {
+        pendingRequestPackages.remove(packageName)
         if (currentOverlayPackage == packageName) {
             removeCurrentOverlay()
         }
@@ -299,7 +503,7 @@ class EnforcementManager(
     /**
      * Remove current overlay
      */
-    private fun removeCurrentOverlay() {
+    fun removeCurrentOverlay() {
         try {
             currentOverlay?.let { overlay ->
                 windowManager.removeView(overlay)
@@ -315,9 +519,8 @@ class EnforcementManager(
     /**
      * Show app switcher to help user close restricted app
      */
-    private fun showAppSwitcher() {
+    fun showAppSwitcher() {
         try {
-            // Show recent apps (task switcher)
             val intent = Intent(Intent.ACTION_MAIN).apply {
                 addCategory(Intent.CATEGORY_HOME)
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK
@@ -325,27 +528,6 @@ class EnforcementManager(
             context.startActivity(intent)
         } catch (e: Exception) {
             android.util.Log.w("EnforcementManager", "Could not show app switcher", e)
-        }
-    }
-    
-    /**
-     * Send notification to parents about app request
-     */
-    private fun notifyParentsOfRequest(packageName: String, currentTime: LocalDateTime) {
-        val appName = getAppName(packageName)
-        
-        val notification = NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_PARENT_REQUEST)
-            .setContentTitle("Child App Request")
-            .setContentText("Child requested permission to use $appName")
-            .setSmallIcon(R.drawable.ic_notification)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setAutoCancel(true)
-            .build()
-        
-        try {
-            notificationManager.notify(packageName.hashCode(), notification)
-        } catch (e: SecurityException) {
-            android.util.Log.w("EnforcementManager", "Cannot post notification", e)
         }
     }
     
@@ -369,17 +551,67 @@ class EnforcementManager(
     }
     
     /**
-     * Show notification for temporary approval
+     * Called when an app is approved by a parent in real time.
+     * Removes blocking overlay, shows confirmation notification, and launches the approved app.
      */
-    private fun showTemporaryApprovalNotification(packageName: String, approval: RuleEngine.TemporaryApproval) {
+    fun onAppApproved(packageName: String) {
+        pendingRequestPackages.remove(packageName)
+        removeOverlayIfPresent(packageName)
+        
+        val temporaryApproval = database.getActiveTemporaryApproval(packageName)
+        if (temporaryApproval != null) {
+            showTemporaryApprovalNotification(packageName, temporaryApproval, force = true)
+        }
+        
+        // Auto-launch the approved app for the child
+        try {
+            val launchIntent = context.packageManager.getLaunchIntentForPackage(packageName)?.apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
+            }
+            if (launchIntent != null) {
+                context.startActivity(launchIntent)
+                android.util.Log.d("EnforcementManager", "Auto-launched approved app: $packageName")
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("EnforcementManager", "Could not auto-launch $packageName", e)
+        }
+    }
+
+    /**
+     * Show notification for temporary approval with tap-to-open action
+     */
+    fun showTemporaryApprovalNotification(
+        packageName: String, 
+        approval: RuleEngine.TemporaryApproval, 
+        force: Boolean = false
+    ) {
+        // Prevent spamming the notification every second
+        if (!force && notifiedApprovalPackages.contains(packageName)) {
+            return
+        }
+        notifiedApprovalPackages.add(packageName)
+
         val appName = getAppName(packageName)
         val endTime = approval.approvedAt.plusMinutes(approval.durationMinutes.toLong())
         
+        val launchIntent = context.packageManager.getLaunchIntentForPackage(packageName)?.apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        val pendingIntent = if (launchIntent != null) {
+            PendingIntent.getActivity(
+                context,
+                packageName.hashCode(),
+                launchIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+        } else null
+
         val notification = NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ENFORCEMENT)
-            .setContentTitle("Temporary Access Granted")
-            .setContentText("$appName approved until ${endTime.toLocalTime()}")
+            .setContentTitle("🎉 Access Approved: $appName")
+            .setContentText("$appName is approved until ${endTime.toLocalTime()}. Tap to open.")
             .setSmallIcon(R.drawable.ic_notification)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setContentIntent(pendingIntent)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .build()
         
@@ -431,43 +663,3 @@ class EnforcementManager(
         }
     }
 }
-
-/**
- * ENFORCEMENT STRATEGY EXPLANATION:
- * 
- * This implementation uses the only legitimate approaches available to regular
- * Android apps for parental control:
- * 
- * 1. DETECTION: UsageStatsManager API (requires PACKAGE_USAGE_STATS permission)
- *    - Official Android API for app usage monitoring
- *    - Used by legitimate parental control apps
- *    - Granted through device Settings > Special app access
- * 
- * 2. ENFORCEMENT LIMITATIONS:
- *    - Cannot force-close apps (requires system/root permissions)
- *    - Cannot prevent app launches (requires system-level access)
- *    - Cannot modify other apps' behavior
- * 
- * 3. LEGITIMATE ENFORCEMENT METHODS:
- *    - Screen overlays (with SYSTEM_ALERT_WINDOW permission)
- *    - Notifications to child and parents
- *    - Usage tracking and reporting
- *    - Guidance to manually close restricted apps
- * 
- * 4. USER DISCLOSURE:
- *    - Service runs with visible notification (required for foreground service)
- *    - Overlay permission explicitly requested from user
- *    - All permissions clearly documented and requested
- * 
- * 5. PLAY STORE COMPLIANCE:
- *    - Uses only documented, public Android APIs
- *    - Does not attempt to hide monitoring functionality
- *    - Respects Android's security model
- *    - Provides clear user controls and transparency
- * 
- * This approach is used successfully by apps like:
- * - Qustodio Parental Control
- * - Circle Home Plus
- * - Norton Family
- * - Google Family Link
- */

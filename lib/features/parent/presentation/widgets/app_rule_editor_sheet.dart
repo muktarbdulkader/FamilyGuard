@@ -31,8 +31,10 @@ class _AppRuleEditorSheetState extends ConsumerState<AppRuleEditorSheet> {
   void initState() {
     super.initState();
     _selectedRuleType = widget.appWithUsage.app.rule;
-    if (widget.appWithUsage.app.dailyLimitMinutes != null) {
-      _dailyLimitMinutes = widget.appWithUsage.app.dailyLimitMinutes!;
+    if (widget.appWithUsage.app.dailyLimitMinutes != null && widget.appWithUsage.app.dailyLimitMinutes! > 0) {
+      _dailyLimitMinutes = widget.appWithUsage.app.dailyLimitMinutes!.clamp(5, 480);
+    } else {
+      _dailyLimitMinutes = 60;
     }
     if (widget.appWithUsage.app.allowedFrom != null) {
       final parts = widget.appWithUsage.app.allowedFrom!.split(':');
@@ -279,11 +281,11 @@ class _AppRuleEditorSheetState extends ConsumerState<AppRuleEditorSheet> {
               ),
               const SizedBox(height: 16),
               Slider(
-                value: _dailyLimitMinutes.toDouble(),
+                value: _dailyLimitMinutes.clamp(5, 480).toDouble(),
                 min: 5,
                 max: 480, // 8 hours
                 divisions: 95,
-                onChanged: (value) => setState(() => _dailyLimitMinutes = value.round()),
+                onChanged: (value) => setState(() => _dailyLimitMinutes = value.round().clamp(5, 480)),
               ),
             ],
           ),

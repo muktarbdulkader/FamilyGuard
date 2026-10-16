@@ -25,6 +25,11 @@ class RuleSyncService(
     private val firestore = FirebaseFirestore.getInstance()
     private var ruleListener: ListenerRegistration? = null
     private var approvalListener: ListenerRegistration? = null
+    private var requestListener: ListenerRegistration? = null
+    
+    /** Callback invoked whenever an app's temporary approval is added or updated */
+    var onApprovalChanged: ((String) -> Unit)? = null
+
     // Recreated on every startSync() to avoid the cancelled-scope bug where
     // stopSync() permanently cancels the scope before new listeners are attached.
     private var syncJob = SupervisorJob()
@@ -44,8 +49,10 @@ class RuleSyncService(
         // Stop existing Firestore listeners without cancelling the scope we're about to use
         ruleListener?.remove()
         approvalListener?.remove()
+        requestListener?.remove()
         ruleListener = null
         approvalListener = null
+        requestListener = null
 
         // Recreate scope so we always have a live scope for snapshot callbacks
         syncJob.cancel()
@@ -107,6 +114,58 @@ class RuleSyncService(
                 }
             }
         }
+
+        // Also listen for approved requests in families/{familyId}/requests
+        val requestsRef = firestore
+            .collection(COLLECTION_FAMILIES)
+            .document(familyId)
+            .collection("requests")
+            .whereEqualTo("childId", childId)
+            .whereEqualTo("status", "approved")
+
+        requestListener = requestsRef.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                android.util.Log.w("RuleSyncService", "Error listening to approved requests", error)
+                return@addSnapshotListener
+            }
+
+            if (snapshot != null) {
+                syncScope.launch {
+                    val now = LocalDateTime.now()
+                    for (doc in snapshot.documents) {
+                        try {
+                            val pkg = doc.getString("packageName") ?: continue
+                            val grantedMinutes = doc.getLong("grantedMinutes")?.toInt() ?: 30
+                            val decidedBy = doc.getString("decidedBy") ?: "parent"
+                            val decidedAt = parseDateTimeSafe(doc.get("decidedAt"))
+                            val approval = RuleEngine.TemporaryApproval(
+                                packageName = pkg,
+                                approvedAt = decidedAt,
+                                durationMinutes = grantedMinutes,
+                                approvedBy = decidedBy
+                            )
+                            val expiresAtSafe = if (doc.contains("accessExpiresAt")) {
+                                parseDateTimeSafe(doc.get("accessExpiresAt"))
+                            } else null
+                            val isExpired = if (expiresAtSafe != null) {
+                                now.isAfter(expiresAtSafe)
+                            } else {
+                                approval.isExpired(now)
+                            }
+                            if (!isExpired) {
+                                database.insertTemporaryApproval(approval)
+                                withContext(Dispatchers.Main) {
+                                    onApprovalChanged?.invoke(pkg)
+                                }
+                                android.util.Log.d("RuleSyncService", "Auto-approved $pkg from requests update ($grantedMinutes min)")
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.e("RuleSyncService", "Error parsing approved request doc", e)
+                        }
+                    }
+                }
+            }
+        }
         
         android.util.Log.d("RuleSyncService", "Started real-time sync for child: $childId")
     }
@@ -117,8 +176,10 @@ class RuleSyncService(
     fun stopSync() {
         ruleListener?.remove()
         approvalListener?.remove()
+        requestListener?.remove()
         ruleListener = null
         approvalListener = null
+        requestListener = null
         syncJob.cancel()
         android.util.Log.d("RuleSyncService", "Sync stopped")
     }
@@ -170,6 +231,9 @@ class RuleSyncService(
             for (approval in firestoreApprovals) {
                 if (!approval.isExpired(currentTime)) {
                     database.insertTemporaryApproval(approval)
+                    withContext(Dispatchers.Main) {
+                        onApprovalChanged?.invoke(approval.packageName)
+                    }
                     android.util.Log.d("RuleSyncService", "Updated approval for: ${approval.packageName}")
                 }
             }

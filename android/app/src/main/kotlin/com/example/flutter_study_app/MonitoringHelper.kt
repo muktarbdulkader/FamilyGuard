@@ -99,6 +99,18 @@ class MonitoringHelper(private val activity: Activity) {
                 "getUsageStats" -> {
                     result.success(getUsageStats())
                 }
+                "openApp" -> {
+                    val args = arguments as Map<String, Any>
+                    val packageName = args["packageName"] as String
+                    val launchIntent = activity.packageManager.getLaunchIntentForPackage(packageName)
+                    if (launchIntent != null) {
+                        launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
+                        activity.startActivity(launchIntent)
+                        result.success(true)
+                    } else {
+                        result.success(false)
+                    }
+                }
                 else -> {
                     result.notImplemented()
                 }

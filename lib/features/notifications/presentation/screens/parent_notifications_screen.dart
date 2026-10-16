@@ -744,9 +744,33 @@ class _ChildNotificationCard extends ConsumerWidget {
               .doc(requestId)
               .set(updateData, SetOptions(merge: true));
         } catch (_) {}
+
+        // 3. Write temporary approval doc for native enforcement engine
+        final packageName = notification.data['packageName'] as String? ?? '';
+        if (packageName.isNotEmpty) {
+          try {
+            final pkgClean = packageName.replaceAll('.', '_');
+            await FirebaseFirestore.instance
+                .collection('families')
+                .doc(familyId)
+                .collection('children')
+                .doc(childId)
+                .collection('temporaryApprovals')
+                .doc(pkgClean)
+                .set({
+                  'packageName': packageName,
+                  'approvedAt': now,
+                  'durationMinutes': minutes,
+                  'approvedBy': parentId,
+                  'accessExpiresAt': expires,
+                }, SetOptions(merge: true));
+          } catch (e) {
+            debugPrint('Error writing temporaryApproval in quickApprove: $e');
+          }
+        }
       }
 
-      // 3. Mark notification as read
+      // 4. Mark notification as read
       await ref.read(notificationActionsProvider).markAsRead(notification.id);
 
       if (context.mounted) {

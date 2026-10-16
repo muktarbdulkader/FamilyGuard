@@ -217,19 +217,20 @@ class RequestNotificationCard extends StatelessWidget {
                     
                     const SizedBox(width: 8),
                     
-                    // More options button
-                    ElevatedButton(
-                      onPressed: () => _openApprovalScreen(context),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () => _openApprovalScreen(context),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
-                      ),
-                      child: const Text(
-                        'More',
-                        style: TextStyle(fontWeight: FontWeight.w600),
+                        child: const Text(
+                          'More',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
                       ),
                     ),
                   ],
@@ -391,9 +392,15 @@ class QuickApprovalSheet extends StatelessWidget {
             child: SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () {
+                onPressed: () async {
                   Navigator.of(context).pop();
-                  // TODO: Call approval service with duration
+                  await ApprovalService.instance.approveRequest(
+                    requestId: request.id,
+                    familyId: request.familyId,
+                    childId: request.childId,
+                    parentId: child.parentId,
+                    grantedMinutes: duration.minutes,
+                  );
                   onApproved?.call();
                 },
                 style: ElevatedButton.styleFrom(

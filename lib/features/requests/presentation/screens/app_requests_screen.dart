@@ -572,6 +572,49 @@ class _ApproveSheetState extends State<_ApproveSheet> {
               .doc(widget.request.id)
               .set(approveData, SetOptions(merge: true));
         } catch (_) {}
+
+        // Write temporary approval doc for native enforcement engine
+        if (widget.request.packageName.isNotEmpty) {
+          try {
+            final pkgClean = widget.request.packageName.replaceAll('.', '_');
+            await FirebaseFirestore.instance
+                .collection('families')
+                .doc(widget.familyId)
+                .collection('children')
+                .doc(widget.request.childId)
+                .collection('temporaryApprovals')
+                .doc(pkgClean)
+                .set({
+                  'packageName': widget.request.packageName,
+                  'approvedAt': Timestamp.fromDate(now),
+                  'durationMinutes': _selected.minutes,
+                  'approvedBy': widget.parentId,
+                  'accessExpiresAt': Timestamp.fromDate(now.add(Duration(minutes: _selected.minutes))),
+                }, SetOptions(merge: true));
+          } catch (e) {
+            debugPrint('Error writing temporaryApproval doc: $e');
+          }
+        }
+
+        // Notify child that request was approved
+        try {
+          await FirebaseFirestore.instance.collection('notifications').add({
+            'familyId': widget.familyId,
+            'childId': widget.request.childId,
+            'type': 'appApproved',
+            'priority': 'normal',
+            'title': '🎉 Access Approved: ${widget.request.appName}',
+            'body': 'Your parent approved ${_selected.displayText} of access to ${widget.request.appName}.',
+            'data': {
+              'type': 'app_approved',
+              'packageName': widget.request.packageName,
+              'appName': widget.request.appName,
+              'grantedMinutes': _selected.minutes,
+            },
+            'createdAt': Timestamp.fromDate(now),
+            'isRead': false,
+          });
+        } catch (_) {}
       }
       if (mounted) Navigator.pop(context);
       if (mounted) {

@@ -208,6 +208,19 @@ class MonitoringService {
       return null;
     }
   }
+
+  /// Launch an installed application directly
+  Future<bool> openApp(String packageName) async {
+    try {
+      final result = await _channel.invokeMethod('openApp', {
+        'packageName': packageName,
+      });
+      return (result as bool?) ?? false;
+    } catch (e) {
+      print('Failed to open app $packageName: $e');
+      return false;
+    }
+  }
 }
 
 /// Exception class for monitoring service operations

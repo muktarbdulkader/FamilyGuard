@@ -8,14 +8,14 @@
     android:focusable="true"
     android:gravity="center"
     android:orientation="vertical"
-    android:padding="32dp">
+    android:padding="24dp">
 
     <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginHorizontal="16dp"
-        app:cardCornerRadius="16dp"
-        app:cardElevation="8dp">
+        android:layout_marginHorizontal="8dp"
+        app:cardCornerRadius="20dp"
+        app:cardElevation="12dp">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -24,26 +24,32 @@
             android:padding="24dp"
             android:background="@android:color/white">
 
-            <!-- Close button -->
-            <ImageView
-                android:id="@+id/overlay_close"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:layout_gravity="end"
-                android:layout_marginBottom="16dp"
-                android:background="?android:attr/selectableItemBackgroundBorderless"
-                android:contentDescription="Close"
-                android:padding="8dp"
-                android:src="@android:drawable/ic_menu_close_clear_cancel" />
+            <!-- Top Row: Close button -->
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
 
-            <!-- Warning icon -->
+                <ImageView
+                    android:id="@+id/overlay_close"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:layout_gravity="end|top"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Close"
+                    android:padding="6dp"
+                    android:src="@android:drawable/ic_menu_close_clear_cancel" />
+            </FrameLayout>
+
+            <!-- Warning/Alert icon -->
             <ImageView
-                android:layout_width="64dp"
-                android:layout_height="64dp"
+                android:id="@+id/overlay_icon"
+                android:layout_width="60dp"
+                android:layout_height="60dp"
                 android:layout_gravity="center_horizontal"
+                android:layout_marginTop="4dp"
                 android:layout_marginBottom="16dp"
                 android:src="@android:drawable/ic_dialog_alert"
-                android:tint="@android:color/holo_orange_dark" />
+                android:tint="@color/accent_color" />
 
             <!-- Title -->
             <TextView
@@ -52,10 +58,10 @@
                 android:layout_height="wrap_content"
                 android:gravity="center"
                 android:text="App Restricted"
-                android:textColor="@android:color/black"
-                android:textSize="24sp"
+                android:textColor="#1F2937"
+                android:textSize="22sp"
                 android:textStyle="bold"
-                android:layout_marginBottom="16dp" />
+                android:layout_marginBottom="10dp" />
 
             <!-- Message -->
             <TextView
@@ -65,30 +71,58 @@
                 android:gravity="center"
                 android:lineSpacingMultiplier="1.2"
                 android:text="This app is not available right now. Please choose a different activity."
-                android:textColor="@android:color/darker_gray"
-                android:textSize="16sp"
-                android:layout_marginBottom="24dp" />
+                android:textColor="#6B7280"
+                android:textSize="15sp"
+                android:layout_marginBottom="16dp" />
 
-            <!-- Action button -->
+            <!-- Status Container (Visible when request is pending or sent) -->
+            <LinearLayout
+                android:id="@+id/overlay_status_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:background="#FEF3C7"
+                android:paddingVertical="10dp"
+                android:paddingHorizontal="14dp"
+                android:layout_marginBottom="16dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/overlay_status_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="⏳ Request Sent! Waiting for parent..."
+                    android:textColor="#B45309"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- Primary Action Button (Ask Parent) -->
             <Button
                 android:id="@+id/overlay_action"
                 android:layout_width="match_parent"
-                android:layout_height="56dp"
+                android:layout_height="52dp"
                 android:background="@drawable/button_background"
-                android:text="Close App"
+                android:text="Ask Parent"
                 android:textColor="@android:color/white"
                 android:textSize="16sp"
                 android:textStyle="bold"
-                android:layout_marginBottom="8dp" />
+                android:stateListAnimator="@null"
+                android:layout_marginBottom="10dp" />
 
-            <!-- Secondary text -->
-            <TextView
+            <!-- Secondary Action Button (Close App) -->
+            <Button
+                android:id="@+id/overlay_secondary_action"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center"
-                android:text="Use the recent apps button to switch to another app"
-                android:textColor="@android:color/darker_gray"
-                android:textSize="14sp" />
+                android:layout_height="48dp"
+                android:background="@drawable/button_secondary"
+                android:text="Close App"
+                android:textColor="@color/accent_color"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:stateListAnimator="@null"
+                android:layout_marginBottom="4dp" />
 
         </LinearLayout>
 

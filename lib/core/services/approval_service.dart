@@ -285,6 +285,17 @@ class ApprovalService {
     required int grantedMinutes,
   }) async {
     try {
+      final now = Timestamp.now();
+      final expires = Timestamp.fromDate(DateTime.now().add(Duration(minutes: grantedMinutes)));
+      final updateData = {
+        'status': 'approved',
+        'grantedMinutes': grantedMinutes,
+        'decidedBy': parentId,
+        'decidedAt': now,
+        'accessExpiresAt': expires,
+      };
+
+      // 1. Update child request doc
       await _firestore
           .collection(_collectionFamilies)
           .doc(familyId)
@@ -292,14 +303,47 @@ class ApprovalService {
           .doc(childId)
           .collection(_collectionRequests)
           .doc(requestId)
-          .update({
-        'status': 'approved',
-        'grantedMinutes': grantedMinutes,
-        'decidedBy': parentId,
-        'decidedAt': Timestamp.now(),
-      });
+          .set(updateData, SetOptions(merge: true));
 
-      // Send notification to child (in real implementation)
+      // 2. Update family level request doc
+      await _firestore
+          .collection(_collectionFamilies)
+          .doc(familyId)
+          .collection(_collectionRequests)
+          .doc(requestId)
+          .set(updateData, SetOptions(merge: true));
+
+      // 3. Fetch request to get packageName and write temporaryApprovals
+      try {
+        final reqDoc = await _firestore
+            .collection(_collectionFamilies)
+            .doc(familyId)
+            .collection(_collectionRequests)
+            .doc(requestId)
+            .get();
+        final packageName = reqDoc.data()?['packageName'] as String? ?? '';
+        if (packageName.isNotEmpty) {
+          final pkgClean = packageName.replaceAll('.', '_');
+          await _firestore
+              .collection(_collectionFamilies)
+              .doc(familyId)
+              .collection(_collectionChildren)
+              .doc(childId)
+              .collection('temporaryApprovals')
+              .doc(pkgClean)
+              .set({
+                'packageName': packageName,
+                'approvedAt': now,
+                'durationMinutes': grantedMinutes,
+                'approvedBy': parentId,
+                'accessExpiresAt': expires,
+              }, SetOptions(merge: true));
+        }
+      } catch (e) {
+        print('Error setting temporaryApproval in fallback: $e');
+      }
+
+      // Send notification to child
       await _sendApprovalNotificationToChild(familyId, childId, requestId, grantedMinutes);
 
       return true;

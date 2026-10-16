@@ -169,8 +169,11 @@ class MonitoringService : Service() {
 
     private fun startRuleSync(familyId: String, childId: String) {
         try {
-            ruleSyncService?.stopSync()
-            ruleSyncService = RuleSyncService(this, database, childId)
+            ruleSyncService = RuleSyncService(this, database, childId).apply {
+                onApprovalChanged = { approvedPkg ->
+                    enforcementManager.onAppApproved(approvedPkg)
+                }
+            }
             ruleSyncService?.startSync(familyId)
             android.util.Log.d("MonitoringService", "Started rule sync for family: $familyId, child: $childId")
         } catch (e: Exception) {
@@ -250,9 +253,12 @@ class MonitoringService : Service() {
             
             // Check if current app should be enforced
             if (foregroundApp != null && !isSystemApp(foregroundApp)) {
-                // Check if blocked to notify parent
                 val rule = database.getRule(foregroundApp)
-                if (rule?.type == RuleEngine.RuleType.BLOCKED) {
+                val temporaryApproval = database.getActiveTemporaryApproval(foregroundApp)
+                val isTemporarilyApproved = temporaryApproval != null && !temporaryApproval.isExpired(currentTime)
+
+                // Only notify parent of blocked app attempt if NOT temporarily approved
+                if (rule?.type == RuleEngine.RuleType.BLOCKED && !isTemporarilyApproved) {
                     val appName = getAppInfo(foregroundApp)?.name ?: foregroundApp
                     sendBlockedAppNotification(foregroundApp, appName)
                 }
@@ -626,27 +632,6 @@ class MonitoringService : Service() {
 
             firestore.collection("notifications").add(notificationData)
             
-            // Also create or refresh pending request in families/{familyId}/requests
-            val reqId = "${childId}_${packageName.replace(".", "_")}"
-            val requestData = hashMapOf(
-                "id" to reqId,
-                "familyId" to familyId,
-                "childId" to childId,
-                "childName" to childName,
-                "packageName" to packageName,
-                "appName" to appName,
-                "status" to "pending",
-                "createdAt" to com.google.firebase.Timestamp.now(),
-                "expiresAt" to com.google.firebase.Timestamp(java.util.Date(System.currentTimeMillis() + 86400000L)),
-                "deviceInfo" to android.os.Build.MODEL,
-                "requestNonce" to java.util.UUID.randomUUID().toString()
-            )
-            firestore.collection("families")
-                .document(familyId)
-                .collection("requests")
-                .document(reqId)
-                .set(requestData, com.google.firebase.firestore.SetOptions.merge())
-
             // Also add event to family event log
             firestore.collection("families")
                 .document(familyId)

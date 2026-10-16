@@ -433,43 +433,52 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 18,
-                              backgroundColor: const Color(0xFF3B82F6),
-                              child: Text(
-                                childName.isNotEmpty ? childName[0].toUpperCase() : 'C',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  "$childName's Screen Time",
+                        Expanded(
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 18,
+                                backgroundColor: const Color(0xFF3B82F6),
+                                child: Text(
+                                  childName.isNotEmpty ? childName[0].toUpperCase() : 'C',
                                   style: const TextStyle(
                                     color: Colors.white,
-                                    fontSize: 16,
                                     fontWeight: FontWeight.bold,
+                                    fontSize: 14,
                                   ),
                                 ),
-                                const Text(
-                                  'Today\'s Device Activity',
-                                  style: TextStyle(
-                                    color: Color(0xFF94A3B8),
-                                    fontSize: 12,
-                                  ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      "$childName's Screen Time",
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const Text(
+                                      'Today\'s Device Activity',
+                                      style: TextStyle(
+                                        color: Color(0xFF94A3B8),
+                                        fontSize: 12,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                          ],
+                              ),
+                            ],
+                          ),
                         ),
+                        const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
@@ -557,12 +566,15 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Apps Used Today',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey[900],
+              Flexible(
+                child: Text(
+                  'Apps Used Today',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[900],
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               TextButton.icon(
@@ -1182,28 +1194,35 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 10,
-                    height: 10,
-                    decoration: BoxDecoration(
-                      color: isStale ? const Color(0xFFF59E0B) : const Color(0xFF10B981),
-                      shape: BoxShape.circle,
+              Flexible(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: isStale ? const Color(0xFFF59E0B) : const Color(0xFF10B981),
+                        shape: BoxShape.circle,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    isStale ? 'LAST KNOWN GPS' : 'LIVE GPS LOCATION',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 0.8,
-                      color: isStale ? const Color(0xFFD97706) : const Color(0xFF059669),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        isStale ? 'LAST KNOWN GPS' : 'LIVE GPS LOCATION',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.8,
+                          color: isStale ? const Color(0xFFD97706) : const Color(0xFF059669),
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               Text(
                 _formatTimestampAgo(loc.timestamp),
                 style: TextStyle(

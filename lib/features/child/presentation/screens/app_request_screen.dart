@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/models/request_model.dart';
 import '../../../../core/services/request_service.dart';
+import '../../../../core/services/monitoring_service.dart';
 import '../../../../core/providers/auth_provider.dart';
 import '../../../../core/providers/family_provider.dart';
 import '../../../../core/providers/user_provider.dart';
@@ -436,9 +437,9 @@ class _AppRequestScreenState extends ConsumerState<AppRequestScreen> {
           width: double.infinity,
           height: 56,
           child: ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.of(context).pop();
-              // The native monitoring service should allow access now
+              await MonitoringService.instance.openApp(widget.packageName);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.green,
@@ -603,6 +604,7 @@ class _AppRequestScreenState extends ConsumerState<AppRequestScreen> {
     }
     
     _showSuccess('App access activated');
+    await MonitoringService.instance.openApp(widget.packageName);
   }
 
   // Helper methods
