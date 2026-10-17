@@ -30,6 +30,9 @@ class RuleSyncService(
     /** Callback invoked whenever an app's temporary approval is added or updated */
     var onApprovalChanged: ((String) -> Unit)? = null
 
+    /** Callback invoked whenever an app's rule is added or updated */
+    var onRuleChanged: ((String, RuleEngine.RuleType) -> Unit)? = null
+
     // Recreated on every startSync() to avoid the cancelled-scope bug where
     // stopSync() permanently cancels the scope before new listeners are attached.
     private var syncJob = SupervisorJob()
@@ -105,7 +108,7 @@ class RuleSyncService(
                 syncScope.launch {
                     syncApprovalsFromFirestore(snapshot.documents.mapNotNull { doc ->
                         try {
-                            parseApprovalFromDocument(doc.data ?: emptyMap())
+                            parseApprovalFromDocument(doc.data ?: emptyMap(), doc.id)
                         } catch (e: Exception) {
                             android.util.Log.e("RuleSyncService", "Error parsing approval: ${doc.id}", e)
                             null
@@ -196,6 +199,9 @@ class RuleSyncService(
             // Avoids stale timestamp comparison issues (timezone/format differences).
             for (firestoreRule in firestoreRules) {
                 database.insertOrUpdateRule(firestoreRule)
+                withContext(Dispatchers.Main) {
+                    onRuleChanged?.invoke(firestoreRule.packageName, firestoreRule.type)
+                }
                 android.util.Log.d("RuleSyncService",
                     "Updated rule: ${firestoreRule.packageName} -> ${firestoreRule.type}")
             }
@@ -286,8 +292,8 @@ class RuleSyncService(
         }
 
         val limitMinutes = (data["dailyLimitMinutes"] as? Number)?.toInt()
-        val createdAt = parseDateTimeSafe(data["createdAt"] ?: data["detectedAt"] ?: data["installedDate"])
-        val updatedAt = parseDateTimeSafe(data["updatedAt"] ?: data["lastUpdated"])
+        val createdAt = parseDateTimeSafe(data["createdAt"] ?: data["detectedAt"] ?: data["installedDate"], LocalDateTime.of(2020, 1, 1, 0, 0))
+        val updatedAt = parseDateTimeSafe(data["updatedAt"] ?: data["lastUpdated"], createdAt)
 
         return RuleEngine.AppRule(
             packageName = packageName,
@@ -303,12 +309,20 @@ class RuleSyncService(
     /**
      * Parse temporary approval from Firestore document
      */
-    private fun parseApprovalFromDocument(data: Map<String, Any>): RuleEngine.TemporaryApproval {
+    private fun parseApprovalFromDocument(data: Map<String, Any>, docId: String = ""): RuleEngine.TemporaryApproval {
+        val rawPkg = (data["packageName"] as? String)?.takeIf { it.isNotBlank() }
+            ?: (data["package"] as? String)?.takeIf { it.isNotBlank() }
+            ?: docId.replace('_', '.')
+
+        val duration = (data["durationMinutes"] as? Number)?.toInt()
+            ?: (data["grantedMinutes"] as? Number)?.toInt()
+            ?: 30
+
         return RuleEngine.TemporaryApproval(
-            packageName = data["packageName"] as? String ?: "",
-            approvedAt = parseDateTimeSafe(data["approvedAt"]),
-            durationMinutes = (data["durationMinutes"] as? Number)?.toInt() ?: 0,
-            approvedBy = data["approvedBy"] as? String ?: ""
+            packageName = rawPkg,
+            approvedAt = parseDateTimeSafe(data["approvedAt"] ?: data["decidedAt"] ?: data["createdAt"]),
+            durationMinutes = duration,
+            approvedBy = data["approvedBy"] as? String ?: "parent"
         )
     }
     
@@ -322,7 +336,8 @@ class RuleSyncService(
     /**
      * Safely parse LocalDateTime from Timestamp, Date, String or Number
      */
-    private fun parseDateTimeSafe(value: Any?): LocalDateTime {
+    private fun parseDateTimeSafe(value: Any?, defaultVal: LocalDateTime = LocalDateTime.now()): LocalDateTime {
+        if (value == null) return defaultVal
         return when (value) {
             is com.google.firebase.Timestamp -> {
                 val instant = java.time.Instant.ofEpochSecond(value.seconds, value.nanoseconds.toLong())
@@ -338,7 +353,7 @@ class RuleSyncService(
                     try {
                         LocalDateTime.parse(value, DateTimeFormatter.ISO_DATE_TIME)
                     } catch (e2: Exception) {
-                        LocalDateTime.now()
+                        defaultVal
                     }
                 }
             }
@@ -346,7 +361,7 @@ class RuleSyncService(
                 val instant = java.time.Instant.ofEpochMilli(value.toLong())
                 LocalDateTime.ofInstant(instant, java.time.ZoneId.systemDefault())
             }
-            else -> LocalDateTime.now()
+            else -> defaultVal
         }
     }
     

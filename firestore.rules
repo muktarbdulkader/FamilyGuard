@@ -6,37 +6,42 @@ service cloud.firestore {
     function isAuthenticated() {
       return request.auth != null;
     }
-    
-    function isUser(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
-    }
 
     // USERS COLLECTION
     match /users/{userId} {
       allow read, write: if isAuthenticated();
     }
     
-    // FAMILIES COLLECTION
+    // FAMILIES COLLECTION & ALL NESTED SUBCOLLECTIONS
+    // Covers: children, apps, usage, locations, requests, approvals, education_tasks, notifications, events
     match /families/{familyId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated();
-      allow delete: if false;
+      allow read, write: if isAuthenticated();
       
-      // CHILDREN SUBCOLLECTION & ALL SUBCOLLECTIONS (apps, usage, locations, requests, approvals)
+      // Children subcollection and all nested paths (apps, usage, locations, requests, education_tasks, temporaryApprovals)
       match /children/{childId} {
         allow read, write: if isAuthenticated();
         
-        match /{allChildrenDocs=**} {
+        match /{childSubcollection=**} {
           allow read, write: if isAuthenticated();
         }
       }
 
+      // Explicit match for study & education tasks
+      match /education_tasks/{taskId} {
+        allow read, write: if isAuthenticated();
+      }
+
+      // Match all other family subcollections (notifications, requests, etc.)
       match /{allFamilyDocs=**} {
         allow read, write: if isAuthenticated();
       }
     }
     
+    // TOP-LEVEL EDUCATION TASKS
+    match /education_tasks/{taskId} {
+      allow read, write: if isAuthenticated();
+    }
+
     // FAMILY INVITES COLLECTION
     match /family_invites/{inviteCode} {
       allow read, write: if isAuthenticated();
@@ -57,17 +62,16 @@ service cloud.firestore {
       allow read, write: if isAuthenticated();
     }
 
-    // RULES COLLECTION
+    // RULES & LOGS COLLECTIONS
     match /rules/{ruleId} {
       allow read, write: if isAuthenticated();
     }
 
-    // RULE ENFORCEMENT LOGS
     match /rule_enforcement_logs/{logId} {
       allow read, write: if isAuthenticated();
     }
     
-    // DEFAULT DENY FOR UNMATCHED PATHS
+    // CATCH-ALL FOR ALL OTHER AUTHENTICATED ACCESS
     match /{document=**} {
       allow read, write: if isAuthenticated();
     }

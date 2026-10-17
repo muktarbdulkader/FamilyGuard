@@ -1,12 +1,15 @@
 package com.example.flutter_study_app
 
 import android.app.AppOpsManager
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
+import android.util.Log
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -94,13 +97,26 @@ class MainActivity : FlutterActivity() {
         // App scanner method channel (existing)
         val appScannerChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, APP_SCANNER_CHANNEL)
         appScannerChannel.setMethodCallHandler { call, result ->
-            // Delegate to app discovery helper for new functionality
             when (call.method) {
-                "scanInstalledApps", "getAppIcon", "isAppInstalled" -> {
+                "scanInstalledApps" -> {
+                    Thread {
+                        try {
+                            val apps = appDiscoveryHelper.scanInstalledApps()
+                            runOnUiThread {
+                                result.success(apps)
+                            }
+                        } catch (e: Exception) {
+                            Log.e("AppScanner", "Error scanning apps", e)
+                            runOnUiThread {
+                                result.error("SCAN_ERROR", e.message, null)
+                            }
+                        }
+                    }.start()
+                }
+                "getAppIcon", "isAppInstalled" -> {
                     appDiscoveryHelper.handleMethodCall(call.method, call.arguments, result)
                 }
                 else -> {
-                    // Fallback to existing app scanner helper
                     appScannerHelper.handleMethodCall(call.method, call.arguments, result)
                 }
             }
@@ -125,6 +141,18 @@ class MainActivity : FlutterActivity() {
         }
     }
     
+    override fun onResume() {
+        super.onResume()
+        // Every time the app comes to foreground, broadcast a signal so any
+        // lingering enforcement overlay removes itself immediately.
+        try {
+            val clearIntent = Intent("com.example.flutter_study_app.CLEAR_OVERLAY")
+            sendBroadcast(clearIntent)
+        } catch (e: Exception) {
+            android.util.Log.w("MainActivity", "Could not broadcast clear overlay", e)
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         // Unregister package change receiver

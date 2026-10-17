@@ -27,11 +27,23 @@ class _AppApprovalScreenState extends ConsumerState<AppApprovalScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text('App Request'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
+        title: const Text(
+          'App Request',
+          style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.2),
+        ),
+        backgroundColor: const Color(0xFF4F46E5),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        foregroundColor: Colors.white,
         elevation: 0,
       ),
       body: Padding(
@@ -81,9 +93,9 @@ class _AppApprovalScreenState extends ConsumerState<AppApprovalScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.blue[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue[200]!),
+        color: const Color(0xFFEEF2FF),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFC7D2FE)),
       ),
       child: Row(
         children: [
@@ -92,12 +104,14 @@ class _AppApprovalScreenState extends ConsumerState<AppApprovalScreen> {
             width: 56,
             height: 56,
             decoration: BoxDecoration(
-              color: Colors.blue[100],
-              borderRadius: BorderRadius.circular(12),
+              gradient: const LinearGradient(
+                colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
+              ),
+              borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(
-              Icons.apps,
-              color: Colors.blue[600],
+            child: const Icon(
+              Icons.apps_rounded,
+              color: Colors.white,
               size: 32,
             ),
           ),
@@ -282,19 +296,19 @@ class _AppApprovalScreenState extends ConsumerState<AppApprovalScreen> {
           child: Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: isSelected ? Colors.blue[50] : Colors.white,
+              color: isSelected ? const Color(0xFFEEF2FF) : Colors.white,
               border: Border.all(
-                color: isSelected ? Colors.blue : Colors.grey[300]!,
+                color: isSelected ? const Color(0xFF4F46E5) : const Color(0xFFE2E8F0),
                 width: isSelected ? 2 : 1,
               ),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
                   _getDurationIcon(duration),
-                  color: isSelected ? Colors.blue : Colors.grey[600],
+                  color: isSelected ? const Color(0xFF4F46E5) : Colors.grey[600],
                   size: 20,
                 ),
                 const SizedBox(height: 4),
@@ -302,8 +316,8 @@ class _AppApprovalScreenState extends ConsumerState<AppApprovalScreen> {
                   duration.displayText,
                   style: TextStyle(
                     fontSize: 13,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                    color: isSelected ? Colors.blue : Colors.grey[700],
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.normal,
+                    color: isSelected ? const Color(0xFF4F46E5) : Colors.grey[700],
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -421,6 +435,7 @@ class _AppApprovalScreenState extends ConsumerState<AppApprovalScreen> {
         childId: widget.request.childId,
         parentId: user.uid,
         grantedMinutes: _selectedDuration!.minutes,
+        packageName: widget.request.packageName,
       );
 
       if (success) {

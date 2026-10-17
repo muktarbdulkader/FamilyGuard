@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/models/request_model.dart';
 import '../../../../core/providers/auth_provider.dart';
 import '../../../../core/providers/user_provider.dart';
+import '../../../../core/providers/family_provider.dart';
 
 /// Parent screen for reviewing and acting on child app access requests
 class AppRequestsScreen extends ConsumerStatefulWidget {
@@ -65,11 +66,14 @@ class _AppRequestsScreenState extends ConsumerState<AppRequestsScreen>
         loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF4F46E5))),
         error: (e, _) => _buildError(e.toString()),
         data: (user) {
-          if (user == null || user.familyId == null) {
+          final familyId = user?.familyId ??
+              ref.watch(selectedFamilyProvider)?.id ??
+              ref.watch(userFamiliesProvider).value?.firstOrNull?.id;
+          if (familyId == null) {
             return _buildNoFamily();
           }
           return _RequestTabsView(
-            familyId: user.familyId!,
+            familyId: familyId,
             tabController: _tabController,
           );
         },
@@ -461,7 +465,55 @@ class _RequestCard extends ConsumerWidget {
               .doc(request.id)
               .set(updateData, SetOptions(merge: true));
         } catch (_) {}
+
+        // Notify child that request was denied
+        try {
+          await FirebaseFirestore.instance.collection('notifications').add({
+            'familyId': familyId,
+            'childId': request.childId,
+            'type': 'appDenied',
+            'priority': 'normal',
+            'title': '❌ Access Denied: ${request.appName}',
+            'body': 'Your request for access to ${request.appName} was denied by your parent.',
+            'data': {
+              'type': 'app_denied',
+              'packageName': request.packageName,
+              'appName': request.appName,
+              'requestId': request.id,
+            },
+            'createdAt': Timestamp.now(),
+            'isRead': false,
+          });
+        } catch (_) {}
       }
+
+      // Sync root notifications and family notifications
+      final notifDenyData = {
+        'status': 'denied',
+        'isDenied': true,
+        'isRead': true,
+      };
+      try {
+        final rootSnap = await FirebaseFirestore.instance
+            .collection('notifications')
+            .where('data.requestId', isEqualTo: request.id)
+            .get();
+        for (final doc in rootSnap.docs) {
+          await doc.reference.set(notifDenyData, SetOptions(merge: true));
+        }
+      } catch (_) {}
+      try {
+        final famSnap = await FirebaseFirestore.instance
+            .collection('families')
+            .doc(familyId)
+            .collection('notifications')
+            .where('data.requestId', isEqualTo: request.id)
+            .get();
+        for (final doc in famSnap.docs) {
+          await doc.reference.set(notifDenyData, SetOptions(merge: true));
+        }
+      } catch (_) {}
+
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -610,12 +662,42 @@ class _ApproveSheetState extends State<_ApproveSheet> {
               'packageName': widget.request.packageName,
               'appName': widget.request.appName,
               'grantedMinutes': _selected.minutes,
+              'requestId': widget.request.id,
             },
             'createdAt': Timestamp.fromDate(now),
             'isRead': false,
           });
         } catch (_) {}
       }
+
+      // Sync root notifications and family notifications so UI immediately displays approved
+      final notifApproveData = {
+        'status': 'approved',
+        'isApproved': true,
+        'grantedMinutes': _selected.minutes,
+        'isRead': true,
+      };
+      try {
+        final rootSnap = await FirebaseFirestore.instance
+            .collection('notifications')
+            .where('data.requestId', isEqualTo: widget.request.id)
+            .get();
+        for (final doc in rootSnap.docs) {
+          await doc.reference.set(notifApproveData, SetOptions(merge: true));
+        }
+      } catch (_) {}
+      try {
+        final famSnap = await FirebaseFirestore.instance
+            .collection('families')
+            .doc(widget.familyId)
+            .collection('notifications')
+            .where('data.requestId', isEqualTo: widget.request.id)
+            .get();
+        for (final doc in famSnap.docs) {
+          await doc.reference.set(notifApproveData, SetOptions(merge: true));
+        }
+      } catch (_) {}
+
       if (mounted) Navigator.pop(context);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

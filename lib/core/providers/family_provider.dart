@@ -228,6 +228,50 @@ class AppRuleService {
     }
 
     await appRef.set(updates, SetOptions(merge: true));
+
+    // If parent blocks the app, revoke any active temporary approval and update active requests!
+    if (rule == AppControlRule.block) {
+      try {
+        final pkgClean = packageName.replaceAll('.', '_');
+        final reqId = '${childId}_$pkgClean';
+        final now = Timestamp.now();
+
+        // 1. Delete temporaryApproval document
+        await _firestore
+            .collection('families')
+            .doc(familyId)
+            .collection('children')
+            .doc(childId)
+            .collection('temporaryApprovals')
+            .doc(pkgClean)
+            .delete();
+
+        // 2. Mark active request as denied/revoked
+        final deniedData = {
+          'status': 'denied',
+          'decidedAt': now,
+          'revokedReason': 'Blocked by parent',
+        };
+        await Future.wait([
+          _firestore
+              .collection('families')
+              .doc(familyId)
+              .collection('requests')
+              .doc(reqId)
+              .set(deniedData, SetOptions(merge: true)),
+          _firestore
+              .collection('families')
+              .doc(familyId)
+              .collection('children')
+              .doc(childId)
+              .collection('requests')
+              .doc(reqId)
+              .set(deniedData, SetOptions(merge: true)),
+        ]);
+      } catch (e) {
+        debugPrint('Error revoking temporaryApproval on block: $e');
+      }
+    }
   }
 
   /// Batch update multiple app rules
@@ -265,6 +309,18 @@ class AppRuleService {
       }
 
       batch.set(appRef, data, SetOptions(merge: true));
+
+      if (update.rule == AppControlRule.block) {
+        final pkgClean = update.packageName.replaceAll('.', '_');
+        final tempAppRef = _firestore
+            .collection('families')
+            .doc(familyId)
+            .collection('children')
+            .doc(childId)
+            .collection('temporaryApprovals')
+            .doc(pkgClean);
+        batch.delete(tempAppRef);
+      }
     }
 
     await batch.commit();

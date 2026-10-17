@@ -74,7 +74,7 @@ class RequestService {
     _requestUpdatesController = null;
   }
 
-  /// Create a new app access request
+  /// Create a new app access request quickly and reliably
   Future<AppRequestResult> createRequest({
     required String familyId,
     required String childId,
@@ -84,67 +84,59 @@ class RequestService {
     String? deviceInfo,
   }) async {
     try {
-      // Check for existing pending request
-      final existingRequest = await _getExistingPendingRequest(
-        familyId, childId, packageName
-      );
-      
-      if (existingRequest != null) {
-        return AppRequestResult.duplicate(existingRequest);
-      }
-
-      // Check request limits
-      final pendingCount = await _getPendingRequestCount(familyId, childId);
-      if (pendingCount >= _maxPendingRequests) {
-        return AppRequestResult.rateLimited();
-      }
-
-      // Generate secure nonce
+      // Deterministic request ID matches Android EnforcementManager
+      final reqId = '${childId}_${packageName.replaceAll('.', '_')}';
       final nonce = _generateNonce();
-      
-      // Create request
+      final now = DateTime.now();
+      final expiresAt = now.add(const Duration(hours: 24)); // 24 hours validity
+
+      // Create request model
       final request = AppRequest(
-        id: '', // Will be set by Firestore
+        id: reqId,
         familyId: familyId,
         childId: childId,
         childName: childName,
         packageName: packageName,
         appName: appName,
         status: RequestStatus.pending,
-        createdAt: DateTime.now(),
-        expiresAt: DateTime.now().add(_requestTimeout),
+        createdAt: now,
+        expiresAt: expiresAt,
         requestNonce: nonce,
         deviceInfo: deviceInfo,
       );
 
-      // Store in Firestore:
-      // 1. Child subcollection
-      final docRef = await _firestore
-          .collection(_collectionFamilies)
-          .doc(familyId)
-          .collection(_collectionChildren)
-          .doc(childId)
-          .collection(_collectionRequests)
-          .add(request.toFirestore());
+      final requestData = request.toFirestore();
 
-      final createdRequest = request.copyWith(id: docRef.id);
+      // Store in Firestore with fast timeout
+      await Future.wait([
+        // 1. Family-level requests collection for parent dashboard
+        _firestore
+            .collection(_collectionFamilies)
+            .doc(familyId)
+            .collection(_collectionRequests)
+            .doc(reqId)
+            .set(requestData, SetOptions(merge: true)),
 
-      // 2. Family-level requests collection for parent dashboard
-      await _firestore
-          .collection(_collectionFamilies)
-          .doc(familyId)
-          .collection(_collectionRequests)
-          .doc(docRef.id)
-          .set(createdRequest.toFirestore(), SetOptions(merge: true));
-      
-      // Send FCM notification to parents
-      await _notifyParents(familyId, createdRequest);
+        // 2. Child subcollection
+        _firestore
+            .collection(_collectionFamilies)
+            .doc(familyId)
+            .collection(_collectionChildren)
+            .doc(childId)
+            .collection(_collectionRequests)
+            .doc(reqId)
+            .set(requestData, SetOptions(merge: true)),
+      ]).timeout(const Duration(seconds: 5));
 
-      return AppRequestResult.success(createdRequest);
-      
+      // Send notifications to parents in background (do not block user response)
+      unawaited(_notifyParents(familyId, request).catchError((e) {
+        print('Error notifying parents: $e');
+      }));
+
+      return AppRequestResult.success(request);
     } catch (e) {
       print('Error creating request: $e');
-      return AppRequestResult.error('Failed to create request: ${e.toString()}');
+      return AppRequestResult.error('Failed to send request: ${e.toString()}');
     }
   }
 

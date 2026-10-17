@@ -223,6 +223,7 @@ match /families/{familyId}/children/{childId} {
    # Firestore
    firebase deploy --only firestore:rules
    firebase deploy --only firestore:indexes
+   firebase deploy --only storage
    
    # Cloud Functions
    firebase deploy --only functions

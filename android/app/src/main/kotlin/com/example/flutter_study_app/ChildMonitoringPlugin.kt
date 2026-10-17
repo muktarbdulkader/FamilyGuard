@@ -229,13 +229,20 @@ class ChildMonitoringPlugin: FlutterPlugin, ActivityAware, MethodChannel.MethodC
     private fun startMonitoring(familyId: String, childId: String, result: MethodChannel.Result) {
         pluginScope.launch {
             try {
+                // Save familyId & childId into shared prefs for background and foreground persistence
+                context.getSharedPreferences("family_guardian_prefs", Context.MODE_PRIVATE)
+                    .edit()
+                    .putString("family_id", familyId)
+                    .putString("child_id", childId)
+                    .apply()
+
                 // Start rule synchronization
                 ruleSyncService?.stopSync()
                 ruleSyncService = RuleSyncService(context, database, childId)
                 ruleSyncService?.startSync(familyId)
                 
-                // Start monitoring service
-                MonitoringService.startService(context)
+                // Start monitoring service with familyId and childId
+                MonitoringService.startService(context, familyId, childId)
                 
                 sendEvent(mapOf(
                     "type" to "monitoring_started",

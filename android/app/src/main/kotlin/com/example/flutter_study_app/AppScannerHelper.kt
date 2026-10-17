@@ -16,6 +16,7 @@ import android.graphics.drawable.Drawable
 import io.flutter.plugin.common.MethodChannel
 import java.io.ByteArrayOutputStream
 import java.util.*
+import android.util.Log
 
 /**
  * Real Android app scanner using PackageManager and UsageStatsManager APIs
@@ -232,7 +233,7 @@ class AppScannerHelper(private val activity: Activity) {
         )
         
         return criticalPackages.contains(appInfo.packageName) ||
-               appInfo.packageName.startsWith("com.android.") ||
+               appInfo.packageName.startsWith("com.android.internal") ||
                appInfo.packageName.startsWith("com.google.android.gms")
     }
 

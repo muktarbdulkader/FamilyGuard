@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -15,7 +16,10 @@ class AppScannerService {
   /// Returns real app information from the device
   Future<List<InstalledAppInfo>> scanInstalledApps() async {
     try {
-      final List<dynamic> appsData = await _channel.invokeMethod('scanInstalledApps');
+      final List<dynamic> appsData = await _channel.invokeMethod('scanInstalledApps').timeout(
+        const Duration(seconds: 30),
+        onTimeout: () => throw AppScannerException('Scan timed out after 30 seconds'),
+      );
       
       return appsData.map((appData) {
         final app = Map<String, dynamic>.from(appData);

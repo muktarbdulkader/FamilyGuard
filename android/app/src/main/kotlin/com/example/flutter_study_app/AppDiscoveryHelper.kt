@@ -33,8 +33,8 @@ class AppDiscoveryHelper(private val context: Context) {
     
     companion object {
         private const val TAG = "FamilyGuardian.AppDiscovery"
-        private const val MAX_ICON_SIZE = 96 // Scaled icon size in pixels for optimal performance & quality
-        private const val ICON_QUALITY = 85 // Compression quality
+        private const val MAX_ICON_SIZE = 48
+        private const val ICON_QUALITY = 80
     }
     
     private val packageManager: PackageManager = context.packageManager
@@ -88,89 +88,138 @@ class AppDiscoveryHelper(private val context: Context) {
      * Returns list of app info maps suitable for Flutter consumption
      */
     fun scanInstalledApps(): List<Map<String, Any?>> {
-        Log.i(TAG, "Starting app scan...")
+        Log.i(TAG, "Starting comprehensive app scan...")
         
-        val installedPackages = try {
+        // 1. Discover all launchable apps via standard launcher intent
+        val launcherIntent = Intent(Intent.ACTION_MAIN, null).apply {
+            addCategory(Intent.CATEGORY_LAUNCHER)
+        }
+        val launcherResolveInfos = try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                // Android 13+: Use new API with proper flags
-                packageManager.getInstalledPackages(
-                    PackageManager.PackageInfoFlags.of(PackageManager.GET_META_DATA.toLong())
+                packageManager.queryIntentActivities(
+                    launcherIntent,
+                    PackageManager.ResolveInfoFlags.of(0L)
                 )
             } else {
-                // Android 12 and below: Use legacy API
                 @Suppress("DEPRECATION")
-                packageManager.getInstalledPackages(PackageManager.GET_META_DATA)
+                packageManager.queryIntentActivities(launcherIntent, 0)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to get installed packages", e)
-            return emptyList()
+            Log.w(TAG, "Failed to query launcher activities", e)
+            emptyList()
         }
         
+        val launcherPackageNames = launcherResolveInfos.mapNotNull { it.activityInfo?.packageName }.toSet()
+        Log.i(TAG, "Found ${launcherPackageNames.size} packages via launcher intent")
+
+        // 2. Discover installed packages (use flag 0 to prevent TransactionTooLargeException)
+        val installedPackages = try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                packageManager.getInstalledPackages(PackageManager.PackageInfoFlags.of(0L))
+            } else {
+                @Suppress("DEPRECATION")
+                packageManager.getInstalledPackages(0)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to get installed packages", e)
+            emptyList()
+        }
+
+        // Combine all package names
+        val allPackageNames = mutableSetOf<String>()
+        allPackageNames.addAll(launcherPackageNames)
+        for (pkg in installedPackages) {
+            val appInfo = pkg.applicationInfo
+            if (appInfo != null) {
+                // If it's a non-system app, include it even if it didn't show in launcher
+                val isSystem = ((appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0) &&
+                               ((appInfo.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) == 0)
+                if (!isSystem) {
+                    allPackageNames.add(pkg.packageName)
+                }
+            }
+        }
+
         val userApps = mutableListOf<Map<String, Any?>>()
+        val processedPackages = mutableSetOf<String>()
         
-        for (packageInfo in installedPackages) {
+        for (packageName in allPackageNames) {
+            if (processedPackages.contains(packageName)) continue
+            processedPackages.add(packageName)
+
             try {
-                if (isUserApp(packageInfo)) {
-                    val appInfo = extractAppInfo(packageInfo)
-                    if (appInfo != null) {
-                        userApps.add(appInfo)
+                if (isPackageAllowedForControl(packageName, launcherPackageNames.contains(packageName))) {
+                    val packageInfo = try {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            packageManager.getPackageInfo(packageName, PackageManager.PackageInfoFlags.of(0L))
+                        } else {
+                            @Suppress("DEPRECATION")
+                            packageManager.getPackageInfo(packageName, 0)
+                        }
+                    } catch (e: Exception) {
+                        null
+                    }
+
+                    if (packageInfo != null) {
+                        val appInfo = extractAppInfo(packageInfo)
+                        if (appInfo != null) {
+                            userApps.add(appInfo)
+                        }
                     }
                 }
             } catch (e: Exception) {
-                Log.w(TAG, "Error processing package ${packageInfo.packageName}", e)
+                Log.w(TAG, "Error processing package $packageName", e)
             }
         }
         
-        Log.i(TAG, "App scan completed. Found ${userApps.size} user apps out of ${installedPackages.size} total packages")
+        Log.i(TAG, "App scan completed. Discovered ${userApps.size} apps for parental control")
         return userApps
     }
     
     /**
-     * Check if a package represents a user app suitable for parental control
+     * Check if a package should be manageable by parental controls
      */
-    private fun isUserApp(packageInfo: PackageInfo): Boolean {
-        val packageName = packageInfo.packageName
-        val applicationInfo = packageInfo.applicationInfo
-        
+    private fun isPackageAllowedForControl(packageName: String, hasLauncherIcon: Boolean): Boolean {
         // Skip our own app
         if (packageName == context.packageName) {
             return false
         }
         
-        // Skip if no application info
-        if (applicationInfo == null) {
-            return false
-        }
-        
-        // Check if app has launcher activity (user-launchable)
-        if (!hasLauncherActivity(packageName)) {
-            return false
-        }
-        
-        // Check if it's a system app
-        val isSystemApp = (applicationInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
-        
-        if (isSystemApp) {
-            // For system apps, only include if they were updated by user (like Chrome, Gmail)
-            val isUpdatedSystemApp = (applicationInfo.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
-            if (!isUpdatedSystemApp) {
-                // Skip pure system apps that user can't control
-                return false
-            }
-        }
-        
-        // Skip known system/internal packages
+        // Skip critical OS services (SystemUI, Settings, core dialer)
         if (isSystemPackage(packageName)) {
             return false
         }
         
-        return true
+        // If it has a launcher icon (like TikTok, Facebook, YouTube, games), always include it!
+        if (hasLauncherIcon) {
+            return true
+        }
+
+        // Otherwise check if it has a launch intent
+        return hasLauncherActivity(packageName)
     }
+
+    /**
+     * Check if a package represents a user app suitable for parental control
+     */
+    fun isUserApp(packageInfo: PackageInfo): Boolean {
+        val packageName = packageInfo.packageName
+        return isPackageAllowedForControl(packageName, hasLauncherActivity(packageName))
+    }
+
     
     /**
      * Check if package has a launcher activity
      */
     private fun hasLauncherActivity(packageName: String): Boolean {
+        try {
+            if (packageManager.getLaunchIntentForPackage(packageName) != null) {
+                return true
+            }
+        } catch (e: Exception) {
+            // Fallback
+        }
+
         val intent = Intent(Intent.ACTION_MAIN).apply {
             addCategory(Intent.CATEGORY_LAUNCHER)
             setPackage(packageName)
@@ -180,11 +229,11 @@ class AppDiscoveryHelper(private val context: Context) {
             val activities = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 packageManager.queryIntentActivities(
                     intent,
-                    PackageManager.ResolveInfoFlags.of(PackageManager.MATCH_DEFAULT_ONLY.toLong())
+                    PackageManager.ResolveInfoFlags.of(0L)
                 )
             } else {
                 @Suppress("DEPRECATION")
-                packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
+                packageManager.queryIntentActivities(intent, 0)
             }
             activities.isNotEmpty()
         } catch (e: Exception) {

@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_functions/cloud_functions.dart';
 import '../models/request_model.dart';
 
 /// Service for handling parent approval/denial of child app requests
@@ -10,7 +9,6 @@ class ApprovalService {
   static const String _collectionRequests = 'requests';
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseFunctions _functions = FirebaseFunctions.instance;
   
   StreamController<List<AppRequest>>? _pendingRequestsController;
   StreamSubscription<QuerySnapshot>? _pendingRequestsListener;
@@ -66,73 +64,38 @@ class ApprovalService {
     return allRequests;
   }
 
-  /// Approve a child's app request
+  /// Approve a child's app request directly and quickly via Firestore
   Future<bool> approveRequest({
     required String requestId,
     required String familyId,
     required String childId,
     required String parentId,
     required int grantedMinutes,
+    String? packageName,
   }) async {
-    try {
-      // Call Cloud Function for secure server-side approval
-      final result = await _functions.httpsCallable('approveAppRequest').call({
-        'requestId': requestId,
-        'familyId': familyId,
-        'childId': childId,
-        'parentId': parentId,
-        'grantedMinutes': grantedMinutes,
-        'timestamp': Timestamp.now().millisecondsSinceEpoch,
-      });
-
-      final data = result.data as Map<String, dynamic>;
-      return data['success'] == true;
-      
-    } catch (e) {
-      print('Error approving request: $e');
-      
-      // Fallback to direct Firestore update (less secure)
-      return await _fallbackApproveRequest(
-        requestId: requestId,
-        familyId: familyId,
-        childId: childId,
-        parentId: parentId,
-        grantedMinutes: grantedMinutes,
-      );
-    }
+    return await _fallbackApproveRequest(
+      requestId: requestId,
+      familyId: familyId,
+      childId: childId,
+      parentId: parentId,
+      grantedMinutes: grantedMinutes,
+      providedPackageName: packageName,
+    );
   }
 
-  /// Deny a child's app request
+  /// Deny a child's app request directly and quickly via Firestore
   Future<bool> denyRequest({
     required String requestId,
     required String familyId,
     required String childId,
     required String parentId,
   }) async {
-    try {
-      // Call Cloud Function for secure server-side denial
-      final result = await _functions.httpsCallable('denyAppRequest').call({
-        'requestId': requestId,
-        'familyId': familyId,
-        'childId': childId,
-        'parentId': parentId,
-        'timestamp': Timestamp.now().millisecondsSinceEpoch,
-      });
-
-      final data = result.data as Map<String, dynamic>;
-      return data['success'] == true;
-      
-    } catch (e) {
-      print('Error denying request: $e');
-      
-      // Fallback to direct Firestore update
-      return await _fallbackDenyRequest(
-        requestId: requestId,
-        familyId: familyId,
-        childId: childId,
-        parentId: parentId,
-      );
-    }
+    return await _fallbackDenyRequest(
+      requestId: requestId,
+      familyId: familyId,
+      childId: childId,
+      parentId: parentId,
+    );
   }
 
   /// Get request by ID
@@ -283,6 +246,7 @@ class ApprovalService {
     required String childId,
     required String parentId,
     required int grantedMinutes,
+    String? providedPackageName,
   }) async {
     try {
       final now = Timestamp.now();
@@ -313,17 +277,27 @@ class ApprovalService {
           .doc(requestId)
           .set(updateData, SetOptions(merge: true));
 
-      // 3. Fetch request to get packageName and write temporaryApprovals
+      // 3. Resolve packageName and write temporaryApprovals
       try {
-        final reqDoc = await _firestore
-            .collection(_collectionFamilies)
-            .doc(familyId)
-            .collection(_collectionRequests)
-            .doc(requestId)
-            .get();
-        final packageName = reqDoc.data()?['packageName'] as String? ?? '';
+        String packageName = providedPackageName ?? '';
+        if (packageName.isEmpty) {
+          final reqDoc = await _firestore
+              .collection(_collectionFamilies)
+              .doc(familyId)
+              .collection(_collectionRequests)
+              .doc(requestId)
+              .get();
+          packageName = reqDoc.data()?['packageName'] as String? ?? '';
+        }
         if (packageName.isNotEmpty) {
           final pkgClean = packageName.replaceAll('.', '_');
+          final approvalData = {
+            'packageName': packageName,
+            'approvedAt': now,
+            'durationMinutes': grantedMinutes,
+            'approvedBy': parentId,
+            'accessExpiresAt': expires,
+          };
           await _firestore
               .collection(_collectionFamilies)
               .doc(familyId)
@@ -331,13 +305,7 @@ class ApprovalService {
               .doc(childId)
               .collection('temporaryApprovals')
               .doc(pkgClean)
-              .set({
-                'packageName': packageName,
-                'approvedAt': now,
-                'durationMinutes': grantedMinutes,
-                'approvedBy': parentId,
-                'accessExpiresAt': expires,
-              }, SetOptions(merge: true));
+              .set(approvalData, SetOptions(merge: true));
         }
       } catch (e) {
         print('Error setting temporaryApproval in fallback: $e');
@@ -345,6 +313,34 @@ class ApprovalService {
 
       // Send notification to child
       await _sendApprovalNotificationToChild(familyId, childId, requestId, grantedMinutes);
+
+      // Also update parent notification documents in root 'notifications' collection and family subcollection
+      final notifApprovedData = {
+        'status': 'approved',
+        'isApproved': true,
+        'grantedMinutes': grantedMinutes,
+        'isRead': true,
+      };
+      try {
+        final rootSnap = await _firestore
+            .collection('notifications')
+            .where('data.requestId', isEqualTo: requestId)
+            .get();
+        for (final doc in rootSnap.docs) {
+          await doc.reference.set(notifApprovedData, SetOptions(merge: true));
+        }
+      } catch (_) {}
+      try {
+        final notifSnap = await _firestore
+            .collection(_collectionFamilies)
+            .doc(familyId)
+            .collection('notifications')
+            .where('data.requestId', isEqualTo: requestId)
+            .get();
+        for (final doc in notifSnap.docs) {
+          await doc.reference.set(notifApprovedData, SetOptions(merge: true));
+        }
+      } catch (_) {}
 
       return true;
     } catch (e) {
@@ -360,21 +356,63 @@ class ApprovalService {
     required String parentId,
   }) async {
     try {
-      await _firestore
-          .collection(_collectionFamilies)
-          .doc(familyId)
-          .collection(_collectionChildren)
-          .doc(childId)
-          .collection(_collectionRequests)
-          .doc(requestId)
-          .update({
+      final denyData = {
         'status': 'denied',
         'decidedBy': parentId,
         'decidedAt': Timestamp.now(),
-      });
+      };
+
+      // 1. Update family-level request
+      await _firestore
+          .collection(_collectionFamilies)
+          .doc(familyId)
+          .collection(_collectionRequests)
+          .doc(requestId)
+          .set(denyData, SetOptions(merge: true));
+
+      // 2. Update child subcollection
+      if (childId.isNotEmpty) {
+        await _firestore
+            .collection(_collectionFamilies)
+            .doc(familyId)
+            .collection(_collectionChildren)
+            .doc(childId)
+            .collection(_collectionRequests)
+            .doc(requestId)
+            .set(denyData, SetOptions(merge: true));
+      }
 
       // Send notification to child (in real implementation)
       await _sendDenialNotificationToChild(familyId, childId, requestId);
+
+      final notifDenyData = {
+        'status': 'denied',
+        'isDenied': true,
+        'isRead': true,
+      };
+
+      // Also update parent notification documents in root 'notifications' collection and family subcollection
+      try {
+        final rootSnap = await _firestore
+            .collection('notifications')
+            .where('data.requestId', isEqualTo: requestId)
+            .get();
+        for (final doc in rootSnap.docs) {
+          await doc.reference.set(notifDenyData, SetOptions(merge: true));
+        }
+      } catch (_) {}
+
+      try {
+        final notifSnap = await _firestore
+            .collection(_collectionFamilies)
+            .doc(familyId)
+            .collection('notifications')
+            .where('data.requestId', isEqualTo: requestId)
+            .get();
+        for (final doc in notifSnap.docs) {
+          await doc.reference.set(notifDenyData, SetOptions(merge: true));
+        }
+      } catch (_) {}
 
       return true;
     } catch (e) {

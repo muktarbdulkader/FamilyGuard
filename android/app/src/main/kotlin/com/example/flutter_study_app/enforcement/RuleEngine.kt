@@ -91,11 +91,14 @@ class RuleEngine {
         temporaryApproval: TemporaryApproval? = null
     ): EvaluationResult {
         
-        // Check for active temporary approval first
-        temporaryApproval?.let { approval ->
-            if (!approval.isExpired(currentTime) && approval.packageName == packageName) {
-                return EvaluationResult.TEMPORARY_APPROVAL
-            }
+        // 1. Check for active temporary approval first.
+        // A temporary approval represents explicit parental permission to access this app.
+        // As long as it is active and not expired, the child is granted access.
+        if (temporaryApproval != null &&
+            !temporaryApproval.isExpired(currentTime) &&
+            temporaryApproval.packageName == packageName
+        ) {
+            return EvaluationResult.TEMPORARY_APPROVAL
         }
         
         // If no rule exists, default to allowed

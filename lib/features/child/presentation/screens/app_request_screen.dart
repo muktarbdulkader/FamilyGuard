@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/models/request_model.dart';
 import '../../../../core/services/request_service.dart';
 import '../../../../core/services/monitoring_service.dart';
@@ -162,23 +164,24 @@ class _AppRequestScreenState extends ConsumerState<AppRequestScreen> {
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: Colors.blue[50],
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.blue[100]!),
+            color: const Color(0xFFEEF2FF),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFC7D2FE)),
           ),
-          child: Column(
+          child: const Column(
             children: [
               Icon(
-                Icons.info_outline,
-                color: Colors.blue[600],
+                Icons.info_outline_rounded,
+                color: Color(0xFF4F46E5),
                 size: 32,
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               Text(
                 'Your parents will be notified about your request. They can approve it with specific time limits.',
                 style: TextStyle(
-                  color: Colors.blue[700],
+                  color: Color(0xFF3730A3),
                   fontSize: 14,
+                  fontWeight: FontWeight.w500,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -195,10 +198,10 @@ class _AppRequestScreenState extends ConsumerState<AppRequestScreen> {
           child: ElevatedButton(
             onPressed: _isRequesting ? null : _makeRequest,
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue,
+              backgroundColor: const Color(0xFF4F46E5),
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(14),
               ),
             ),
             child: _isRequesting
@@ -221,7 +224,7 @@ class _AppRequestScreenState extends ConsumerState<AppRequestScreen> {
                     'Ask Parent',
                     style: TextStyle(
                       fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
           ),
@@ -290,10 +293,27 @@ class _AppRequestScreenState extends ConsumerState<AppRequestScreen> {
             ],
           ),
         ),
-        
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.grey[50],
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.apps, color: Colors.grey[600], size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  widget.appName,
+                  style: const TextStyle(fontWeight: FontWeight.w500),
+                ),
+              ),
+            ],
+          ),
+        ),
         const Spacer(),
-        
-        // Cancel request button
         OutlinedButton(
           onPressed: _cancelRequest,
           style: OutlinedButton.styleFrom(
@@ -596,8 +616,16 @@ class _AppRequestScreenState extends ConsumerState<AppRequestScreen> {
     await RequestService.instance.handleApprovedRequest(_pendingRequest!);
     
     // Check for created permission
-    final permission = await RequestService.instance.getActivePermission(widget.packageName);
-    if (permission != null) {
+    var permission = await RequestService.instance.getActivePermission(widget.packageName);
+    permission ??= TemporaryPermission(
+      packageName: widget.packageName,
+      appName: widget.appName,
+      grantedAt: DateTime.now(),
+      expiresAt: _pendingRequest?.accessExpiresAt ??
+          DateTime.now().add(Duration(minutes: _pendingRequest?.grantedMinutes ?? 30)),
+      grantedBy: _pendingRequest?.decidedBy ?? 'Parent',
+    );
+    if (mounted) {
       setState(() {
         _activePermission = permission;
       });
@@ -615,13 +643,39 @@ class _AppRequestScreenState extends ConsumerState<AppRequestScreen> {
     
     if (user == null || familyId == null || familyId.isEmpty) return;
 
+    // Check deterministic request document directly first
+    final reqId = '${user.uid}_${widget.packageName.replaceAll('.', '_')}';
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('families')
+          .doc(familyId)
+          .collection('requests')
+          .doc(reqId)
+          .get();
+      if (doc.exists && mounted) {
+        final req = AppRequest.fromFirestore(doc);
+        if (!req.isExpired) {
+          setState(() {
+            _pendingRequest = req;
+          });
+          if (req.isApproved) {
+            _activatePermission();
+          }
+          return;
+        }
+      }
+    } catch (_) {}
+
     final requests = await RequestService.instance.getPendingRequests(familyId, user.uid);
     final existingRequest = requests.where((r) => r.packageName == widget.packageName).firstOrNull;
     
-    if (existingRequest != null) {
+    if (existingRequest != null && mounted) {
       setState(() {
         _pendingRequest = existingRequest;
       });
+      if (existingRequest.isApproved) {
+        _activatePermission();
+      }
     }
   }
 
@@ -634,19 +688,46 @@ class _AppRequestScreenState extends ConsumerState<AppRequestScreen> {
     }
   }
 
+  StreamSubscription? _docSubscription;
+
   void _listenForRequestUpdates() {
     final user = ref.read(authProvider).user;
     final familyId = user?.familyId ?? ref.read(currentUserDataProvider).value?.familyId ?? ref.read(selectedFamilyProvider)?.id;
     
     if (user == null || familyId == null || familyId.isEmpty) return;
 
+    // 1. Listen via RequestService
     RequestService.instance.startListening(familyId, user.uid);
     RequestService.instance.requestUpdates.listen((request) {
-      if (request.packageName == widget.packageName) {
+      if (request.packageName == widget.packageName && mounted) {
         setState(() {
           _pendingRequest = request;
         });
+        if (request.isApproved) {
+          _activatePermission();
+        }
       }
+    });
+
+    // 2. Direct listener on the exact request document for instant parent approval detection
+    final reqId = '${user.uid}_${widget.packageName.replaceAll('.', '_')}';
+    _docSubscription = FirebaseFirestore.instance
+        .collection('families')
+        .doc(familyId)
+        .collection('requests')
+        .doc(reqId)
+        .snapshots()
+        .listen((snapshot) {
+      if (!snapshot.exists || !mounted) return;
+      try {
+        final req = AppRequest.fromFirestore(snapshot);
+        setState(() {
+          _pendingRequest = req;
+        });
+        if (req.isApproved) {
+          _activatePermission();
+        }
+      } catch (_) {}
     });
   }
 
@@ -684,6 +765,7 @@ class _AppRequestScreenState extends ConsumerState<AppRequestScreen> {
 
   @override
   void dispose() {
+    _docSubscription?.cancel();
     RequestService.instance.stopListening();
     super.dispose();
   }

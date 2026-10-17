@@ -2,96 +2,78 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Users collection rules
-    match /users/{userId} {
-      // Only authenticated users can read/write their own document
-      allow read, write: if request.auth != null 
-        && request.auth.uid == userId;
-      
-      // Prevent role tampering - only allow role changes through server functions
-      // or with proper validation
-      allow update: if request.auth != null 
-        && request.auth.uid == userId
-        && validateUserUpdate();
+    // Helper function for authentication
+    function isAuthenticated() {
+      return request.auth != null;
     }
-    
-    // Helper function to validate user document updates
-    function validateUserUpdate() {
-      let incomingData = request.resource.data;
-      let existingData = resource.data;
-      
-      return (
-        // Required fields must be present
-        incomingData.keys().hasAll(['uid', 'email', 'displayName', 'role', 'updatedAt']) &&
-        
-        // UID and email cannot be changed
-        incomingData.uid == existingData.uid &&
-        incomingData.email == existingData.email &&
-        
-        // Role must be valid
-        incomingData.role in ['parent', 'child', 'none'] &&
-        
-        // UpdatedAt must be a timestamp and in the future
-        incomingData.updatedAt is timestamp &&
-        incomingData.updatedAt > existingData.updatedAt &&
-        
-        // DisplayName must be a string and not empty
-        incomingData.displayName is string &&
-        incomingData.displayName.size() > 0 &&
-        incomingData.displayName.size() <= 100
-      );
-    }
-    
-    // Family collections and all subcollections (requests, children, usage, apps, temporaryApprovals, events)
-    match /families/{familyId} {
-      allow read, write: if request.auth != null;
 
-      match /{subcollection=**} {
-        allow read, write: if request.auth != null;
+    // USERS COLLECTION
+    match /users/{userId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    // FAMILIES COLLECTION & ALL NESTED SUBCOLLECTIONS
+    // Covers: children, apps, usage, locations, requests, approvals, education_tasks, notifications, events
+    match /families/{familyId} {
+      allow read, write: if isAuthenticated();
+      
+      // Children subcollection and all nested paths (apps, usage, locations, requests, education_tasks, temporaryApprovals)
+      match /children/{childId} {
+        allow read, write: if isAuthenticated();
+        
+        match /{childSubcollection=**} {
+          allow read, write: if isAuthenticated();
+        }
+      }
+
+      // Explicit match for study & education tasks
+      match /education_tasks/{taskId} {
+        allow read, write: if isAuthenticated();
+      }
+
+      // Match all other family subcollections (notifications, requests, etc.)
+      match /{allFamilyDocs=**} {
+        allow read, write: if isAuthenticated();
       }
     }
+    
+    // TOP-LEVEL EDUCATION TASKS
+    match /education_tasks/{taskId} {
+      allow read, write: if isAuthenticated();
+    }
 
-    // Notifications collection (alerts, app requests, status updates)
+    // FAMILY INVITES COLLECTION
+    match /family_invites/{inviteCode} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    // NOTIFICATIONS COLLECTION
     match /notifications/{notificationId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isAuthenticated();
     }
     
-    // App restrictions (for future implementation) 
-    match /appRestrictions/{userId} {
-      // Only the user and their parent can read restrictions
-      allow read: if request.auth != null && (
-        request.auth.uid == userId ||
-        isParentOf(request.auth.uid, userId)
-      );
-      
-      // Only parents can write restrictions
-      allow write: if request.auth != null && 
-        isParentOf(request.auth.uid, userId);
+    // FCM TOKENS COLLECTION
+    match /fcm_tokens/{tokenId} {
+      allow read, write: if isAuthenticated();
     }
     
-    // Location data (for future implementation)
-    match /locations/{userId} {
-      // Only the user and their parent can read location
-      allow read: if request.auth != null && (
-        request.auth.uid == userId ||
-        isParentOf(request.auth.uid, userId)
-      );
-      
-      // Only the user can write their own location
-      allow write: if request.auth != null && 
-        request.auth.uid == userId;
+    // DEVICE STATUS COLLECTION
+    match /device_status/{statusId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // RULES & LOGS COLLECTIONS
+    match /rules/{ruleId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /rule_enforcement_logs/{logId} {
+      allow read, write: if isAuthenticated();
     }
     
-    // Helper function to check if user is parent of target
-    function isParentOf(parentId, childId) {
-      // This would need to be implemented based on family structure
-      // For now, return false to be secure by default
-      return false;
-    }
-    
-    // Default rule - deny all other access
+    // CATCH-ALL FOR ALL OTHER AUTHENTICATED ACCESS
     match /{document=**} {
-      allow read, write: if false;
+      allow read, write: if isAuthenticated();
     }
   }
 }

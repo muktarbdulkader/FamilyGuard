@@ -354,9 +354,19 @@ class _ChildNotificationCard extends ConsumerWidget {
     final isUnread = !notification.isRead;
     final isUrgent = notification.priority == NotificationPriority.urgent;
     final isRequest = notification.type == NotificationType.appRequest;
+    final isApproved = notification.isApproved;
+    final isDenied = notification.isDenied;
 
-    final typeColor = _getTypeColor(notification.type);
-    final typeIcon = _getTypeIcon(notification.type);
+    final typeColor = isApproved
+        ? const Color(0xFF10B981)
+        : isDenied
+            ? const Color(0xFFEF4444)
+            : _getTypeColor(notification.type);
+    final typeIcon = isApproved
+        ? Icons.check_circle_rounded
+        : isDenied
+            ? Icons.cancel_rounded
+            : _getTypeIcon(notification.type);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -585,39 +595,91 @@ class _ChildNotificationCard extends ConsumerWidget {
 
                 // Quick Action Buttons
                 if (isRequest) ...[
-                  const SizedBox(height: 14),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => _quickDenyRequest(context, ref),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFFEF4444),
-                            side: const BorderSide(color: Color(0xFFFCA5A5)),
-                            padding: const EdgeInsets.symmetric(vertical: 9),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          ),
-                          child: const Text('Deny', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                        ),
+                  if (isApproved) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFECFDF5),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFA7F3D0)),
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        flex: 2,
-                        child: ElevatedButton.icon(
-                          onPressed: () => _quickApproveRequest(context, ref, 30),
-                          icon: const Icon(Icons.check_rounded, size: 16),
-                          label: const Text('Approve 30m', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF10B981),
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            padding: const EdgeInsets.symmetric(vertical: 9),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Approved ${notification.grantedMinutes != null ? "(${notification.grantedMinutes}m granted)" : ""}',
+                              style: const TextStyle(
+                                color: Color(0xFF047857),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ] else if (isDenied) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF2F2),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFFECACA)),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.cancel_rounded, color: Color(0xFFEF4444), size: 18),
+                          SizedBox(width: 8),
+                          Text(
+                            'Request Denied',
+                            style: TextStyle(
+                              color: Color(0xFFB91C1C),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ] else ...[
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => _quickDenyRequest(context, ref),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFFEF4444),
+                              side: const BorderSide(color: Color(0xFFFCA5A5)),
+                              padding: const EdgeInsets.symmetric(vertical: 9),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            child: const Text('Deny', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          flex: 2,
+                          child: ElevatedButton.icon(
+                            onPressed: () => _quickApproveRequest(context, ref, 30),
+                            icon: const Icon(Icons.check_rounded, size: 16),
+                            label: const Text('Approve 30m', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF10B981),
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(vertical: 9),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ] else if (notification.type == NotificationType.newAppDetected) ...[
                   const SizedBox(height: 14),
                   Row(
@@ -670,7 +732,6 @@ class _ChildNotificationCard extends ConsumerWidget {
       ref.read(notificationActionsProvider).markAsRead(notification.id);
     }
 
-    final data = notification.data;
     switch (notification.type) {
       case NotificationType.appRequest:
         context.push(AppRoutes.parentRequests);
@@ -770,8 +831,29 @@ class _ChildNotificationCard extends ConsumerWidget {
         }
       }
 
-      // 4. Mark notification as read
+      // 4. Mark notification as approved & read
       await ref.read(notificationActionsProvider).markAsRead(notification.id);
+      final notifApprovedPayload = {
+        'status': 'approved',
+        'isApproved': true,
+        'grantedMinutes': minutes,
+        'isRead': true,
+        'readAt': now,
+      };
+      try {
+        await FirebaseFirestore.instance
+            .collection('notifications')
+            .doc(notification.id)
+            .set(notifApprovedPayload, SetOptions(merge: true));
+      } catch (_) {}
+      try {
+        await FirebaseFirestore.instance
+            .collection('families')
+            .doc(familyId)
+            .collection('notifications')
+            .doc(notification.id)
+            .set(notifApprovedPayload, SetOptions(merge: true));
+      } catch (_) {}
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -834,6 +916,26 @@ class _ChildNotificationCard extends ConsumerWidget {
       }
 
       await ref.read(notificationActionsProvider).markAsRead(notification.id);
+      final notifDenyPayload = {
+        'status': 'denied',
+        'isDenied': true,
+        'isRead': true,
+        'readAt': Timestamp.now(),
+      };
+      try {
+        await FirebaseFirestore.instance
+            .collection('notifications')
+            .doc(notification.id)
+            .set(notifDenyPayload, SetOptions(merge: true));
+      } catch (_) {}
+      try {
+        await FirebaseFirestore.instance
+            .collection('families')
+            .doc(familyId)
+            .collection('notifications')
+            .doc(notification.id)
+            .set(notifDenyPayload, SetOptions(merge: true));
+      } catch (_) {}
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -920,6 +1022,10 @@ class _ChildNotificationCard extends ConsumerWidget {
     switch (type) {
       case NotificationType.appRequest:
         return const Color(0xFF4F46E5);
+      case NotificationType.appApproved:
+        return const Color(0xFF10B981);
+      case NotificationType.appDenied:
+        return const Color(0xFFEF4444);
       case NotificationType.newAppDetected:
         return const Color(0xFF2563EB);
       case NotificationType.dailyLimitReached:
@@ -937,6 +1043,10 @@ class _ChildNotificationCard extends ConsumerWidget {
     switch (type) {
       case NotificationType.appRequest:
         return Icons.app_registration_rounded;
+      case NotificationType.appApproved:
+        return Icons.check_circle_rounded;
+      case NotificationType.appDenied:
+        return Icons.cancel_rounded;
       case NotificationType.newAppDetected:
         return Icons.new_releases_rounded;
       case NotificationType.dailyLimitReached:

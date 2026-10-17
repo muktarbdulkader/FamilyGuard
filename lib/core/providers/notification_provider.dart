@@ -21,15 +21,35 @@ final currentUserNotificationsProvider = StreamProvider<List<ParentNotification>
       .collection('users')
       .doc(user.uid)
       .snapshots()
-      .asyncExpand((userDoc) {
-    if (!userDoc.exists) return Stream.value(<ParentNotification>[]);
+      .asyncExpand((userDoc) async* {
+    if (!userDoc.exists) {
+      yield <ParentNotification>[];
+      return;
+    }
     
     final userData = userDoc.data();
-    final familyId = userData?['familyId'];
+    var familyId = userData?['familyId'] as String?;
     
-    if (familyId == null) return Stream.value(<ParentNotification>[]);
+    if (familyId == null || familyId.isEmpty) {
+      // Fallback: lookup family where user is a parent
+      try {
+        final famSnap = await FirebaseFirestore.instance
+            .collection('families')
+            .where('parentIds', arrayContains: user.uid)
+            .limit(1)
+            .get();
+        if (famSnap.docs.isNotEmpty) {
+          familyId = famSnap.docs.first.id;
+        }
+      } catch (_) {}
+    }
     
-    return FirebaseFirestore.instance
+    if (familyId == null || familyId.isEmpty) {
+      yield <ParentNotification>[];
+      return;
+    }
+    
+    yield* FirebaseFirestore.instance
         .collection('notifications')
         .where('familyId', isEqualTo: familyId)
         .limit(50)

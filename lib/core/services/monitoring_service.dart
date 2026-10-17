@@ -6,6 +6,10 @@ import '../models/app_model.dart';
 /// Flutter service to manage native Android monitoring
 /// Controls the native monitoring service and provides offline rule caching
 class MonitoringService {
+  static final MonitoringService instance = MonitoringService._internal();
+  factory MonitoringService() => instance;
+  MonitoringService._internal();
+
   static const MethodChannel _channel = MethodChannel('family_guard/monitoring');
   final LocalCacheService _cacheService = LocalCacheService();
 
@@ -218,6 +222,19 @@ class MonitoringService {
       return (result as bool?) ?? false;
     } catch (e) {
       print('Failed to open app $packageName: $e');
+      return false;
+    }
+  }
+
+  /// Launch a URL or educational link in the browser
+  Future<bool> openUrl(String url) async {
+    try {
+      final result = await _channel.invokeMethod('openUrl', {
+        'url': url,
+      });
+      return (result as bool?) ?? false;
+    } catch (e) {
+      print('Failed to open URL $url: $e');
       return false;
     }
   }

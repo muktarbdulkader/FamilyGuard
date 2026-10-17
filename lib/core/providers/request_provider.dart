@@ -41,29 +41,56 @@ final parentPendingRequestsProvider = StreamProvider.family<List<AppRequestWithC
     return Stream.value([]);
   }
   
-  // For simplicity, listen to first family
-  // In real implementation, would aggregate multiple families
   final familyId = familyIds.first;
   
   return FirebaseFirestore.instance
       .collection('families')
       .doc(familyId)
+      .collection('requests')
+      .where('status', isEqualTo: 'pending')
       .snapshots()
-      .asyncExpand((familyDoc) async* {
-    final familyData = familyDoc.data();
-    if (familyData == null) {
-      yield [];
-      return;
+      .asyncMap((snapshot) async {
+    final list = <AppRequestWithChild>[];
+    for (final doc in snapshot.docs) {
+      final req = AppRequest.fromFirestore(doc);
+      if (req.isExpired) continue;
+      
+      ChildModel? child;
+      if (req.childId.isNotEmpty) {
+        try {
+          final childDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(req.childId)
+              .get();
+          if (childDoc.exists) {
+            final d = childDoc.data()!;
+            child = ChildModel(
+              id: req.childId,
+              displayName: d['displayName'] ?? req.childName ?? 'Child',
+              email: d['email'] ?? '',
+              familyId: familyId,
+              joinedAt: (d['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+              lastActiveAt: (d['lastActiveAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+              isOnline: d['isOnline'] ?? false,
+              deviceInfo: d['deviceInfo'],
+              preferences: Map<String, dynamic>.from(d['preferences'] ?? {}),
+            );
+          }
+        } catch (_) {}
+      }
+      child ??= ChildModel(
+        id: req.childId,
+        displayName: req.childName ?? 'Child',
+        email: '',
+        familyId: familyId,
+        joinedAt: DateTime.now(),
+        lastActiveAt: DateTime.now(),
+        isOnline: false,
+      );
+      list.add(AppRequestWithChild(request: req, child: child));
     }
-    
-    final childIds = List<String>.from(familyData['childIds'] ?? []);
-    if (childIds.isEmpty) {
-      yield [];
-      return;
-    }
-    
-    // Listen to all children's pending requests
-    yield* _combineChildRequests(familyId, childIds);
+    list.sort((a, b) => b.request.createdAt.compareTo(a.request.createdAt));
+    return list;
   });
 });
 

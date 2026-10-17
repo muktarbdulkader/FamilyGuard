@@ -57,23 +57,11 @@ class _ChildAppsScreenState extends ConsumerState<ChildAppsScreen> {
     });
 
     try {
-      // Scan real installed apps using native Android APIs
       final installedApps = await _appScannerService.scanInstalledApps();
-      
+
       setState(() {
         _installedApps = installedApps;
         _isScanning = false;
-        _isUploading = true;
-      });
-
-      // Upload to Firestore for parent management
-      await _appScannerService.uploadAppsToFirestore(
-        familyId: userData.familyId!,
-        childId: userData.uid,
-        apps: installedApps,
-      );
-
-      setState(() {
         _isUploading = false;
       });
 
@@ -85,6 +73,14 @@ class _ChildAppsScreenState extends ConsumerState<ChildAppsScreen> {
           ),
         );
       }
+
+      unawaited(_appScannerService.uploadAppsToFirestore(
+        familyId: userData.familyId!,
+        childId: userData.uid,
+        apps: installedApps,
+      ).catchError((e) {
+        debugPrint('Failed to upload apps to Firestore: $e');
+      }));
     } catch (e) {
       setState(() {
         _isScanning = false;
@@ -181,8 +177,20 @@ class _ChildAppsScreenState extends ConsumerState<ChildAppsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Installed Apps'),
-        backgroundColor: Colors.orange,
+        title: const Text(
+          'Installed Apps',
+          style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.2),
+        ),
+        backgroundColor: const Color(0xFF4F46E5),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
         foregroundColor: Colors.white,
         actions: [
           IconButton(
@@ -197,18 +205,24 @@ class _ChildAppsScreenState extends ConsumerState<ChildAppsScreen> {
           // Status banner
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            color: Colors.orange[100],
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEEF2FF),
+              border: Border(
+                bottom: BorderSide(color: const Color(0xFFC7D2FE).withOpacity(0.5)),
+              ),
+            ),
             child: Row(
               children: [
-                Icon(Icons.visibility, color: Colors.orange[700]),
+                const Icon(Icons.shield_outlined, color: Color(0xFF4F46E5), size: 20),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     'Your parents can see and manage these apps',
-                    style: TextStyle(
-                      color: Colors.orange[700],
-                      fontWeight: FontWeight.w500,
+                    style: const TextStyle(
+                      color: Color(0xFF3730A3),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
                     ),
                   ),
                 ),
@@ -219,7 +233,7 @@ class _ChildAppsScreenState extends ConsumerState<ChildAppsScreen> {
           // Loading states
           if (_isScanning || _isUploading) ...[
             const SizedBox(height: 32),
-            const CircularProgressIndicator(color: Colors.orange),
+            const CircularProgressIndicator(color: Color(0xFF4F46E5)),
             const SizedBox(height: 16),
             Text(
               _isScanning ? 'Scanning installed apps...' : 'Uploading to parents...',
@@ -354,7 +368,7 @@ class _ChildAppsScreenState extends ConsumerState<ChildAppsScreen> {
           ? null
           : FloatingActionButton(
               onPressed: _scanAndUploadApps,
-              backgroundColor: Colors.orange,
+              backgroundColor: const Color(0xFF4F46E5),
               child: const Icon(Icons.refresh, color: Colors.white),
             ),
     );

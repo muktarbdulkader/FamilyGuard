@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../core/models/request_model.dart';
 import '../../../../core/models/family_model.dart';
+import '../../../../core/services/approval_service.dart';
 import '../screens/app_approval_screen.dart';
 
 /// Notification card for displaying pending app requests to parents
@@ -316,9 +318,14 @@ class RequestNotificationCard extends StatelessWidget {
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.of(context).pop();
-              // TODO: Call denial service
+              await ApprovalService.instance.denyRequest(
+                requestId: request.id,
+                familyId: request.familyId,
+                childId: request.childId,
+                parentId: FirebaseAuth.instance.currentUser?.uid ?? '',
+              );
               onDenied?.call();
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
@@ -398,8 +405,9 @@ class QuickApprovalSheet extends StatelessWidget {
                     requestId: request.id,
                     familyId: request.familyId,
                     childId: request.childId,
-                    parentId: child.parentId,
+                    parentId: FirebaseAuth.instance.currentUser?.uid ?? '',
                     grantedMinutes: duration.minutes,
+                    packageName: request.packageName,
                   );
                   onApproved?.call();
                 },

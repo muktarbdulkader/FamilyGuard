@@ -4,23 +4,22 @@ import '../models/user_model.dart';
 
 /// Custom application theme for FamilyGuard
 class AppTheme {
-  // Brand Colors
-  static const Color primaryColor = Color(0xFF2E7CE4); // Professional blue
-  static const Color primaryVariant = Color(0xFF1E5BA8);
-  static const Color secondaryColor = Color(0xFF4CAF50); // Success green
-  static const Color errorColor = Color(0xFFE53E3E);
-  static const Color warningColor = Color(0xFFFF9800);
-  static const Color surfaceColor = Color(0xFFFAFAFA);
+  // Brand Colors - Unified Premium Indigo & Violet System
+  static const Color primaryColor = Color(0xFF4F46E5); // Vibrant Royal Indigo
+  static const Color primaryVariant = Color(0xFF3730A3);
+  static const Color secondaryColor = Color(0xFF7C3AED); // Radiant Violet
+  static const Color errorColor = Color(0xFFEF4444);
+  static const Color warningColor = Color(0xFFF59E0B);
+  static const Color surfaceColor = Color(0xFFF8FAFC);
   
-  // Parent Theme Colors
-  static const Color parentPrimary = Color(0xFF2E7CE4);
-  static const Color parentAccent = Color(0xFF1E5BA8);
+  // Unified Role Theme Colors
+  static const Color parentPrimary = Color(0xFF4F46E5);
+  static const Color parentAccent = Color(0xFF7C3AED);
   static const Color parentBackground = Color(0xFFF8FAFC);
   
-  // Child Theme Colors
-  static const Color childPrimary = Color(0xFF4CAF50);
-  static const Color childAccent = Color(0xFF388E3C);
-  static const Color childBackground = Color(0xFFF1F8E9);
+  static const Color childPrimary = Color(0xFF4F46E5);
+  static const Color childAccent = Color(0xFF7C3AED);
+  static const Color childBackground = Color(0xFFF8FAFC);
   
   // Text Colors
   static const Color textPrimary = Color(0xFF1A202C);

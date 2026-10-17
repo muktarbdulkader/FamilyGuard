@@ -22,16 +22,10 @@ void main() async {
   // Ensure Flutter bindings are initialized before Firebase
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize Firebase with platform-specific options
+  // Initialize Firebase - this must be awaited before anything else
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
-    );
-    
-    // Enable Firestore offline persistence
-    FirebaseFirestore.instance.settings = const Settings(
-      persistenceEnabled: true,
-      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
     );
   } catch (e) {
     debugPrint('Firebase init notice: $e');
@@ -40,16 +34,29 @@ void main() async {
   // Set up background message handler
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   
-  // Initialize notification service
-  await NotificationService.instance.initialize();
-  
-  // Run app with Riverpod provider scope for state management
+  // Run app immediately — don't block on heavy initialization
   runApp(
     const ProviderScope(
       child: ParentalControlApp(),
     ),
   );
+
+  // Heavy initialization runs in background AFTER first frame is painted
+  Future.microtask(() async {
+    try {
+      // Enable Firestore offline persistence
+      FirebaseFirestore.instance.settings = const Settings(
+        persistenceEnabled: true,
+        cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+      );
+    } catch (e) {
+      debugPrint('Firestore settings notice: $e');
+    }
+    // Initialize notification service in background
+    await NotificationService.instance.initialize();
+  });
 }
+
 
 /// Root widget of the parental control application
 /// Sets up theming and routing using GoRouter

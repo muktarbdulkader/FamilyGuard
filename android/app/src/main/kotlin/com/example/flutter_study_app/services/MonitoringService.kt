@@ -3,8 +3,10 @@ package com.example.flutter_study_app.services
 import android.app.*
 import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.*
 import androidx.core.app.NotificationCompat
@@ -55,6 +57,19 @@ class MonitoringService : Service() {
     private var currentFamilyId: String? = null
     private var currentChildId: String? = null
     private var ruleSyncService: RuleSyncService? = null
+
+    // Throttle blocked-app notifications to at most once per 5 minutes per package
+    private val lastBlockNotificationTime = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
+    // Receiver that clears any overlay the instant the Family Guardian app comes to foreground
+    private val clearOverlayReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == "com.example.flutter_study_app.CLEAR_OVERLAY") {
+                enforcementManager.removeCurrentOverlay()
+                android.util.Log.d("MonitoringService", "Cleared overlay on app resume")
+            }
+        }
+    }
     
     companion object {
         private const val NOTIFICATION_ID = 1001
@@ -67,9 +82,11 @@ class MonitoringService : Service() {
         const val ACTION_START_MONITORING = "START_MONITORING"
         const val ACTION_STOP_MONITORING = "STOP_MONITORING"
         
-        fun startService(context: Context) {
+        fun startService(context: Context, familyId: String? = null, childId: String? = null) {
             val intent = Intent(context, MonitoringService::class.java).apply {
                 action = ACTION_START_MONITORING
+                if (!familyId.isNullOrEmpty()) putExtra(KEY_FAMILY_ID, familyId)
+                if (!childId.isNullOrEmpty()) putExtra(KEY_CHILD_ID, childId)
             }
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -113,6 +130,14 @@ class MonitoringService : Service() {
         
         // Initialize user context for notifications from Auth as well
         initializeUserContext()
+
+        // Register receiver to clear overlay instantly when this app comes to foreground
+        val filter = IntentFilter("com.example.flutter_study_app.CLEAR_OVERLAY")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(clearOverlayReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(clearOverlayReceiver, filter)
+        }
     }
     
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -173,6 +198,19 @@ class MonitoringService : Service() {
                 onApprovalChanged = { approvedPkg ->
                     enforcementManager.onAppApproved(approvedPkg)
                 }
+                onRuleChanged = { pkg, ruleType ->
+                    serviceScope.launch {
+                        try {
+                            val fg = getCurrentForegroundApp() ?: lastForegroundApp
+                            if (fg == pkg) {
+                                android.util.Log.d("MonitoringService", "Rule changed for current app $pkg -> $ruleType, re-enforcing immediately")
+                                checkForegroundAppAndEnforce()
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.e("MonitoringService", "Error re-enforcing on rule change", e)
+                        }
+                    }
+                }
             }
             ruleSyncService?.startSync(familyId)
             android.util.Log.d("MonitoringService", "Started rule sync for family: $familyId, child: $childId")
@@ -211,11 +249,11 @@ class MonitoringService : Service() {
             }
         }
 
-        // Start usage sync to Firestore coroutine (runs every 30 seconds)
+        // Start usage sync to Firestore coroutine (runs every 5 minutes to conserve Firestore quota)
         serviceScope.launch {
             while (isActive) {
                 try {
-                    delay(30_000L)
+                    delay(300_000L) // 5 minutes
                     syncUsageToFirestore()
                 } catch (e: Exception) {
                     android.util.Log.e("MonitoringService", "Error in usage sync coroutine", e)
@@ -252,7 +290,10 @@ class MonitoringService : Service() {
             }
             
             // Check if current app should be enforced
-            if (foregroundApp != null && !isSystemApp(foregroundApp)) {
+            // SAFETY: never enforce on our own package — remove any stale overlay immediately
+            if (foregroundApp != null && foregroundApp == applicationContext.packageName) {
+                enforcementManager.removeCurrentOverlay()
+            } else if (foregroundApp != null && !isSystemApp(foregroundApp)) {
                 val rule = database.getRule(foregroundApp)
                 val temporaryApproval = database.getActiveTemporaryApproval(foregroundApp)
                 val isTemporarilyApproved = temporaryApproval != null && !temporaryApproval.isExpired(currentTime)
@@ -590,8 +631,6 @@ class MonitoringService : Service() {
         }
     }
     
-    private val lastBlockNotificationTime = java.util.concurrent.ConcurrentHashMap<String, Long>()
-
     /**
      * Send real-time notification to parent when child attempts to use a blocked app
      */
@@ -601,7 +640,7 @@ class MonitoringService : Service() {
         
         val now = System.currentTimeMillis()
         val lastNotif = lastBlockNotificationTime[packageName] ?: 0L
-        if (now - lastNotif < 30_000L) { // Throttle to at most once per 30 seconds per app
+        if (now - lastNotif < 300_000L) { // Throttle to at most once per 5 minutes per app to protect quota
             return
         }
         lastBlockNotificationTime[packageName] = now
@@ -696,8 +735,10 @@ class MonitoringService : Service() {
         }
     }
 
+    private val lastSyncedUsageMinutes = java.util.concurrent.ConcurrentHashMap<String, Int>()
+
     /**
-     * Periodically sync all recorded app usage minutes to Firestore
+     * Periodically sync only CHANGED app usage minutes to Firestore (quota-optimized)
      */
     private suspend fun syncUsageToFirestore() = withContext(Dispatchers.IO) {
         val familyId = currentFamilyId ?: return@withContext
@@ -712,6 +753,14 @@ class MonitoringService : Service() {
             var count = 0
 
             for ((pkg, usage) in allUsage) {
+                val currentMinutes = usage.todayMinutes
+                val lastMinutes = lastSyncedUsageMinutes[pkg] ?: 0
+
+                // QUOTA OPTIMIZATION: Only sync apps that were actually used (> 0 min) and have changed!
+                if (currentMinutes <= 0 || currentMinutes == lastMinutes) {
+                    continue
+                }
+
                 val appInfo = getAppInfo(pkg)
                 val appDoc = firestore.collection("families")
                     .document(familyId)
@@ -723,20 +772,21 @@ class MonitoringService : Service() {
                 val usageData = hashMapOf(
                     "packageName" to pkg,
                     "appName" to (appInfo?.name ?: pkg),
-                    "todayMinutes" to usage.todayMinutes,
-                    "weekMinutes" to usage.todayMinutes,
-                    "monthMinutes" to usage.todayMinutes,
+                    "todayMinutes" to currentMinutes,
+                    "weekMinutes" to currentMinutes,
+                    "monthMinutes" to currentMinutes,
                     "lastUsed" to com.google.firebase.Timestamp.now(),
                     "openCount" to 1
                 )
                 batch.set(appDoc, usageData, com.google.firebase.firestore.SetOptions.merge())
+                lastSyncedUsageMinutes[pkg] = currentMinutes
                 count++
-                if (count >= 400) break
+                if (count >= 50) break
             }
 
             if (count > 0) {
                 batch.commit()
-                android.util.Log.d("MonitoringService", "Synced $count app usage records to Firestore")
+                android.util.Log.d("MonitoringService", "Synced $count changed app usage records to Firestore")
             }
         } catch (e: Exception) {
             android.util.Log.e("MonitoringService", "Failed to sync usage to Firestore", e)
@@ -797,6 +847,7 @@ class MonitoringService : Service() {
     
     override fun onDestroy() {
         super.onDestroy()
+        try { unregisterReceiver(clearOverlayReceiver) } catch (_: Exception) {}
         deviceStatusHelper.stopStatusMonitoring()
         ruleSyncService?.stopSync()
         ruleSyncService = null

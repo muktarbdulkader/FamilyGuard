@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/notification_model.dart';
 import '../constants/app_routes.dart';
 import '../providers/router_provider.dart';
+import 'monitoring_service.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -29,7 +30,10 @@ class NotificationService {
   StreamSubscription<RemoteMessage>? _foregroundSubscription;
   StreamSubscription<String>? _tokenRefreshSubscription;
   StreamSubscription<QuerySnapshot>? _familyNotificationsSubscription;
+  StreamSubscription<QuerySnapshot>? _childNotificationsSubscription;
   String? _listeningFamilyId;
+  String? _listeningChildId;
+  final Set<String> _shownNotificationIds = {};
   bool _isInitialized = false;
 
   // Notification channels
@@ -131,16 +135,36 @@ class NotificationService {
       print('FCM Permission status: ${settings.authorizationStatus}');
     }
 
+    // Request local notification permissions for Android 13+
+    if (Platform.isAndroid) {
+      try {
+        await _localNotifications
+            .resolvePlatformSpecificImplementation<
+                AndroidFlutterLocalNotificationsPlugin>()
+            ?.requestNotificationsPermission();
+      } catch (e) {
+        if (kDebugMode) {
+          print('Android notification permission error: $e');
+        }
+      }
+    }
+
     // Request local notification permissions for iOS
     if (Platform.isIOS) {
-      await _localNotifications
-          .resolvePlatformSpecificImplementation<
-              IOSFlutterLocalNotificationsPlugin>()
-          ?.requestPermissions(
-            alert: true,
-            badge: true,
-            sound: true,
-          );
+      try {
+        await _localNotifications
+            .resolvePlatformSpecificImplementation<
+                IOSFlutterLocalNotificationsPlugin>()
+            ?.requestPermissions(
+              alert: true,
+              badge: true,
+              sound: true,
+            );
+      } catch (e) {
+        if (kDebugMode) {
+          print('iOS notification permission error: $e');
+        }
+      }
     }
   }
 
@@ -301,6 +325,14 @@ class NotificationService {
     final childId = (data['childId'] ?? '').toString();
     final childName = (data['childName'] ?? 'Child').toString();
     final requestId = (data['requestId'] ?? '').toString();
+    final packageName = (data['packageName'] ?? '').toString();
+
+    if (rawType == 'appApproved' || rawType == 'app_approved' || rawType == 'request_approved') {
+      if (packageName.isNotEmpty) {
+        MonitoringService.instance.openApp(packageName);
+      }
+      return;
+    }
 
     if (rawType.contains('request') || rawType == 'appRequest' || rawType == 'blocked_app_attempt' || requestId.isNotEmpty) {
       context.push(AppRoutes.parentRequests);
@@ -325,7 +357,7 @@ class NotificationService {
     _listeningFamilyId = familyId;
     _familyNotificationsSubscription?.cancel();
 
-    final listenStartTime = DateTime.now().subtract(const Duration(seconds: 15));
+    final recentThreshold = DateTime.now().subtract(const Duration(hours: 2));
 
     _familyNotificationsSubscription = _firestore
         .collection('notifications')
@@ -334,11 +366,15 @@ class NotificationService {
         .listen(
       (snapshot) {
         for (final change in snapshot.docChanges) {
-          if (change.type == DocumentChangeType.added) {
+          if (change.type == DocumentChangeType.added || change.type == DocumentChangeType.modified) {
             try {
               final notif = ParentNotification.fromFirestore(change.doc);
-              // Only alert for unread notifications created around or after listener started
-              if (!notif.isRead && notif.createdAt.isAfter(listenStartTime)) {
+              final notifKey = '${notif.id}_${notif.status}';
+              // Alert for unread recent notifications
+              if (!notif.isRead &&
+                  !_shownNotificationIds.contains(notifKey) &&
+                  notif.createdAt.isAfter(recentThreshold)) {
+                _shownNotificationIds.add(notifKey);
                 _showLocalNotification(notif);
               }
             } catch (e) {
@@ -352,6 +388,52 @@ class NotificationService {
       onError: (e) {
         if (kDebugMode) {
           print('Error in family notifications subscription: $e');
+        }
+      },
+    );
+  }
+
+  /// Start real-time Firestore listener for child device to receive approval & denial alerts
+  void startChildNotificationListener(String childId) {
+    if (childId.isEmpty || _listeningChildId == childId) return;
+    _listeningChildId = childId;
+    _childNotificationsSubscription?.cancel();
+
+    final recentThreshold = DateTime.now().subtract(const Duration(hours: 2));
+
+    _childNotificationsSubscription = _firestore
+        .collection('notifications')
+        .where('childId', isEqualTo: childId)
+        .snapshots()
+        .listen(
+      (snapshot) {
+        for (final change in snapshot.docChanges) {
+          if (change.type == DocumentChangeType.added || change.type == DocumentChangeType.modified) {
+            try {
+              final notif = ParentNotification.fromFirestore(change.doc);
+              final isChildAlert = notif.type == NotificationType.appApproved ||
+                  notif.type == NotificationType.appDenied ||
+                  notif.isApproved ||
+                  notif.isDenied;
+              final notifKey = 'child_${notif.id}_${notif.status}';
+
+              if (isChildAlert &&
+                  !_shownNotificationIds.contains(notifKey) &&
+                  notif.createdAt.isAfter(recentThreshold)) {
+                _shownNotificationIds.add(notifKey);
+                _showLocalNotification(notif);
+              }
+            } catch (e) {
+              if (kDebugMode) {
+                print('Error processing incoming child notification: $e');
+              }
+            }
+          }
+        }
+      },
+      onError: (e) {
+        if (kDebugMode) {
+          print('Error in child notifications subscription: $e');
         }
       },
     );
@@ -720,7 +802,10 @@ class NotificationService {
     await _foregroundSubscription?.cancel();
     await _tokenRefreshSubscription?.cancel();
     await _familyNotificationsSubscription?.cancel();
+    await _childNotificationsSubscription?.cancel();
     _listeningFamilyId = null;
+    _listeningChildId = null;
+    _shownNotificationIds.clear();
     _isInitialized = false;
   }
 }

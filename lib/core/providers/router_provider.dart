@@ -18,6 +18,8 @@ import '../../features/parent/presentation/screens/parent_dashboard_screen.dart'
 import '../../features/notifications/presentation/screens/parent_notifications_screen.dart';
 import '../../features/family/presentation/screens/pairing/qr_code_screen.dart';
 import '../../features/requests/presentation/screens/app_requests_screen.dart';
+import '../../features/parent/presentation/screens/parent_education_screen.dart';
+import '../../features/child/presentation/screens/child_education_screen.dart';
 import '../constants/app_routes.dart';
 import '../models/user_model.dart';
 import 'auth_provider.dart';
@@ -204,6 +206,26 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.joinFamily,
         name: 'join-family',
         builder: (context, state) => const JoinFamilyScreen(),
+      ),
+
+      // Education routes
+      GoRoute(
+        path: AppRoutes.parentEducation,
+        name: 'parent-education',
+        builder: (context, state) => const ParentEducationScreen(),
+      ),
+
+      GoRoute(
+        path: AppRoutes.childEducation,
+        name: 'child-education',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return ChildEducationScreen(
+            familyId: extra?['familyId'],
+            childId: extra?['childId'],
+            childName: extra?['childName'],
+          );
+        },
       ),
 
       // Notifications route

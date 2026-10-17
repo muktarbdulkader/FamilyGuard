@@ -10,6 +10,9 @@ import '../../../../core/services/app_scanner_service.dart';
 import '../../../../core/services/monitoring_service.dart';
 import '../../../../core/services/permission_service.dart';
 import '../../../../core/services/location_service.dart';
+import '../../../../core/services/education_service.dart';
+import '../../../../core/services/notification_service.dart';
+import '../../../child/presentation/screens/child_education_screen.dart';
 
 /// Child home screen - Modern, friendly status interface for protected devices
 class ChildHomeScreen extends ConsumerStatefulWidget {
@@ -54,6 +57,9 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
     final childName = (user.displayName as String?) ?? (user.name as String?) ?? 'Child';
     if (familyId == null || childId == null) return;
 
+    // Start real-time child notification listener for access approvals and alerts
+    NotificationService.instance.startChildNotificationListener(childId);
+
     unawaited(() async {
       try {
         final scanner = AppScannerService();
@@ -97,14 +103,14 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: isDark
-                ? [const Color(0xFF0F172A), const Color(0xFF064E3B)]
-                : [const Color(0xFFECFDF5), const Color(0xFFF8FAFC)],
+                ? [const Color(0xFF0F172A), const Color(0xFF1E1B4B), const Color(0xFF0F172A)]
+                : [const Color(0xFFEEF2FF), const Color(0xFFF8FAFC), const Color(0xFFEDE9FE)],
           ),
         ),
         child: SafeArea(
           child: userData.when(
             loading: () => const Center(
-              child: CircularProgressIndicator(color: Color(0xFF10B981)),
+              child: CircularProgressIndicator(color: Color(0xFF4F46E5)),
             ),
             error: (error, stack) => Center(
               child: Padding(
@@ -236,12 +242,12 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                               height: 44,
                               decoration: BoxDecoration(
                                 gradient: const LinearGradient(
-                                  colors: [Color(0xFF059669), Color(0xFF10B981)],
+                                  colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
                                 ),
                                 borderRadius: BorderRadius.circular(14),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(0xFF10B981).withOpacity(0.3),
+                                    color: const Color(0xFF4F46E5).withOpacity(0.3),
                                     blurRadius: 8,
                                     offset: const Offset(0, 3),
                                   ),
@@ -341,14 +347,14 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                       padding: const EdgeInsets.all(22),
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
-                          colors: [Color(0xFF059669), Color(0xFF10B981), Color(0xFF14B8A6)],
+                          colors: [Color(0xFF4F46E5), Color(0xFF6366F1), Color(0xFF7C3AED)],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
                         borderRadius: BorderRadius.circular(22),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF10B981).withOpacity(0.35),
+                            color: const Color(0xFF4F46E5).withOpacity(0.35),
                             blurRadius: 18,
                             offset: const Offset(0, 8),
                           ),
@@ -467,6 +473,10 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                         statusColor: const Color(0xFF7C3AED),
                         onTap: () => context.push(AppRoutes.childStatus),
                       ),
+                      const SizedBox(height: 10),
+                      // Study Tasks card - show only when child is in a family
+                      if (user?.hasFamily == true && user?.familyId != null)
+                        _buildStudyTasksCard(context, user!.familyId!, user.uid),
                       const SizedBox(height: 24),
                     ]),
                   ),
@@ -474,6 +484,111 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStudyTasksCard(BuildContext context, String familyId, String childId) {
+    final materialsAsync = ref.watch(
+      childEducationalMaterialsProvider((familyId: familyId, childId: childId)),
+    );
+
+    final pendingCount = materialsAsync.when(
+      data: (materials) => materials.where((m) => !m.isCompletedBy(childId)).length,
+      loading: () => 0,
+      error: (_, __) => 0,
+    );
+
+    final userData = ref.watch(currentUserDataProvider);
+    final childName = userData.whenData((u) => u?.displayName ?? 'Me').value ?? 'Me';
+
+    return InkWell(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChildEducationScreen(
+            familyId: familyId,
+            childId: childId,
+            childName: childName,
+          ),
+        ),
+      ),
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF4F46E5), Color(0xFF6D28D9)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF4F46E5).withOpacity(0.3),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(9),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.school_rounded, color: Colors.white, size: 22),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'My Learning',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  Text(
+                    pendingCount > 0
+                        ? '$pendingCount lesson${pendingCount != 1 ? 's' : ''} waiting for you!'
+                        : 'Explore educational materials from parent',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.85),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (pendingCount > 0)
+              Container(
+                width: 26,
+                height: 26,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(
+                    '$pendingCount',
+                    style: const TextStyle(
+                      color: Color(0xFF4F46E5),
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              )
+            else
+              const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white70, size: 16),
+          ],
         ),
       ),
     );

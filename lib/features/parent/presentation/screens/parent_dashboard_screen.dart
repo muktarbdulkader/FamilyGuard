@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,6 +15,9 @@ import '../widgets/child_selector.dart';
 import '../widgets/app_usage_indicator.dart';
 import '../widgets/app_rule_editor_sheet.dart';
 import '../../../apps/presentation/screens/parent_app_management_screen.dart';
+import '../widgets/send_educational_dialog.dart';
+import '../../../../core/services/education_service.dart';
+import '../../../../core/providers/auth_provider.dart';
 
 /// Main parent dashboard screen with family and child selection
 /// Professional UI for managing parental controls
@@ -108,23 +110,43 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                         icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
                         onPressed: () => Navigator.of(context).maybePop(),
                       ),
-                      Icon(Icons.family_restroom, size: 28, color: Colors.blue[600]),
-                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF4F46E5).withOpacity(0.25),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(Icons.family_restroom_rounded, size: 22, color: Colors.white),
+                      ),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
+                            const Text(
                               'Family Controls',
-                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blue[800],
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 18,
+                                color: Color(0xFF0F172A),
+                                letterSpacing: -0.3,
                               ),
                             ),
-                            Text(
+                            const Text(
                               'Parental Control Dashboard',
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Colors.grey[600],
+                              style: TextStyle(
+                                color: Color(0xFF64748B),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
                           ],
@@ -132,7 +154,7 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                       ),
                       IconButton(
                         onPressed: () => _showSettings(),
-                        icon: const Icon(Icons.settings_outlined),
+                        icon: const Icon(Icons.settings_outlined, color: Color(0xFF64748B)),
                         tooltip: 'Settings',
                       ),
                     ],
@@ -203,13 +225,16 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
               color: Colors.white,
               child: TabBar(
                 controller: _tabController,
-                labelColor: Colors.blue[700],
-                unselectedLabelColor: Colors.grey[600],
-                indicatorColor: Colors.blue[700],
+                labelColor: const Color(0xFF4F46E5),
+                unselectedLabelColor: const Color(0xFF64748B),
+                indicatorColor: const Color(0xFF4F46E5),
+                indicatorWeight: 3,
+                labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
                 tabs: const [
-                  Tab(text: 'Apps', icon: Icon(Icons.apps_outlined, size: 20)),
-                  Tab(text: 'Usage', icon: Icon(Icons.bar_chart_outlined, size: 20)),
-                  Tab(text: 'Location', icon: Icon(Icons.location_on_outlined, size: 20)),
+                  Tab(text: 'Apps', icon: Icon(Icons.apps_rounded, size: 20)),
+                  Tab(text: 'Usage', icon: Icon(Icons.bar_chart_rounded, size: 20)),
+                  Tab(text: 'Location', icon: Icon(Icons.location_on_rounded, size: 20)),
                 ],
               ),
             ),
@@ -227,7 +252,7 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                         )
                       : _buildNoSelectionPrompt(
                           icon: Icons.apps_rounded,
-                          color: Colors.blue,
+                          color: const Color(0xFF4F46E5),
                           title: 'Select a Child to Manage Apps',
                           subtitle:
                               'Choose a family and child above to see installed apps and set rules.',
@@ -242,7 +267,7 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                         )
                       : _buildNoSelectionPrompt(
                           icon: Icons.bar_chart_rounded,
-                          color: Colors.green,
+                          color: const Color(0xFF7C3AED),
                           title: 'Select a Child to View Usage',
                           subtitle:
                               'Choose a child above to view their screen time reports.',
@@ -540,13 +565,13 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                           label: 'Active Apps',
                           value: '$activeAppsCount',
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 8),
                         _buildUsageStatPill(
                           icon: Icons.launch_rounded,
                           label: 'App Launches',
                           value: '$totalOpens',
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 8),
                         _buildUsageStatPill(
                           icon: Icons.sync_rounded,
                           label: 'Live Sync',
@@ -558,6 +583,23 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                 ),
               );
             },
+          ),
+
+          const SizedBox(height: 20),
+
+          // ── Send Study Material Card ───────────────────────────────
+          _buildSendEducationCard(
+            familyId: familyId,
+            childId: childId,
+            childName: childName,
+          ),
+
+          const SizedBox(height: 16),
+
+          // ── Education Tasks Sent ───────────────────────────────────
+          _buildEducationTasksSection(
+            familyId: familyId,
+            childId: childId,
           ),
 
           const SizedBox(height: 24),
@@ -677,6 +719,295 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
     );
   }
 
+  // ── Send Education Card ──────────────────────────────────────────────────
+  Widget _buildSendEducationCard({
+    required String familyId,
+    required String childId,
+    required String childName,
+  }) {
+    final parentName = ref.watch(authNotifierProvider).user?.displayName ?? 'Parent';
+
+    return InkWell(
+      onTap: () => SendEducationalDialog.show(
+        context,
+        familyId: familyId,
+        childId: childId,
+        childName: childName,
+        parentName: parentName,
+      ),
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF4F46E5).withOpacity(0.35),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(Icons.school_rounded, color: Colors.white, size: 26),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Send Study Material',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    'Share videos, links & tasks with $childName',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.85),
+                      fontSize: 12,
+                      height: 1.3,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.send_rounded, size: 14, color: Color(0xFF4F46E5)),
+                  SizedBox(width: 4),
+                  Text(
+                    'Send',
+                    style: TextStyle(
+                      color: Color(0xFF4F46E5),
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Education Tasks Section ─────────────────────────────────────────────
+  Widget _buildEducationTasksSection({
+    required String familyId,
+    required String childId,
+  }) {
+    final tasksAsync = ref.watch(
+      childEducationTasksProvider((familyId: familyId, childId: childId)),
+    );
+
+    return tasksAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (tasks) {
+        if (tasks.isEmpty) return const SizedBox.shrink();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  '📚 Study Tasks Sent',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+                Text(
+                  '${tasks.length} task${tasks.length != 1 ? 's' : ''}',
+                  style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            ...tasks.take(3).map((task) => _buildEducationTaskCard(
+              task: task,
+              familyId: familyId,
+              childId: childId,
+            )),
+            if (tasks.length > 3)
+              TextButton.icon(
+                onPressed: () {},
+                icon: const Icon(Icons.expand_more_rounded, size: 16),
+                label: Text('View all ${tasks.length} tasks'),
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFF4F46E5),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildEducationTaskCard({
+    required dynamic task,
+    required String familyId,
+    required String childId,
+  }) {
+    final color = _subjectColor(task.subject as String);
+    final icon = _subjectIcon(task.subject as String);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: task.isCompleted ? Colors.green[200]! : Colors.grey[200]!,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        task.title as String,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          color: task.isCompleted ? Colors.grey[500] : const Color(0xFF0F172A),
+                          decoration: task.isCompleted ? TextDecoration.lineThrough : null,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: color.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        task.subject as String,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: color,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if ((task.note as String).isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    task.note as String,
+                    style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (task.isCompleted)
+                const Icon(Icons.check_circle_rounded, color: Colors.green, size: 22)
+              else
+                Icon(Icons.schedule_rounded, color: Colors.orange[400], size: 20),
+              const SizedBox(height: 4),
+              InkWell(
+                onTap: () async {
+                  await ref.read(educationServiceProvider).deleteTask(
+                    familyId: familyId,
+                    childId: childId,
+                    taskId: task.id as String,
+                  );
+                },
+                child: Icon(Icons.delete_outline_rounded, size: 18, color: Colors.red[300]),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _subjectColor(String subject) {
+    switch (subject) {
+      case 'Math': return const Color(0xFF2563EB);
+      case 'Reading': return const Color(0xFFD97706);
+      case 'Language': return const Color(0xFF7C3AED);
+      case 'Video': return const Color(0xFFDC2626);
+      case 'Assignment': return const Color(0xFF0891B2);
+      default: return const Color(0xFF059669);
+    }
+  }
+
+  IconData _subjectIcon(String subject) {
+    switch (subject) {
+      case 'Math': return Icons.calculate_rounded;
+      case 'Reading': return Icons.menu_book_rounded;
+      case 'Language': return Icons.translate_rounded;
+      case 'Video': return Icons.play_circle_fill_rounded;
+      case 'Assignment': return Icons.assignment_rounded;
+      default: return Icons.science_rounded;
+    }
+  }
+
   Widget _buildUsageStatPill({
     required IconData icon,
     required String label,
@@ -684,7 +1015,7 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
   }) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
         decoration: BoxDecoration(
           color: const Color(0xFF334155).withOpacity(0.5),
           borderRadius: BorderRadius.circular(10),
@@ -694,21 +1025,27 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
           children: [
             Row(
               children: [
-                Icon(icon, size: 14, color: const Color(0xFF94A3B8)),
-                const SizedBox(width: 4),
-                Text(
-                  label,
-                  style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11),
+                Icon(icon, size: 13, color: const Color(0xFF94A3B8)),
+                const SizedBox(width: 3),
+                Expanded(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 10),
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 4),
             Text(
               value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
-                fontSize: 15,
+                fontSize: 14,
               ),
             ),
           ],

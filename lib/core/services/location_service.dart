@@ -402,10 +402,10 @@ class LocationService {
 
     final now = DateTime.now();
 
-    // Throttle: don't write more frequently than once every 15 seconds
+    // Throttle: don't write more frequently than once every 90 seconds to conserve quota
     if (_lastUpdateTime != null) {
       final timeSinceLastUpdate = now.difference(_lastUpdateTime!);
-      if (timeSinceLastUpdate < const Duration(seconds: 15)) {
+      if (timeSinceLastUpdate < const Duration(seconds: 90)) {
         return;
       }
     }

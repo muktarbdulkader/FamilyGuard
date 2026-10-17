@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 enum NotificationType {
   appRequest,
+  appApproved,
+  appDenied,
   newAppDetected,
   dailyLimitReached,
   deviceOffline,
@@ -31,6 +33,17 @@ class ParentNotification {
   final DateTime? readAt;
   final DateTime? expiresAt;
   final bool isRead;
+  final String? status;
+  final int? grantedMinutes;
+
+  bool get isApproved =>
+      status?.toLowerCase() == 'approved' ||
+      (data['isApproved'] == true) ||
+      (data['status']?.toString().toLowerCase() == 'approved');
+  bool get isDenied =>
+      status?.toLowerCase() == 'denied' ||
+      (data['isDenied'] == true) ||
+      (data['status']?.toString().toLowerCase() == 'denied');
 
   const ParentNotification({
     required this.id,
@@ -46,6 +59,8 @@ class ParentNotification {
     this.readAt,
     this.expiresAt,
     this.isRead = false,
+    this.status,
+    this.grantedMinutes,
   });
 
   factory ParentNotification.fromFirestore(DocumentSnapshot doc) {
@@ -81,6 +96,8 @@ class ParentNotification {
     final rawType = (data['type'] ?? nestedData['type'] ?? '').toString();
     final NotificationType resolvedType = switch (rawType) {
       'appRequest' || 'app_request' || 'blocked_app_attempt' => NotificationType.appRequest,
+      'appApproved' || 'app_approved' || 'request_approved' => NotificationType.appApproved,
+      'appDenied' || 'app_denied' || 'request_denied' => NotificationType.appDenied,
       'newAppDetected' || 'new_app_detected' => NotificationType.newAppDetected,
       'dailyLimitReached' || 'daily_limit_reached' => NotificationType.dailyLimitReached,
       'deviceOffline' || 'device_offline' => NotificationType.deviceOffline,
@@ -124,6 +141,8 @@ class ParentNotification {
       readAt: (data['readAt'] as Timestamp?)?.toDate(),
       expiresAt: (data['expiresAt'] as Timestamp?)?.toDate(),
       isRead: data['isRead'] ?? false,
+      status: (data['status'] ?? nestedData['status'])?.toString(),
+      grantedMinutes: ((data['grantedMinutes'] ?? nestedData['grantedMinutes']) as num?)?.toInt(),
     );
   }
 
@@ -141,6 +160,8 @@ class ParentNotification {
       'readAt': readAt != null ? Timestamp.fromDate(readAt!) : null,
       'expiresAt': expiresAt != null ? Timestamp.fromDate(expiresAt!) : null,
       'isRead': isRead,
+      'status': status,
+      'grantedMinutes': grantedMinutes,
     };
   }
 
@@ -249,6 +270,10 @@ class NotificationTemplate {
     switch (type) {
       case NotificationType.appRequest:
         return '$name: App Permission Request';
+      case NotificationType.appApproved:
+        return '🎉 $name: Access Approved';
+      case NotificationType.appDenied:
+        return '❌ $name: Access Denied';
       case NotificationType.newAppDetected:
         return '$name: New App Detected';
       case NotificationType.dailyLimitReached:
@@ -272,6 +297,15 @@ class NotificationTemplate {
         final requestedMinutes = data['requestedMinutes'] ?? 30;
         return '$name requested to use $appName for $requestedMinutes minutes.';
       
+      case NotificationType.appApproved:
+        final appName = data['appName'] ?? 'an app';
+        final minutes = data['grantedMinutes'] ?? 30;
+        return 'Your parent approved $minutes minutes of access to $appName.';
+
+      case NotificationType.appDenied:
+        final appName = data['appName'] ?? 'an app';
+        return 'Your request for access to $appName was denied.';
+
       case NotificationType.newAppDetected:
         final appName = data['appName'] ?? 'A new app';
         return '$appName was installed on $name\'s device.';
@@ -298,6 +332,8 @@ class NotificationTemplate {
   static NotificationPriority getPriority(NotificationType type) {
     switch (type) {
       case NotificationType.appRequest:
+      case NotificationType.appApproved:
+      case NotificationType.appDenied:
         return NotificationPriority.high;
       case NotificationType.permissionDisabled:
       case NotificationType.serviceUnavailable:
@@ -315,6 +351,9 @@ class NotificationTemplate {
     switch (type) {
       case NotificationType.appRequest:
         return const Duration(minutes: 15); // Request expires in 15 minutes
+      case NotificationType.appApproved:
+      case NotificationType.appDenied:
+        return const Duration(hours: 12);
       case NotificationType.deviceOnline:
         return const Duration(hours: 1); // Status change notifications expire quickly
       case NotificationType.deviceOffline:

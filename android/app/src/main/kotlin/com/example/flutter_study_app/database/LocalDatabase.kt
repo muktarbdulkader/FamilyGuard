@@ -326,20 +326,31 @@ class LocalDatabase private constructor(context: Context) :
             arrayOf(packageName),
             null,
             null,
-            null
+            "$APPROVAL_APPROVED_AT DESC"
         )
         
         return cursor.use { c ->
-            if (c.moveToFirst()) {
-                RuleEngine.TemporaryApproval(
-                    packageName = c.getString(c.getColumnIndexOrThrow(APPROVAL_PACKAGE_NAME)),
-                    approvedAt = LocalDateTime.parse(c.getString(c.getColumnIndexOrThrow(APPROVAL_APPROVED_AT))),
-                    durationMinutes = c.getInt(c.getColumnIndexOrThrow(APPROVAL_DURATION)),
-                    approvedBy = c.getString(c.getColumnIndexOrThrow(APPROVAL_APPROVED_BY))
-                )
-            } else {
-                null
+            val now = LocalDateTime.now()
+            while (c.moveToNext()) {
+                try {
+                    val approvedAtStr = c.getString(c.getColumnIndexOrThrow(APPROVAL_APPROVED_AT))
+                    val duration = c.getInt(c.getColumnIndexOrThrow(APPROVAL_DURATION))
+                    val approvedBy = c.getString(c.getColumnIndexOrThrow(APPROVAL_APPROVED_BY))
+                    val approvedAt = LocalDateTime.parse(approvedAtStr, DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+                    val approval = RuleEngine.TemporaryApproval(
+                        packageName = packageName,
+                        approvedAt = approvedAt,
+                        durationMinutes = duration,
+                        approvedBy = approvedBy
+                    )
+                    if (!approval.isExpired(now)) {
+                        return@use approval
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.w("LocalDatabase", "Error parsing active temporary approval", e)
+                }
             }
+            null
         }
     }
     

@@ -6,6 +6,9 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../../core/constants/app_routes.dart';
 import '../../../../core/providers/auth_provider.dart';
 import '../../../../core/providers/user_provider.dart';
+import '../../../../core/providers/family_provider.dart';
+import '../../../../core/providers/notification_provider.dart';
+import '../../../../core/providers/request_provider.dart';
 import '../../../../core/services/notification_service.dart';
 
 /// Premium Parent Home Dashboard with modern UI, live children status, and quick tools
@@ -15,7 +18,9 @@ class ParentHomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final userData = ref.watch(currentUserDataProvider);
-    final familyId = userData.value?.familyId;
+    final familyId = userData.value?.familyId ??
+        ref.watch(selectedFamilyProvider)?.id ??
+        ref.watch(userFamiliesProvider).value?.firstOrNull?.id;
     if (familyId != null && familyId.isNotEmpty) {
       NotificationService.instance.startParentNotificationListener(familyId);
     }
@@ -140,61 +145,111 @@ class ParentHomeScreen extends ConsumerWidget {
                             ),
                           ],
                         ),
-                        PopupMenuButton<String>(
-                          icon: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.05),
-                                  blurRadius: 6,
-                                  offset: const Offset(0, 2),
+                        Row(
+                          children: [
+                            IconButton(
+                              onPressed: () => context.push('/notifications'),
+                              icon: Stack(
+                                clipBehavior: Clip.none,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                      borderRadius: BorderRadius.circular(12),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.05),
+                                          blurRadius: 6,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: const Icon(Icons.notifications_rounded, size: 20),
+                                  ),
+                                  if (ref.watch(unreadNotificationCountProvider) > 0)
+                                    Positioned(
+                                      top: -2,
+                                      right: -2,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(4),
+                                        decoration: const BoxDecoration(
+                                          color: Color(0xFFEF4444),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                                        child: Text(
+                                          '${ref.watch(unreadNotificationCountProvider)}',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            PopupMenuButton<String>(
+                              icon: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.05),
+                                      blurRadius: 6,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: const Icon(Icons.more_vert_rounded, size: 20),
+                              ),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              itemBuilder: (context) => [
+                                const PopupMenuItem(
+                                  value: 'notifications',
+                                  child: ListTile(
+                                    leading: Icon(Icons.notifications_rounded, color: Color(0xFF4F46E5)),
+                                    title: Text('Notifications'),
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
+                                ),
+                                const PopupMenuItem(
+                                  value: 'role',
+                                  child: ListTile(
+                                    leading: Icon(Icons.swap_horiz_rounded, color: Color(0xFF10B981)),
+                                    title: Text('Switch Role'),
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
+                                ),
+                                const PopupMenuItem(
+                                  value: 'logout',
+                                  child: ListTile(
+                                    leading: Icon(Icons.logout_rounded, color: Color(0xFFEF4444)),
+                                    title: Text('Sign Out'),
+                                    contentPadding: EdgeInsets.zero,
+                                  ),
                                 ),
                               ],
-                            ),
-                            child: const Icon(Icons.more_vert_rounded, size: 20),
-                          ),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          itemBuilder: (context) => [
-                            const PopupMenuItem(
-                              value: 'notifications',
-                              child: ListTile(
-                                leading: Icon(Icons.notifications_rounded, color: Color(0xFF4F46E5)),
-                                title: Text('Notifications'),
-                                contentPadding: EdgeInsets.zero,
-                              ),
-                            ),
-                            const PopupMenuItem(
-                              value: 'role',
-                              child: ListTile(
-                                leading: Icon(Icons.swap_horiz_rounded, color: Color(0xFF10B981)),
-                                title: Text('Switch Role'),
-                                contentPadding: EdgeInsets.zero,
-                              ),
-                            ),
-                            const PopupMenuItem(
-                              value: 'logout',
-                              child: ListTile(
-                                leading: Icon(Icons.logout_rounded, color: Color(0xFFEF4444)),
-                                title: Text('Sign Out'),
-                                contentPadding: EdgeInsets.zero,
-                              ),
+                              onSelected: (value) async {
+                                if (value == 'notifications') {
+                                  context.push('/notifications');
+                                } else if (value == 'role') {
+                                  context.push(AppRoutes.roleSelection);
+                                } else if (value == 'logout') {
+                                  await ref.read(authNotifierProvider.notifier).signOut();
+                                  if (context.mounted) {
+                                    context.go(AppRoutes.login);
+                                  }
+                                }
+                              },
                             ),
                           ],
-                          onSelected: (value) async {
-                            if (value == 'notifications') {
-                              context.push('/notifications');
-                            } else if (value == 'role') {
-                              context.push(AppRoutes.roleSelection);
-                            } else if (value == 'logout') {
-                              await ref.read(authNotifierProvider.notifier).signOut();
-                              if (context.mounted) {
-                                context.go(AppRoutes.login);
-                              }
-                            }
-                          },
                         ),
                       ],
                     ),
@@ -279,6 +334,10 @@ class ParentHomeScreen extends ConsumerWidget {
                   ),
                 ),
 
+                // Pending Requests Banner
+                if (familyId != null)
+                  _PendingRequestsBanner(familyId: familyId, isDark: isDark),
+
                 // Connected Children Header
                 SliverToBoxAdapter(
                   child: Padding(
@@ -307,7 +366,7 @@ class ParentHomeScreen extends ConsumerWidget {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: _buildChildrenSection(context, user?.familyId, isDark),
+                    child: _buildChildrenSection(context, familyId, isDark),
                   ),
                 ),
 
@@ -361,6 +420,13 @@ class ParentHomeScreen extends ConsumerWidget {
                         subtitle: 'Approve child access',
                         gradientColors: const [Color(0xFF7C3AED), Color(0xFF8B5CF6)],
                         onTap: () => context.push(AppRoutes.parentRequests),
+                      ),
+                      _QuickActionTile(
+                        icon: Icons.school_rounded,
+                        title: 'Education Center',
+                        subtitle: 'Upload & assign lessons',
+                        gradientColors: const [Color(0xFF0284C7), Color(0xFF0EA5E9)],
+                        onTap: () => context.push(AppRoutes.parentEducation),
                       ),
                     ],
                   ),
@@ -648,6 +714,121 @@ class _QuickActionTile extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _PendingRequestsBanner extends ConsumerWidget {
+  final String familyId;
+  final bool isDark;
+
+  const _PendingRequestsBanner({required this.familyId, required this.isDark});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pendingAsync = ref.watch(parentPendingRequestsProvider([familyId]));
+
+    return pendingAsync.when(
+      data: (requests) {
+        if (requests.isEmpty) return const SliverToBoxAdapter(child: SizedBox.shrink());
+        final count = requests.length;
+        final firstReq = requests.first.request;
+        final childName = requests.first.child?.displayName ?? firstReq.childName ?? 'Child';
+        final appName = firstReq.appName;
+
+        return SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            child: Material(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(16),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: () => context.push(AppRoutes.parentRequests),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFEF3C7), Color(0xFFFDE68A)],
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.4)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFF59E0B).withOpacity(0.15),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF59E0B),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.notifications_active_rounded, color: Colors.white, size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  count == 1 ? '1 Pending App Request' : '$count Pending App Requests',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                    color: Color(0xFF92400E),
+                                  ),
+                                ),
+                                const Spacer(),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFDC2626),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: const Text(
+                                    'ACTION NEEDED',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              count == 1
+                                  ? '$childName requested permission for $appName'
+                                  : '$childName and others are waiting for permission',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF78350F),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Color(0xFF92400E)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+      loading: () => const SliverToBoxAdapter(child: SizedBox.shrink()),
+      error: (_, __) => const SliverToBoxAdapter(child: SizedBox.shrink()),
     );
   }
 }

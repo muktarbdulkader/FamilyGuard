@@ -225,9 +225,18 @@ class _ParentAppManagementScreenState
       appBar: AppBar(
         title: const Text(
           'App Management',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.2),
         ),
-        backgroundColor: const Color(0xFF1E3A8A),
+        backgroundColor: const Color(0xFF4F46E5),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
@@ -307,7 +316,7 @@ class _ParentAppManagementScreenState
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircularProgressIndicator(color: Color(0xFF1E3A8A)),
+              CircularProgressIndicator(color: Color(0xFF4F46E5)),
               SizedBox(height: 16),
               Text(
                 'Loading child applications...',
@@ -403,7 +412,7 @@ class _ParentAppManagementScreenState
                           _buildMetricChip(
                             label: 'Total',
                             count: totalCount,
-                            color: const Color(0xFF1E3A8A),
+                            color: const Color(0xFF4F46E5),
                             isSelected: _activeFilter == _AppFilter.all,
                             onTap: () =>
                                 setState(() => _activeFilter = _AppFilter.all),
@@ -439,7 +448,7 @@ class _ParentAppManagementScreenState
                           _buildMetricChip(
                             label: 'Timed',
                             count: timedCount,
-                            color: const Color(0xFF2563EB),
+                            color: const Color(0xFF7C3AED),
                             isSelected: _activeFilter == _AppFilter.timeLimited,
                             onTap: () => setState(
                                 () => _activeFilter = _AppFilter.timeLimited),
@@ -915,7 +924,7 @@ class _ParentAppManagementScreenState
 
   Widget _buildEmptyState(bool noAppsAtAll) {
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(32.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

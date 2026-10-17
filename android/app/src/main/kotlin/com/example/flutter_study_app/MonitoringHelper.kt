@@ -111,6 +111,20 @@ class MonitoringHelper(private val activity: Activity) {
                         result.success(false)
                     }
                 }
+                "openUrl" -> {
+                    val args = arguments as Map<String, Any>
+                    val urlString = args["url"] as String
+                    try {
+                        val formattedUrl = if (!urlString.startsWith("http://") && !urlString.startsWith("https://")) "https://$urlString" else urlString
+                        val browserIntent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(formattedUrl)).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        activity.startActivity(browserIntent)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("OPEN_URL_FAILED", e.message, null)
+                    }
+                }
                 else -> {
                     result.notImplemented()
                 }

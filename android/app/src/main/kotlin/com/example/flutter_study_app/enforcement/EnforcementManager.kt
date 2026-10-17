@@ -30,6 +30,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import java.time.LocalDateTime
 import java.util.UUID
 
@@ -288,7 +290,7 @@ class EnforcementManager(
     }
     
     /**
-     * Send real request to Firestore and notify parents
+     * Send real request to Firestore and notify parents quickly and reliably
      */
     fun requestParentPermission(packageName: String, overlayView: View?) {
         val appName = getAppName(packageName)
@@ -338,63 +340,28 @@ class EnforcementManager(
                     "requestNonce" to UUID.randomUUID().toString()
                 )
 
-                // 1. Write to families/{familyId}/requests/{reqId} (read by Parent AppRequestsScreen!)
-                firestore.collection("families")
-                    .document(familyId)
-                    .collection("requests")
-                    .document(reqId)
-                    .set(requestData, SetOptions.merge())
-                    .await()
+                // 1. Fast atomic write of request docs with 15s timeout
+                withTimeout(15000L) {
+                    val batch = firestore.batch()
+                    val famReq = firestore.collection("families")
+                        .document(familyId)
+                        .collection("requests")
+                        .document(reqId)
+                    val childReq = firestore.collection("families")
+                        .document(familyId)
+                        .collection("children")
+                        .document(childId)
+                        .collection("requests")
+                        .document(reqId)
 
-                // 2. Write to families/{familyId}/children/{childId}/requests/{reqId}
-                firestore.collection("families")
-                    .document(familyId)
-                    .collection("children")
-                    .document(childId)
-                    .collection("requests")
-                    .document(reqId)
-                    .set(requestData, SetOptions.merge())
-                    .await()
-
-                // 3. Create high-priority notification in notifications collection for parent app
-                val notificationData = hashMapOf(
-                    "familyId" to familyId,
-                    "childId" to childId,
-                    "childName" to childName,
-                    "type" to "appRequest",
-                    "priority" to "urgent",
-                    "title" to "📱 $childName: App Permission Request",
-                    "body" to "$childName requested access to use $appName (30 min). Tap to approve or deny.",
-                    "data" to hashMapOf(
-                        "type" to "app_request",
-                        "requestId" to reqId,
-                        "familyId" to familyId,
-                        "childId" to childId,
-                        "childName" to childName,
-                        "appName" to appName,
-                        "packageName" to packageName
-                    ),
-                    "createdAt" to now,
-                    "isRead" to false
-                )
-                firestore.collection("notifications").add(notificationData).await()
-
-                // 4. Log event in families/{familyId}/events
-                firestore.collection("families")
-                    .document(familyId)
-                    .collection("events")
-                    .add(hashMapOf(
-                        "type" to "app_request",
-                        "familyId" to familyId,
-                        "childId" to childId,
-                        "childName" to childName,
-                        "appName" to appName,
-                        "packageName" to packageName,
-                        "timestamp" to now
-                    ))
+                    batch.set(famReq, requestData, SetOptions.merge())
+                    batch.set(childReq, requestData, SetOptions.merge())
+                    batch.commit().await()
+                }
 
                 pendingRequestPackages.add(packageName)
 
+                // Immediately inform the child UI that the request was successfully sent
                 withContext(Dispatchers.Main) {
                     statusContainer?.visibility = View.VISIBLE
                     statusText?.text = "⏳ Request Sent! Waiting for parent..."
@@ -403,13 +370,67 @@ class EnforcementManager(
                     Toast.makeText(context, "Request sent to parents!", Toast.LENGTH_SHORT).show()
                 }
 
+                // 2. Send high-priority notification to parent in background (non-blocking)
+                launch {
+                    try {
+                        val notificationData = hashMapOf(
+                            "familyId" to familyId,
+                            "childId" to childId,
+                            "childName" to childName,
+                            "type" to "appRequest",
+                            "priority" to "urgent",
+                            "status" to "pending",
+                            "title" to "📱 $childName: App Permission Request",
+                            "body" to "$childName requested access to use $appName (30 min). Tap to approve or deny.",
+                            "data" to hashMapOf(
+                                "type" to "appRequest",
+                                "requestId" to reqId,
+                                "familyId" to familyId,
+                                "childId" to childId,
+                                "childName" to childName,
+                                "appName" to appName,
+                                "packageName" to packageName,
+                                "requestedMinutes" to 30,
+                                "status" to "pending"
+                            ),
+                            "createdAt" to now,
+                            "isRead" to false
+                        )
+                        firestore.collection("notifications").add(notificationData).await()
+                        try {
+                            firestore.collection("families")
+                                .document(familyId)
+                                .collection("notifications")
+                                .add(notificationData).await()
+                        } catch (ignored: Exception) {}
+                    } catch (e: Exception) {
+                        android.util.Log.w("EnforcementManager", "Background notification write: ${e.message}")
+                    }
+                }
+
+                // 3. Directly listen for instant approval on this specific request document
+                launch(Dispatchers.Main) {
+                    firestore.collection("families")
+                        .document(familyId)
+                        .collection("requests")
+                        .document(reqId)
+                        .addSnapshotListener { snapshot, error ->
+                            if (error != null || snapshot == null || !snapshot.exists()) return@addSnapshotListener
+                            val status = snapshot.getString("status")
+                            if (status != null && status.equals("approved", ignoreCase = true)) {
+                                val mins = snapshot.getLong("grantedMinutes")?.toInt() ?: 30
+                                onAppApproved(packageName, mins)
+                            }
+                        }
+                }
+
                 android.util.Log.d("EnforcementManager", "Successfully created pending app request for $appName ($packageName)")
             } catch (e: Exception) {
                 android.util.Log.e("EnforcementManager", "Failed to create app request for $packageName", e)
                 withContext(Dispatchers.Main) {
                     actionBtn?.isEnabled = true
                     actionBtn?.text = "Ask Parent"
-                    Toast.makeText(context, "Failed to send request: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, "Could not send: ${e.localizedMessage ?: "Please retry"}", Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -442,18 +463,20 @@ class EnforcementManager(
     private suspend fun resolveFamilyId(childId: String): String? {
         val cached = getCachedFamilyId()
         if (!cached.isNullOrBlank()) return cached
-        return try {
-            val firestore = FirebaseFirestore.getInstance()
-            val userDoc = firestore.collection("users").document(childId).get().await()
-            val fid = userDoc.getString("familyId")
-            if (!fid.isNullOrBlank()) {
-                context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                    .edit().putString("family_id", fid).apply()
-                fid
-            } else null
-        } catch (e: Exception) {
-            android.util.Log.e("EnforcementManager", "Error resolving familyId from user doc", e)
-            null
+        return withTimeoutOrNull(4000L) {
+            try {
+                val firestore = FirebaseFirestore.getInstance()
+                val userDoc = firestore.collection("users").document(childId).get().await()
+                val fid = userDoc.getString("familyId")
+                if (!fid.isNullOrBlank()) {
+                    context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                        .edit().putString("family_id", fid).apply()
+                    fid
+                } else null
+            } catch (e: Exception) {
+                android.util.Log.e("EnforcementManager", "Error resolving familyId from user doc", e)
+                null
+            }
         }
     }
 
@@ -552,28 +575,63 @@ class EnforcementManager(
     
     /**
      * Called when an app is approved by a parent in real time.
-     * Removes blocking overlay, shows confirmation notification, and launches the approved app.
+     * Updates overlay to show approved message, persists temporary approval to local DB, and launches app.
      */
-    fun onAppApproved(packageName: String) {
+    fun onAppApproved(packageName: String, grantedMinutes: Int? = null) {
         pendingRequestPackages.remove(packageName)
-        removeOverlayIfPresent(packageName)
+        val mins = grantedMinutes ?: 30
         
-        val temporaryApproval = database.getActiveTemporaryApproval(packageName)
-        if (temporaryApproval != null) {
-            showTemporaryApprovalNotification(packageName, temporaryApproval, force = true)
+        // Ensure local database immediately has the active temporary approval
+        val temporaryApproval = RuleEngine.TemporaryApproval(
+            packageName = packageName,
+            approvedAt = LocalDateTime.now(),
+            durationMinutes = mins,
+            approvedBy = "parent"
+        )
+        database.insertTemporaryApproval(temporaryApproval)
+        android.util.Log.d("EnforcementManager", "Inserted fresh temporary approval locally for $packageName ($mins min)")
+
+        // Show Approved status on overlay if currently showing
+        if (currentOverlayPackage == packageName && currentOverlay != null) {
+            try {
+                val statusContainer = currentOverlay?.findViewById<View>(R.id.overlay_status_container)
+                val statusText = currentOverlay?.findViewById<TextView>(R.id.overlay_status_text)
+                val actionBtn = currentOverlay?.findViewById<Button>(R.id.overlay_action)
+                statusContainer?.setBackgroundColor(android.graphics.Color.parseColor("#D1FAE5"))
+                statusContainer?.visibility = View.VISIBLE
+                statusText?.setTextColor(android.graphics.Color.parseColor("#065F46"))
+                statusText?.text = "✅ Access Approved by parent for $mins minutes!"
+                actionBtn?.isEnabled = true
+                actionBtn?.text = "Open App"
+                actionBtn?.setOnClickListener {
+                    removeOverlayIfPresent(packageName)
+                    launchApprovedApp(packageName)
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("EnforcementManager", "Error updating overlay to approved: ${e.message}")
+            }
         }
         
-        // Auto-launch the approved app for the child
+        showTemporaryApprovalNotification(packageName, temporaryApproval, force = true)
+
+        // Auto-launch after brief delay so user sees "Approved" confirmation
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+            removeOverlayIfPresent(packageName)
+            launchApprovedApp(packageName)
+        }, 1200L)
+    }
+
+    private fun launchApprovedApp(packageName: String) {
         try {
             val launchIntent = context.packageManager.getLaunchIntentForPackage(packageName)?.apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
             }
             if (launchIntent != null) {
                 context.startActivity(launchIntent)
-                android.util.Log.d("EnforcementManager", "Auto-launched approved app: $packageName")
+                android.util.Log.d("EnforcementManager", "Launched approved app: $packageName")
             }
         } catch (e: Exception) {
-            android.util.Log.w("EnforcementManager", "Could not auto-launch $packageName", e)
+            android.util.Log.w("EnforcementManager", "Could not launch $packageName", e)
         }
     }
 
