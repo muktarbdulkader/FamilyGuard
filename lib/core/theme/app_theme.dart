@@ -242,29 +242,122 @@ class AppTheme {
     );
   }
   
+  /// Modern Dark Navy & Teal Theme (matches Home screen)
+  static const Color darkNavyBg = Color(0xFF0C1829);
+  static const Color darkNavyCard = Color(0xFF132238);
+  static const Color darkNavyBorder = Color(0xFF1E3554);
+  static const Color tealAccent = Color(0xFF2DD4BF);
+  static const Color heroBg = Color(0xFF063D39);
+  static const Color heroBorder = Color(0xFF0D5E57);
+  static const Color textMutedDark = Color(0xFF8BA0B8);
+
   /// Dark theme configuration
   static ThemeData get darkTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
+      scaffoldBackgroundColor: darkNavyBg,
+      canvasColor: darkNavyBg,
       
       // Color Scheme
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: primaryColor,
+      colorScheme: const ColorScheme(
         brightness: Brightness.dark,
-        primary: primaryColor,
-        secondary: secondaryColor,
+        primary: tealAccent,
+        onPrimary: darkNavyBg,
+        secondary: Color(0xFF38BDF8),
+        onSecondary: Colors.white,
         error: errorColor,
-        surface: const Color(0xFF2D3748),
+        onError: Colors.white,
+        surface: darkNavyCard,
+        onSurface: Colors.white,
+        surfaceContainerHighest: Color(0xFF1A2C47),
+        outline: darkNavyBorder,
       ),
       
-      // Dark theme specific configurations
+      // Card Theme
+      cardTheme: CardThemeData(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppConstants.cardRadius),
+          side: const BorderSide(color: darkNavyBorder, width: 1),
+        ),
+        color: darkNavyCard,
+        surfaceTintColor: Colors.transparent,
+      ),
+
+      // App Bar Theme
       appBarTheme: const AppBarTheme(
         elevation: 0,
-        scrolledUnderElevation: 1,
-        backgroundColor: backgroundDark,
+        scrolledUnderElevation: 0,
+        backgroundColor: darkNavyBg,
         foregroundColor: Colors.white,
         centerTitle: true,
+        titleTextStyle: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
+          color: Colors.white,
+        ),
+      ),
+
+      // Tab Bar Theme
+      tabBarTheme: const TabBarThemeData(
+        labelColor: tealAccent,
+        unselectedLabelColor: textMutedDark,
+        indicatorColor: tealAccent,
+        dividerColor: darkNavyBorder,
+        labelStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+        unselectedLabelStyle: TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+      ),
+
+      // Dialog Theme
+      dialogTheme: DialogThemeData(
+        backgroundColor: darkNavyCard,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: darkNavyBorder),
+        ),
+        titleTextStyle: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+        contentTextStyle: const TextStyle(
+          fontSize: 14,
+          color: Color(0xFFCBD5E1),
+        ),
+      ),
+
+      // Bottom Sheet Theme
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: darkNavyCard,
+        surfaceTintColor: Colors.transparent,
+        modalBackgroundColor: darkNavyCard,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+      ),
+
+      // Elevated Button Theme
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: tealAccent,
+          foregroundColor: darkNavyBg,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          textStyle: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+
+      // Divider Theme
+      dividerTheme: const DividerThemeData(
+        color: darkNavyBorder,
+        thickness: 1,
       ),
     );
   }

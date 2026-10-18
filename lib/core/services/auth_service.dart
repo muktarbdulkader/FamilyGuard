@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../models/user_model.dart';
 
 /// Production Firebase Authentication service
@@ -7,6 +8,7 @@ import '../models/user_model.dart';
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   /// Current Firebase user stream
   Stream<User?> get authStateChanges => _auth.authStateChanges();
@@ -107,8 +109,55 @@ class AuthService {
     }
   }
 
+  /// Sign in with Google Account
+  Future<AuthResult> signInWithGoogle() async {
+    try {
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        return AuthResult.failure('Google sign-in was cancelled');
+      }
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final AuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final UserCredential userCredential = await _auth.signInWithCredential(credential);
+      final User? user = userCredential.user;
+      if (user == null) {
+        return AuthResult.failure('Failed to sign in with Google');
+      }
+
+      // Check if user data exists in Firestore
+      UserModel? userData = await getUserData(user.uid);
+      if (userData == null) {
+        // First-time Google user -> create profile with UserRole.none so they select role
+        final now = DateTime.now();
+        userData = UserModel(
+          uid: user.uid,
+          email: (user.email ?? '').toLowerCase().trim(),
+          displayName: user.displayName ?? googleUser.displayName ?? 'Family Member',
+          role: UserRole.none,
+          createdAt: now,
+          updatedAt: now,
+        );
+        await _createUserDocument(userData);
+      }
+
+      return AuthResult.success(userData);
+    } on FirebaseAuthException catch (e) {
+      return AuthResult.failure(_getAuthErrorMessage(e));
+    } catch (e) {
+      return AuthResult.failure('Google sign-in error: ${e.toString()}');
+    }
+  }
+
   /// Sign out current user
   Future<void> signOut() async {
+    try {
+      await _googleSignIn.signOut();
+    } catch (_) {}
     try {
       await _auth.signOut();
     } catch (e) {
@@ -162,10 +211,12 @@ class AuthService {
   }
 
   /// Update user profile
-  Future<AuthResult> updateUserProfile({
+  Future<AuthResult<UserModel>> updateUserProfile({
     required String uid,
     String? displayName,
     String? email,
+    String? phoneNumber,
+    String? photoUrl,
   }) async {
     try {
       final updates = <String, dynamic>{
@@ -186,6 +237,15 @@ class AuthService {
         await _auth.currentUser?.verifyBeforeUpdateEmail(email.trim());
       }
 
+      if (phoneNumber != null) {
+        updates['phoneNumber'] = phoneNumber.trim();
+      }
+
+      if (photoUrl != null) {
+        updates['photoUrl'] = photoUrl.trim();
+        await _auth.currentUser?.updatePhotoURL(photoUrl.trim());
+      }
+
       // Update Firestore document
       await _firestore.collection('users').doc(uid).update(updates);
 
@@ -198,6 +258,40 @@ class AuthService {
       return AuthResult.success(userData);
     } catch (e) {
       return AuthResult.failure('Failed to update profile: ${e.toString()}');
+    }
+  }
+
+  /// Change password securely with reauthentication
+  Future<AuthResult<void>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null || user.email == null) {
+        return AuthResult.failure('No authenticated user found. Please sign in again.');
+      }
+      if (newPassword.length < 6) {
+        return AuthResult.failure('New password must be at least 6 characters.');
+      }
+
+      // Reauthenticate before sensitive password change
+      final cred = EmailAuthProvider.credential(
+        email: user.email!,
+        password: currentPassword,
+      );
+      await user.reauthenticateWithCredential(cred);
+
+      // Update password in Firebase Auth (never stored in Firestore)
+      await user.updatePassword(newPassword);
+      return AuthResult.success(null);
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+        return AuthResult.failure('Current password is incorrect.');
+      }
+      return AuthResult.failure(_getAuthErrorMessage(e));
+    } catch (e) {
+      return AuthResult.failure('Failed to change password: ${e.toString()}');
     }
   }
 
@@ -214,6 +308,39 @@ class AuthService {
       return AuthResult.failure(_getAuthErrorMessage(e));
     } catch (e) {
       return AuthResult.failure('Failed to send reset email: ${e.toString()}');
+    }
+  }
+
+  /// Reauthenticate and delete user account securely
+  Future<AuthResult<void>> reauthenticateAndDeleteAccount({
+    required String password,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null || user.email == null) {
+        return AuthResult.failure('No user signed in.');
+      }
+
+      final cred = EmailAuthProvider.credential(
+        email: user.email!,
+        password: password,
+      );
+      await user.reauthenticateWithCredential(cred);
+
+      // Delete user document from Firestore
+      await _firestore.collection('users').doc(user.uid).delete();
+
+      // Delete Firebase Auth user
+      await user.delete();
+
+      return AuthResult.success(null);
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+        return AuthResult.failure('Password is incorrect.');
+      }
+      return AuthResult.failure(_getAuthErrorMessage(e));
+    } catch (e) {
+      return AuthResult.failure('Failed to delete account: ${e.toString()}');
     }
   }
 

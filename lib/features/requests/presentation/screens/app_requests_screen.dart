@@ -33,27 +33,28 @@ class _AppRequestsScreenState extends ConsumerState<AppRequestsScreen>
   @override
   Widget build(BuildContext context) {
     final userAsync = ref.watch(currentUserDataProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: isDark ? const Color(0xFF0C1829) : const Color(0xFFF8FAFC),
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF0F172A),
-        title: const Column(
+        backgroundColor: isDark ? const Color(0xFF0C1829) : Colors.white,
+        foregroundColor: isDark ? Colors.white : const Color(0xFF0F172A),
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('App Requests',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: isDark ? Colors.white : const Color(0xFF0F172A))),
             Text('Approve or deny child access',
-                style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF8BA0B8) : const Color(0xFF64748B))),
           ],
         ),
         bottom: TabBar(
           controller: _tabController,
-          labelColor: const Color(0xFF4F46E5),
-          unselectedLabelColor: const Color(0xFF94A3B8),
-          indicatorColor: const Color(0xFF4F46E5),
+          labelColor: isDark ? const Color(0xFF2DD4BF) : const Color(0xFF4F46E5),
+          unselectedLabelColor: isDark ? const Color(0xFF8BA0B8) : const Color(0xFF94A3B8),
+          indicatorColor: isDark ? const Color(0xFF2DD4BF) : const Color(0xFF4F46E5),
           indicatorWeight: 3,
           tabs: const [
             Tab(text: 'Pending'),
@@ -271,12 +272,17 @@ class _RequestCard extends ConsumerWidget {
         ? 'Expired'
         : request.status.name[0].toUpperCase() + request.status.name.substring(1);
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF132238) : Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: statusColor.withOpacity(0.25), width: 1.5),
+        border: Border.all(
+          color: isDark ? const Color(0xFF1E3554) : statusColor.withOpacity(0.25),
+          width: 1.5,
+        ),
         boxShadow: [
           BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 3)),
         ],
@@ -293,12 +299,18 @@ class _RequestCard extends ConsumerWidget {
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
+                    gradient: LinearGradient(
+                      colors: isDark
+                          ? [const Color(0xFF063D39), const Color(0xFF0D5E57)]
+                          : [const Color(0xFF4F46E5), const Color(0xFF7C3AED)],
                     ),
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: const Icon(Icons.apps_rounded, color: Colors.white, size: 26),
+                  child: Icon(
+                    Icons.apps_rounded,
+                    color: isDark ? const Color(0xFF2DD4BF) : Colors.white,
+                    size: 26,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -307,14 +319,22 @@ class _RequestCard extends ConsumerWidget {
                     children: [
                       Text(
                         request.appName.isNotEmpty ? request.appName : request.packageName,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                       if (request.childName != null && request.childName!.isNotEmpty)
                         Text(
                           'Requested by: ${request.childName}',
-                          style: const TextStyle(fontSize: 12, color: Color(0xFF4F46E5), fontWeight: FontWeight.w600),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDark ? const Color(0xFF2DD4BF) : const Color(0xFF4F46E5),
+                            fontWeight: FontWeight.w600,
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),

@@ -160,61 +160,6 @@ final activePermissionsProvider = FutureProvider.family<List<TemporaryPermission
   return [];
 });
 
-// Helper function to combine child requests from multiple children
-Stream<List<AppRequestWithChild>> _combineChildRequests(String familyId, List<String> childIds) async* {
-  // This is a simplified implementation
-  // In production, you'd want to use a more efficient stream combination
-  
-  final streams = childIds.map((childId) {
-    return FirebaseFirestore.instance
-        .collection('families')
-        .doc(familyId)
-        .collection('children')
-        .doc(childId)
-        .collection('requests')
-        .where('status', isEqualTo: 'pending')
-        .snapshots()
-        .asyncMap((snapshot) async {
-      // Get child info
-      final childDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(childId)
-          .get();
-      
-      ChildModel? child;
-      if (childDoc.exists) {
-        final childData = childDoc.data()!;
-        child = ChildModel(
-          id: childId,
-          displayName: childData['displayName'] ?? 'Unknown Child',
-          email: childData['email'] ?? '',
-          familyId: familyId,
-          joinedAt: (childData['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-          lastActiveAt: (childData['lastActiveAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-          isOnline: childData['isOnline'] ?? false,
-          deviceInfo: childData['deviceInfo'],
-          preferences: Map<String, dynamic>.from(childData['preferences'] ?? {}),
-        );
-      }
-      
-      return snapshot.docs
-          .map((doc) => AppRequestWithChild(
-                request: AppRequest.fromFirestore(doc),
-                child: child,
-              ))
-          .toList();
-    });
-  });
-  
-  // For simplicity, just yield from first child's stream
-  // In production, would properly combine all streams
-  if (streams.isNotEmpty) {
-    yield* streams.first;
-  } else {
-    yield [];
-  }
-}
-
 /// Combined request and child data for parent UI
 class AppRequestWithChild {
   final AppRequest request;

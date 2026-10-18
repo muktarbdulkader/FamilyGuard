@@ -3,9 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'l10n/app_localizations.dart';
 import 'core/providers/router_provider.dart';
+import 'core/providers/locale_provider.dart';
 import 'core/services/notification_service.dart';
 import 'core/theme/app_theme.dart';
+import 'core/providers/theme_provider.dart';
 import 'core/constants/app_constants.dart';
 import 'firebase_options.dart';
 
@@ -27,6 +31,14 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+    try {
+      FirebaseFirestore.instance.settings = const Settings(
+        persistenceEnabled: true,
+        cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+      );
+    } catch (e) {
+      debugPrint('Firestore settings notice: $e');
+    }
   } catch (e) {
     debugPrint('Firebase init notice: $e');
   }
@@ -43,15 +55,6 @@ void main() async {
 
   // Heavy initialization runs in background AFTER first frame is painted
   Future.microtask(() async {
-    try {
-      // Enable Firestore offline persistence
-      FirebaseFirestore.instance.settings = const Settings(
-        persistenceEnabled: true,
-        cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
-      );
-    } catch (e) {
-      debugPrint('Firestore settings notice: $e');
-    }
     // Initialize notification service in background
     await NotificationService.instance.initialize();
   });
@@ -67,6 +70,7 @@ class ParentalControlApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Get router instance from Riverpod provider
     final router = ref.watch(routerProvider);
+    final themeMode = ref.watch(themeModeProvider);
     
     return MaterialApp.router(
       title: AppConstants.appName,
@@ -75,6 +79,7 @@ class ParentalControlApp extends ConsumerWidget {
       // Use custom theme system
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
+      themeMode: themeMode,
       
       // Router configuration for navigation
       routerConfig: router,

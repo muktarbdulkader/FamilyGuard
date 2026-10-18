@@ -89,6 +89,7 @@ class MaterialDetailSheet extends ConsumerWidget {
               familyId: familyId,
               materialId: material.id,
               storagePath: material.storagePath,
+              assignedChildIds: material.assignedChildIds,
             );
         if (context.mounted) {
           Navigator.pop(context); // Close bottom sheet

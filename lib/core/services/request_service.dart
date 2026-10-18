@@ -11,9 +11,6 @@ class RequestService {
   static const String _collectionFamilies = 'families';
   static const String _collectionChildren = 'children';
   static const String _collectionRequests = 'requests';
-  static const Duration _requestTimeout = Duration(minutes: 5);
-  static const int _maxPendingRequests = 3;
-
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   
   StreamController<AppRequest>? _requestUpdatesController;
@@ -239,53 +236,6 @@ class RequestService {
   }
 
   // Private helper methods
-
-  Future<AppRequest?> _getExistingPendingRequest(
-    String familyId,
-    String childId,
-    String packageName,
-  ) async {
-    try {
-      final snapshot = await _firestore
-          .collection(_collectionFamilies)
-          .doc(familyId)
-          .collection(_collectionChildren)
-          .doc(childId)
-          .collection(_collectionRequests)
-          .where('packageName', isEqualTo: packageName)
-          .where('status', isEqualTo: 'pending')
-          .where('expiresAt', isGreaterThan: Timestamp.now())
-          .limit(1)
-          .get();
-
-      if (snapshot.docs.isNotEmpty) {
-        return AppRequest.fromFirestore(snapshot.docs.first);
-      }
-      return null;
-    } catch (e) {
-      print('Error checking existing request: $e');
-      return null;
-    }
-  }
-
-  Future<int> _getPendingRequestCount(String familyId, String childId) async {
-    try {
-      final snapshot = await _firestore
-          .collection(_collectionFamilies)
-          .doc(familyId)
-          .collection(_collectionChildren)
-          .doc(childId)
-          .collection(_collectionRequests)
-          .where('status', isEqualTo: 'pending')
-          .where('expiresAt', isGreaterThan: Timestamp.now())
-          .get();
-
-      return snapshot.docs.length;
-    } catch (e) {
-      print('Error getting pending count: $e');
-      return 0;
-    }
-  }
 
   String _generateNonce() {
     final random = Random.secure();

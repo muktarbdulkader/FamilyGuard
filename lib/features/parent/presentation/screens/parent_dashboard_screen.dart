@@ -16,8 +16,11 @@ import '../widgets/app_usage_indicator.dart';
 import '../widgets/app_rule_editor_sheet.dart';
 import '../../../apps/presentation/screens/parent_app_management_screen.dart';
 import '../widgets/send_educational_dialog.dart';
+import '../../../../core/models/educational_material_model.dart';
 import '../../../../core/services/education_service.dart';
 import '../../../../core/providers/auth_provider.dart';
+import '../../../../core/providers/theme_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Main parent dashboard screen with family and child selection
 /// Professional UI for managing parental controls
@@ -83,23 +86,23 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
     final effectiveChildId = selectedChild?.id ?? '';
     final hasSelection = effectiveFamilyId.isNotEmpty && effectiveChildId.isNotEmpty;
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: isDark ? const Color(0xFF0C1829) : Colors.grey[50],
       body: SafeArea(
         child: Column(
           children: [
             // ── Header ──────────────────────────────────────────
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
               decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
+                color: isDark ? const Color(0xFF0C1829) : Colors.white,
+                border: Border(
+                  bottom: BorderSide(
+                    color: isDark ? const Color(0xFF1E3554) : Colors.grey[200]!,
                   ),
-                ],
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -107,44 +110,56 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                   Row(
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+                        icon: Icon(
+                          Icons.arrow_back_ios_new_rounded,
+                          size: 20,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
                         onPressed: () => Navigator.of(context).maybePop(),
                       ),
                       Container(
-                        padding: const EdgeInsets.all(8),
+                        padding: const EdgeInsets.all(9),
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
+                          gradient: LinearGradient(
+                            colors: isDark
+                                ? [const Color(0xFF063D39), const Color(0xFF0D5E57)]
+                                : [const Color(0xFF4F46E5), const Color(0xFF7C3AED)],
                           ),
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF4F46E5).withOpacity(0.25),
+                              color: isDark
+                                  ? const Color(0xFF2DD4BF).withOpacity(0.2)
+                                  : const Color(0xFF4F46E5).withOpacity(0.25),
                               blurRadius: 8,
                               offset: const Offset(0, 2),
                             ),
                           ],
                         ),
-                        child: const Icon(Icons.family_restroom_rounded, size: 22, color: Colors.white),
+                        child: Icon(
+                          Icons.family_restroom_rounded,
+                          size: 22,
+                          color: isDark ? const Color(0xFF2DD4BF) : Colors.white,
+                        ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'Family Controls',
                               style: TextStyle(
                                 fontWeight: FontWeight.w800,
                                 fontSize: 18,
-                                color: Color(0xFF0F172A),
+                                color: isDark ? Colors.white : const Color(0xFF0F172A),
                                 letterSpacing: -0.3,
                               ),
                             ),
-                            const Text(
+                            Text(
                               'Parental Control Dashboard',
                               style: TextStyle(
-                                color: Color(0xFF64748B),
+                                color: isDark ? const Color(0xFF8BA0B8) : const Color(0xFF64748B),
                                 fontSize: 12,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -154,7 +169,10 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                       ),
                       IconButton(
                         onPressed: () => _showSettings(),
-                        icon: const Icon(Icons.settings_outlined, color: Color(0xFF64748B)),
+                        icon: Icon(
+                          Icons.settings_outlined,
+                          color: isDark ? const Color(0xFF8BA0B8) : const Color(0xFF64748B),
+                        ),
                         tooltip: 'Settings',
                       ),
                     ],
@@ -222,12 +240,19 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
 
             // ── Tab Bar — always visible ──────────────────────────
             Container(
-              color: Colors.white,
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF0C1829) : Colors.white,
+                border: Border(
+                  bottom: BorderSide(
+                    color: isDark ? const Color(0xFF1E3554) : Colors.grey[200]!,
+                  ),
+                ),
+              ),
               child: TabBar(
                 controller: _tabController,
-                labelColor: const Color(0xFF4F46E5),
-                unselectedLabelColor: const Color(0xFF64748B),
-                indicatorColor: const Color(0xFF4F46E5),
+                labelColor: isDark ? const Color(0xFF2DD4BF) : const Color(0xFF4F46E5),
+                unselectedLabelColor: isDark ? const Color(0xFF8BA0B8) : const Color(0xFF64748B),
+                indicatorColor: isDark ? const Color(0xFF2DD4BF) : const Color(0xFF4F46E5),
                 indicatorWeight: 3,
                 labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                 unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
@@ -819,181 +844,284 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
     );
   }
 
-  // ── Education Tasks Section ─────────────────────────────────────────────
+  // ── Education Tasks & Materials Section ──────────────────────────────────
   Widget _buildEducationTasksSection({
     required String familyId,
     required String childId,
   }) {
+    final materialsAsync = ref.watch(
+      childEducationalMaterialsProvider((familyId: familyId, childId: childId)),
+    );
     final tasksAsync = ref.watch(
       childEducationTasksProvider((familyId: familyId, childId: childId)),
     );
 
-    return tasksAsync.when(
-      loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
-      data: (tasks) {
-        if (tasks.isEmpty) return const SizedBox.shrink();
+    final materials = materialsAsync.value ?? [];
+    final tasks = tasksAsync.value ?? [];
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    // Unified list: prioritizing EducationalMaterial
+    final seenIds = <String>{};
+    final unifiedItems = <({
+      String id,
+      String title,
+      String subject,
+      String note,
+      String? url,
+      String? fileName,
+      String typeBadge,
+      bool isCompleted,
+      bool isDoc,
+    })>[];
+
+    for (final mat in materials) {
+      seenIds.add(mat.id);
+      unifiedItems.add((
+        id: mat.id,
+        title: mat.title,
+        subject: mat.subject,
+        note: mat.instructions ?? mat.description,
+        url: mat.fileUrl.isNotEmpty ? mat.fileUrl : null,
+        fileName: mat.fileName,
+        typeBadge: mat.materialType.badgeLabel,
+        isCompleted: mat.isCompletedBy(childId),
+        isDoc: mat.materialType != EduFileType.url,
+      ));
+    }
+
+    for (final task in tasks) {
+      if (!seenIds.contains(task.id)) {
+        seenIds.add(task.id);
+        unifiedItems.add((
+          id: task.id,
+          title: task.title,
+          subject: task.subject,
+          note: task.note,
+          url: task.url,
+          fileName: null,
+          typeBadge: task.url != null && task.url!.isNotEmpty ? 'LINK' : 'TASK',
+          isCompleted: task.isCompleted,
+          isDoc: false,
+        ));
+      }
+    }
+
+    if (unifiedItems.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  '📚 Study Tasks Sent',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF0F172A),
-                  ),
+            const Flexible(
+              child: Text(
+                '📚 Study Documents & Tasks',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF0F172A),
                 ),
-                Text(
-                  '${tasks.length} task${tasks.length != 1 ? 's' : ''}',
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            ...tasks.take(3).map((task) => _buildEducationTaskCard(
-              task: task,
-              familyId: familyId,
-              childId: childId,
-            )),
-            if (tasks.length > 3)
-              TextButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.expand_more_rounded, size: 16),
-                label: Text('View all ${tasks.length} tasks'),
-                style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFF4F46E5),
-                ),
+                overflow: TextOverflow.ellipsis,
               ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '${unifiedItems.length} item${unifiedItems.length != 1 ? 's' : ''}',
+              style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+            ),
           ],
-        );
-      },
+        ),
+        const SizedBox(height: 10),
+        ...unifiedItems.take(4).map((item) => _buildUnifiedEducationCard(
+          item: item,
+          familyId: familyId,
+          childId: childId,
+        )),
+        if (unifiedItems.length > 4)
+          TextButton.icon(
+            onPressed: () => context.push(AppRoutes.parentEducation),
+            icon: const Icon(Icons.school_rounded, size: 16),
+            label: Text('View all ${unifiedItems.length} in Education Center'),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFF4F46E5),
+            ),
+          ),
+      ],
     );
   }
 
-  Widget _buildEducationTaskCard({
-    required dynamic task,
+  Widget _buildUnifiedEducationCard({
+    required ({
+      String id,
+      String title,
+      String subject,
+      String note,
+      String? url,
+      String? fileName,
+      String typeBadge,
+      bool isCompleted,
+      bool isDoc,
+    }) item,
     required String familyId,
     required String childId,
   }) {
-    final color = _subjectColor(task.subject as String);
-    final icon = _subjectIcon(task.subject as String);
+    final color = _subjectColor(item.subject);
+    final icon = _subjectIcon(item.subject);
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: task.isCompleted ? Colors.green[200]! : Colors.grey[200]!,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
+    return InkWell(
+      onTap: item.url != null && item.url!.isNotEmpty
+          ? () async {
+              try {
+                final uri = Uri.parse(item.url!);
+                if (await canLaunchUrl(uri)) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                }
+              } catch (_) {}
+            }
+          : null,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: item.isCompleted ? Colors.green[200]! : Colors.grey[200]!,
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(10),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
             ),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        task.title as String,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                          color: task.isCompleted ? Colors.grey[500] : const Color(0xFF0F172A),
-                          decoration: task.isCompleted ? TextDecoration.lineThrough : null,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: color.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        task.subject as String,
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: color,
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: color, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          item.title,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                            color: item.isCompleted ? Colors.grey[500] : const Color(0xFF0F172A),
+                            decoration: item.isCompleted ? TextDecoration.lineThrough : null,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: color.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        child: Text(
+                          item.typeBadge,
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w900,
+                            color: color,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (item.fileName != null && item.fileName!.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        const Icon(Icons.attachment_rounded, size: 12, color: Color(0xFF64748B)),
+                        const SizedBox(width: 3),
+                        Flexible(
+                          child: Text(
+                            item.fileName!,
+                            style: const TextStyle(fontSize: 11, color: Color(0xFF4F46E5), fontWeight: FontWeight.w600),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
-                ),
-                if ((task.note as String).isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    task.note as String,
-                    style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  if (item.note.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      item.note,
+                      style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (item.isCompleted)
+                  const Icon(Icons.check_circle_rounded, color: Colors.green, size: 20)
+                else
+                  Icon(Icons.schedule_rounded, color: Colors.orange[400], size: 18),
+                const SizedBox(width: 6),
+                InkWell(
+                  onTap: () async {
+                    await ref.read(educationServiceProvider).deleteTask(
+                      familyId: familyId,
+                      childId: childId,
+                      taskId: item.id,
+                    );
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Icon(Icons.delete_outline_rounded, size: 18, color: Colors.red[300]),
+                  ),
+                ),
               ],
             ),
-          ),
-          const SizedBox(width: 8),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (task.isCompleted)
-                const Icon(Icons.check_circle_rounded, color: Colors.green, size: 22)
-              else
-                Icon(Icons.schedule_rounded, color: Colors.orange[400], size: 20),
-              const SizedBox(height: 4),
-              InkWell(
-                onTap: () async {
-                  await ref.read(educationServiceProvider).deleteTask(
-                    familyId: familyId,
-                    childId: childId,
-                    taskId: task.id as String,
-                  );
-                },
-                child: Icon(Icons.delete_outline_rounded, size: 18, color: Colors.red[300]),
-              ),
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   Color _subjectColor(String subject) {
     switch (subject) {
-      case 'Math': return const Color(0xFF2563EB);
-      case 'Reading': return const Color(0xFFD97706);
-      case 'Language': return const Color(0xFF7C3AED);
-      case 'Video': return const Color(0xFFDC2626);
-      case 'Assignment': return const Color(0xFF0891B2);
-      default: return const Color(0xFF059669);
+      case 'Math':
+      case 'Mathematics':
+        return const Color(0xFF2563EB);
+      case 'Reading':
+      case 'English & Literature':
+        return const Color(0xFFD97706);
+      case 'Language':
+      case 'History':
+        return const Color(0xFF7C3AED);
+      case 'Video':
+        return const Color(0xFFDC2626);
+      case 'Assignment':
+      case 'Coding & Tech':
+        return const Color(0xFF0891B2);
+      default:
+        return const Color(0xFF059669);
     }
   }
 
@@ -1909,10 +2037,13 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
   }
 
   void _showSettings() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     showModalBottomSheet(
       context: context,
+      backgroundColor: isDark ? const Color(0xFF132238) : Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) => SafeArea(
         child: Padding(
@@ -1921,36 +2052,135 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Parent Controls Settings',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Parent Controls Settings',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.close_rounded, color: isDark ? Colors.white70 : Colors.grey),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+
+              // Theme / Color Mode Toggle
+              Consumer(
+                builder: (context, ref, _) {
+                  final currentMode = ref.watch(themeModeProvider);
+                  final isCurrentDark = currentMode == ThemeMode.dark;
+                  return Container(
+                    margin: const EdgeInsets.symmetric(vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF14243B) : Colors.grey[100],
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: isDark ? const Color(0xFF1E3554) : Colors.grey[300]!,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF2DD4BF).withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            isCurrentDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+                            color: const Color(0xFF2DD4BF),
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Dark Navy Palette',
+                                style: TextStyle(
+                                  color: isDark ? Colors.white : Colors.black87,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              Text(
+                                isCurrentDark ? 'Dark theme enabled across all pages' : 'Light theme active',
+                                style: TextStyle(
+                                  color: isDark ? const Color(0xFF8BA0B8) : Colors.grey[600],
+                                  fontSize: 11.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Switch(
+                          value: isCurrentDark,
+                          activeColor: const Color(0xFF2DD4BF),
+                          activeTrackColor: const Color(0xFF0D5E57),
+                          onChanged: (val) {
+                            ref.read(themeModeProvider.notifier).toggleTheme();
+                          },
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 6),
+
               ListTile(
-                leading: const Icon(Icons.notifications_active_rounded, color: Color(0xFF4F46E5)),
-                title: const Text('Notification Preferences'),
-                subtitle: const Text('Alerts for requests, new apps, and limits'),
-                trailing: const Icon(Icons.chevron_right_rounded),
+                leading: const Icon(Icons.notifications_active_rounded, color: Color(0xFF2DD4BF)),
+                title: Text(
+                  'Notification Preferences',
+                  style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontWeight: FontWeight.w600),
+                ),
+                subtitle: Text(
+                  'Alerts for requests, new apps, and limits',
+                  style: TextStyle(color: isDark ? const Color(0xFF8BA0B8) : Colors.grey[600], fontSize: 12),
+                ),
+                trailing: Icon(Icons.chevron_right_rounded, color: isDark ? Colors.white38 : Colors.grey),
                 onTap: () {
                   Navigator.pop(context);
                   context.push('/notifications');
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.qr_code_rounded, color: Color(0xFF10B981)),
-                title: const Text('Pair New Device'),
-                subtitle: const Text('Generate 6-digit code or QR for child'),
-                trailing: const Icon(Icons.chevron_right_rounded),
+                leading: const Icon(Icons.qr_code_rounded, color: Color(0xFF38BDF8)),
+                title: Text(
+                  'Pair New Device',
+                  style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontWeight: FontWeight.w600),
+                ),
+                subtitle: Text(
+                  'Generate 6-digit code or QR for child',
+                  style: TextStyle(color: isDark ? const Color(0xFF8BA0B8) : Colors.grey[600], fontSize: 12),
+                ),
+                trailing: Icon(Icons.chevron_right_rounded, color: isDark ? Colors.white38 : Colors.grey),
                 onTap: () {
                   Navigator.pop(context);
                   context.push(AppRoutes.familySetup);
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.swap_horiz_rounded, color: Color(0xFFD97706)),
-                title: const Text('Switch Role'),
-                subtitle: const Text('Change account mode to child companion'),
-                trailing: const Icon(Icons.chevron_right_rounded),
+                leading: const Icon(Icons.swap_horiz_rounded, color: Color(0xFFF59E0B)),
+                title: Text(
+                  'Switch Role',
+                  style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontWeight: FontWeight.w600),
+                ),
+                subtitle: Text(
+                  'Change account mode to child companion',
+                  style: TextStyle(color: isDark ? const Color(0xFF8BA0B8) : Colors.grey[600], fontSize: 12),
+                ),
+                trailing: Icon(Icons.chevron_right_rounded, color: isDark ? Colors.white38 : Colors.grey),
                 onTap: () {
                   Navigator.pop(context);
                   context.push(AppRoutes.roleSelection);
@@ -1982,22 +2212,26 @@ class _LoadingSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[300]!),
+        color: isDark ? const Color(0xFF132238) : Colors.grey[100],
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: isDark ? const Color(0xFF1E3554) : Colors.grey[300]!),
       ),
       child: Row(
         children: [
           const SizedBox(
             width: 20,
             height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2),
+            child: CircularProgressIndicator(color: Color(0xFF2DD4BF), strokeWidth: 2),
           ),
           const SizedBox(width: 12),
-          Text(title),
+          Text(
+            title,
+            style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+          ),
         ],
       ),
     );
@@ -2015,16 +2249,17 @@ class _ErrorSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.red[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.red[200]!),
+        color: isDark ? const Color(0xFF2B1118) : Colors.red[50],
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: isDark ? Colors.red.withOpacity(0.4) : Colors.red[200]!),
       ),
       child: Row(
         children: [
-          Icon(Icons.error_outline, color: Colors.red[600], size: 20),
+          Icon(Icons.error_outline, color: isDark ? const Color(0xFFEF4444) : Colors.red[600], size: 20),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -2034,14 +2269,14 @@ class _ErrorSelector extends StatelessWidget {
                   title,
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: Colors.red[800],
+                    color: isDark ? Colors.white : Colors.red[800],
                   ),
                 ),
                 Text(
                   error,
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.red[600],
+                    color: isDark ? const Color(0xFFFCA5A5) : Colors.red[600],
                   ),
                 ),
               ],
@@ -2068,22 +2303,23 @@ class _EmptyStateSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.blue[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue[200]!),
+        color: isDark ? const Color(0xFF132238) : Colors.blue[50],
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: isDark ? const Color(0xFF1E3554) : Colors.blue[200]!),
       ),
       child: Column(
         children: [
-          Icon(Icons.info_outline, color: Colors.blue[600], size: 24),
+          Icon(Icons.info_outline, color: isDark ? const Color(0xFF2DD4BF) : Colors.blue[600], size: 24),
           const SizedBox(height: 12),
           Text(
             title,
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              color: Colors.blue[800],
+              color: isDark ? Colors.white : Colors.blue[800],
             ),
           ),
           const SizedBox(height: 4),
@@ -2091,7 +2327,7 @@ class _EmptyStateSelector extends StatelessWidget {
             subtitle,
             style: TextStyle(
               fontSize: 12,
-              color: Colors.blue[600],
+              color: isDark ? const Color(0xFF8BA0B8) : Colors.blue[600],
             ),
             textAlign: TextAlign.center,
           ),
@@ -2099,11 +2335,12 @@ class _EmptyStateSelector extends StatelessWidget {
           ElevatedButton(
             onPressed: onAction,
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue[600],
-              foregroundColor: Colors.white,
+              backgroundColor: isDark ? const Color(0xFF2DD4BF) : Colors.blue[600],
+              foregroundColor: isDark ? const Color(0xFF0C1829) : Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
-            child: Text(actionLabel),
+            child: Text(actionLabel, style: const TextStyle(fontWeight: FontWeight.w700)),
           ),
         ],
       ),

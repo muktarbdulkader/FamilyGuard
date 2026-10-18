@@ -116,7 +116,7 @@ class EducationService {
     final docRef = _materialsCollection(material.familyId).doc(material.id);
     await docRef.set(material.toFirestore());
 
-    // Send notifications to each assigned child
+    // Send notifications to each assigned child and sync to tasks
     for (final childId in material.assignedChildIds) {
       try {
         await _firestore.collection('notifications').add({
@@ -142,20 +142,29 @@ class EducationService {
       }
 
       // Also create backward-compatible legacy task doc in child subcollection
+      final taskMap = {
+        'id': material.id,
+        'familyId': material.familyId,
+        'childId': childId,
+        'title': material.title,
+        'subject': material.subject,
+        'note': material.instructions ?? material.description,
+        'url': material.fileUrl,
+        'senderName': material.parentName,
+        'createdAt': Timestamp.fromDate(material.createdAt),
+        'isCompleted': false,
+        'completedAt': null,
+      };
+
       try {
-        await _tasksCollection(material.familyId, childId).doc(material.id).set({
-          'id': material.id,
-          'familyId': material.familyId,
-          'childId': childId,
-          'title': material.title,
-          'subject': material.subject,
-          'note': material.instructions ?? material.description,
-          'url': material.fileUrl,
-          'senderName': material.parentName,
-          'createdAt': Timestamp.fromDate(material.createdAt),
-          'isCompleted': false,
-          'completedAt': null,
-        });
+        await _tasksCollection(material.familyId, childId).doc(material.id).set(taskMap);
+      } catch (_) {}
+
+      try {
+        await _childDoc(material.familyId, childId).set({
+          'hasEducationTasks': true,
+          'educationTasks': FieldValue.arrayUnion([taskMap]),
+        }, SetOptions(merge: true));
       } catch (_) {}
     }
   }
@@ -171,11 +180,19 @@ class EducationService {
     required String familyId,
     required String materialId,
     String? storagePath,
+    List<String> assignedChildIds = const [],
   }) async {
     // 1. Delete document
-    await _materialsCollection(familyId).doc(materialId).delete();
+    try {
+      await _materialsCollection(familyId).doc(materialId).delete();
+    } catch (_) {}
 
-    // 2. Delete file from Storage if applicable
+    // 2. Also delete from child tasks
+    for (final childId in assignedChildIds) {
+      await deleteTask(familyId: familyId, childId: childId, taskId: materialId);
+    }
+
+    // 3. Delete file from Storage if applicable
     if (storagePath != null && storagePath.isNotEmpty) {
       try {
         await _storage.ref().child(storagePath).delete();
@@ -190,9 +207,19 @@ class EducationService {
     if (familyId.isEmpty) return Stream.value([]);
 
     return _materialsCollection(familyId)
-        .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs.map(EducationalMaterial.fromFirestore).toList());
+        .map((snapshot) {
+          final list = <EducationalMaterial>[];
+          for (final doc in snapshot.docs) {
+            try {
+              list.add(EducationalMaterial.fromFirestore(doc));
+            } catch (e) {
+              debugPrint('Error parsing material ${doc.id}: $e');
+            }
+          }
+          list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          return list;
+        });
   }
 
   /// Stream of educational materials assigned to a specific child
@@ -200,10 +227,20 @@ class EducationService {
     if (familyId.isEmpty || childId.isEmpty) return Stream.value([]);
 
     return _materialsCollection(familyId)
-        .where('assignedChildIds', arrayContains: childId)
         .snapshots()
         .map((snapshot) {
-          final list = snapshot.docs.map(EducationalMaterial.fromFirestore).toList();
+          final list = <EducationalMaterial>[];
+          for (final doc in snapshot.docs) {
+            try {
+              final mat = EducationalMaterial.fromFirestore(doc);
+              // Include if explicitly assigned to this child OR if assigned to all children (empty list)
+              if (mat.assignedChildIds.isEmpty || mat.assignedChildIds.contains(childId)) {
+                list.add(mat);
+              }
+            } catch (e) {
+              debugPrint('Error parsing child material ${doc.id}: $e');
+            }
+          }
           list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
           return list;
         });
@@ -379,16 +416,42 @@ class EducationService {
     String? url,
     required String senderName,
     String? childName,
+    PlatformFile? file,
   }) async {
     final docRef = _tasksCollection(familyId, childId).doc();
+    final taskId = docRef.id;
+
+    String fileUrl = (url != null && url.trim().isNotEmpty) ? url.trim() : '';
+    String? storagePath;
+    String? fileName;
+    int? fileSizeBytes;
+    EduFileType matType = fileUrl.isNotEmpty ? EduFileType.url : EduFileType.doc;
+
+    if (file != null) {
+      try {
+        final uploadResult = await uploadMaterialFile(
+          familyId: familyId,
+          materialId: taskId,
+          file: file,
+        );
+        fileUrl = uploadResult.downloadUrl;
+        storagePath = uploadResult.storagePath;
+        fileName = uploadResult.fileName;
+        fileSizeBytes = uploadResult.fileSizeBytes;
+        matType = EduFileType.fromExtension(file.extension);
+      } catch (e) {
+        debugPrint('Error uploading file in sendEducationalTask: $e');
+      }
+    }
+
     final taskMap = {
-      'id': docRef.id,
+      'id': taskId,
       'familyId': familyId,
       'childId': childId,
       'title': title.trim(),
       'subject': subject,
       'note': note.trim(),
-      'url': (url != null && url.trim().isNotEmpty) ? url.trim() : null,
+      'url': fileUrl.isNotEmpty ? fileUrl : null,
       'senderName': senderName,
       'createdAt': Timestamp.now(),
       'isCompleted': false,
@@ -404,6 +467,64 @@ class EducationService {
         'hasEducationTasks': true,
         'educationTasks': FieldValue.arrayUnion([taskMap]),
       }, SetOptions(merge: true));
+    } catch (_) {}
+
+    // Synchronize to educational_materials collection so both parents & children see it
+    final now = DateTime.now();
+    final material = EducationalMaterial(
+      id: taskId,
+      familyId: familyId,
+      parentId: '',
+      parentName: senderName,
+      title: title.trim(),
+      description: note.trim(),
+      subject: subject,
+      gradeLevel: 'All Grades',
+      materialType: matType,
+      fileUrl: fileUrl,
+      fileName: fileName,
+      fileSizeBytes: fileSizeBytes,
+      storagePath: storagePath,
+      instructions: note.trim().isNotEmpty ? note.trim() : null,
+      assignedChildIds: [childId],
+      assignedChildNames: childName != null ? {childId: childName} : {},
+      childProgress: {
+        childId: ChildLearningProgress(
+          childId: childId,
+          childName: childName ?? 'Child',
+          status: LearningStatus.pending,
+        ),
+      },
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    try {
+      await _materialsCollection(familyId).doc(taskId).set(material.toFirestore());
+    } catch (e) {
+      debugPrint('Error writing to materialsCollection in sendEducationalTask: $e');
+    }
+
+    // Send notification to child
+    try {
+      await _firestore.collection('notifications').add({
+        'familyId': familyId,
+        'childId': childId,
+        'type': 'educational_material',
+        'priority': 'normal',
+        'title': '📚 New Study Material: ${title.trim()}',
+        'body': '$senderName assigned a new $subject lesson for you.',
+        'data': {
+          'type': 'educational_material',
+          'materialId': taskId,
+          'title': title.trim(),
+          'subject': subject,
+          'fileUrl': fileUrl,
+          'materialType': matType.name,
+        },
+        'createdAt': Timestamp.now(),
+        'isRead': false,
+      });
     } catch (_) {}
   }
 
@@ -445,6 +566,10 @@ class EducationService {
   }) async {
     try {
       await _tasksCollection(familyId, childId).doc(taskId).delete();
+    } catch (_) {}
+
+    try {
+      await _materialsCollection(familyId).doc(taskId).delete();
     } catch (_) {}
 
     try {

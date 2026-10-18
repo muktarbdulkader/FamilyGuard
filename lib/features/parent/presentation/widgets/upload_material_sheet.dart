@@ -13,6 +13,7 @@ class UploadMaterialSheet extends ConsumerStatefulWidget {
   final String parentId;
   final String parentName;
   final EducationalMaterial? existingMaterial;
+  final String? initialChildId;
 
   const UploadMaterialSheet({
     super.key,
@@ -20,6 +21,7 @@ class UploadMaterialSheet extends ConsumerStatefulWidget {
     required this.parentId,
     required this.parentName,
     this.existingMaterial,
+    this.initialChildId,
   });
 
   static Future<void> show(
@@ -28,6 +30,7 @@ class UploadMaterialSheet extends ConsumerStatefulWidget {
     required String parentId,
     required String parentName,
     EducationalMaterial? existingMaterial,
+    String? initialChildId,
   }) {
     return showModalBottomSheet(
       context: context,
@@ -38,6 +41,7 @@ class UploadMaterialSheet extends ConsumerStatefulWidget {
         parentId: parentId,
         parentName: parentName,
         existingMaterial: existingMaterial,
+        initialChildId: initialChildId,
       ),
     );
   }
@@ -97,6 +101,8 @@ class _UploadMaterialSheetState extends ConsumerState<UploadMaterialSheet> {
       _selectedDueDate = mat.dueDate;
       _selectedChildIds.addAll(mat.assignedChildIds);
       _isUrlMode = mat.materialType == EduFileType.url;
+    } else if (widget.initialChildId != null && widget.initialChildId!.isNotEmpty) {
+      _selectedChildIds.add(widget.initialChildId!);
     }
   }
 

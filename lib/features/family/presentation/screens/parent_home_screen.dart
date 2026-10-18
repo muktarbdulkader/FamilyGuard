@@ -8,12 +8,26 @@ import '../../../../core/providers/auth_provider.dart';
 import '../../../../core/providers/user_provider.dart';
 import '../../../../core/providers/family_provider.dart';
 import '../../../../core/providers/notification_provider.dart';
-import '../../../../core/providers/request_provider.dart';
+import '../../../../core/providers/theme_provider.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/services/notification_service.dart';
 
-/// Premium Parent Home Dashboard with modern UI, live children status, and quick tools
+/// Pixel-matched Parent Home Screen
+/// Matches the exact sleek dark teal & slate styling:
+/// - Squircle teal shield icon
+/// - Forest teal "Your family is safe right now" hero card
+/// - Children cards with bright avatar, status line, and [Rules | Location | Lessons] buttons
+/// - Bottom navigation bar with [Home | Control | Location | Requests | Alerts]
 class ParentHomeScreen extends ConsumerWidget {
   const ParentHomeScreen({super.key});
+
+  static const Color _bgDark = AppColors.darkNavyBg;
+  static const Color _cardBg = AppColors.darkNavyCard;
+  static const Color _cardBorder = AppColors.darkNavyBorder;
+  static const Color _tealAccent = AppColors.tealAccent;
+  static const Color _heroBg = AppColors.heroForestTeal;
+  static const Color _heroBorder = AppColors.heroForestBorder;
+  static const Color _metricBg = AppColors.metricDarkBg;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -21,427 +35,338 @@ class ParentHomeScreen extends ConsumerWidget {
     final familyId = userData.value?.familyId ??
         ref.watch(selectedFamilyProvider)?.id ??
         ref.watch(userFamiliesProvider).value?.firstOrNull?.id;
+
     if (familyId != null && familyId.isNotEmpty) {
       NotificationService.instance.startParentNotificationListener(familyId);
     }
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: isDark
-                ? [const Color(0xFF0F172A), const Color(0xFF1E1B4B), const Color(0xFF0F172A)]
-                : [const Color(0xFFEEF2FF), const Color(0xFFF8FAFC), const Color(0xFFEDE9FE)],
+      backgroundColor: _bgDark,
+      body: SafeArea(
+        child: userData.when(
+          loading: () => const Center(
+            child: CircularProgressIndicator(color: _tealAccent, strokeWidth: 3),
           ),
-        ),
-        child: SafeArea(
-          child: userData.when(
-            loading: () => const Center(
-              child: CircularProgressIndicator(
-                color: Color(0xFF4F46E5),
-                strokeWidth: 3,
+          error: (error, _) => Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline_rounded, size: 48, color: Color(0xFFEF4444)),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Failed to load dashboard',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () => ref.refresh(currentUserDataProvider),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _tealAccent,
+                      foregroundColor: const Color(0xFF0C1829),
+                    ),
+                    child: const Text('Retry'),
+                  ),
+                ],
               ),
             ),
-            error: (error, stack) => Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEF4444).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Icon(
-                        Icons.error_outline_rounded,
-                        size: 48,
-                        color: Color(0xFFEF4444),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Connection Error',
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Unable to load your family dashboard. Please retry.',
-                      style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 20),
-                    ElevatedButton.icon(
-                      onPressed: () => ref.refresh(currentUserDataProvider),
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Try Again'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF4F46E5),
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            data: (user) => CustomScrollView(
-              slivers: [
-                // Top Custom App Bar
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              width: 44,
-                              height: 44,
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [Color(0xFF4F46E5), Color(0xFF6366F1)],
-                                ),
-                                borderRadius: BorderRadius.circular(14),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(0xFF4F46E5).withOpacity(0.3),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 3),
-                                  ),
-                                ],
-                              ),
-                              child: const Icon(Icons.shield_rounded, color: Colors.white, size: 24),
-                            ),
-                            const SizedBox(width: 12),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+          ),
+          data: (user) => Stack(
+            children: [
+              // Scrollable Content
+              CustomScrollView(
+                physics: const BouncingScrollPhysics(),
+                slivers: [
+                  // 1. Top App Bar
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Row(
                               children: [
-                                Text(
-                                  'Parent Portal',
-                                  style: theme.textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.w800,
-                                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                // Teal Squircle with Shield
+                                Container(
+                                  width: 50,
+                                  height: 50,
+                                  decoration: BoxDecoration(
+                                    color: _tealAccent,
+                                    borderRadius: BorderRadius.circular(16),
                                   ),
-                                ),
-                                Text(
-                                  user?.displayName != null && user!.displayName.isNotEmpty
-                                      ? 'Hello, ${user.displayName}'
-                                      : 'Family Guardian',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: isDark ? Colors.grey[400] : const Color(0xFF64748B),
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        Row(
-                          children: [
-                            IconButton(
-                              onPressed: () => context.push('/notifications'),
-                              icon: Stack(
-                                clipBehavior: Clip.none,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                                      borderRadius: BorderRadius.circular(12),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.05),
-                                          blurRadius: 6,
-                                          offset: const Offset(0, 2),
-                                        ),
-                                      ],
+                                  child: const Center(
+                                    child: Icon(
+                                      Icons.shield_outlined,
+                                      color: Color(0xFF062B28),
+                                      size: 28,
                                     ),
-                                    child: const Icon(Icons.notifications_rounded, size: 20),
                                   ),
-                                  if (ref.watch(unreadNotificationCountProvider) > 0)
-                                    Positioned(
-                                      top: -2,
-                                      right: -2,
-                                      child: Container(
-                                        padding: const EdgeInsets.all(4),
-                                        decoration: const BoxDecoration(
-                                          color: Color(0xFFEF4444),
-                                          shape: BoxShape.circle,
-                                        ),
-                                        constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-                                        child: Text(
-                                          '${ref.watch(unreadNotificationCountProvider)}',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 9,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                          textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'FamilyGuard',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.w900,
+                                          letterSpacing: -0.3,
                                         ),
                                       ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            PopupMenuButton<String>(
-                              icon: Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                                  borderRadius: BorderRadius.circular(12),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.05),
-                                      blurRadius: 6,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: const Icon(Icons.more_vert_rounded, size: 20),
-                              ),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                              itemBuilder: (context) => [
-                                const PopupMenuItem(
-                                  value: 'notifications',
-                                  child: ListTile(
-                                    leading: Icon(Icons.notifications_rounded, color: Color(0xFF4F46E5)),
-                                    title: Text('Notifications'),
-                                    contentPadding: EdgeInsets.zero,
-                                  ),
-                                ),
-                                const PopupMenuItem(
-                                  value: 'role',
-                                  child: ListTile(
-                                    leading: Icon(Icons.swap_horiz_rounded, color: Color(0xFF10B981)),
-                                    title: Text('Switch Role'),
-                                    contentPadding: EdgeInsets.zero,
-                                  ),
-                                ),
-                                const PopupMenuItem(
-                                  value: 'logout',
-                                  child: ListTile(
-                                    leading: Icon(Icons.logout_rounded, color: Color(0xFFEF4444)),
-                                    title: Text('Sign Out'),
-                                    contentPadding: EdgeInsets.zero,
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        user?.displayName != null && user!.displayName.isNotEmpty
+                                            ? 'Welcome back, ${user.displayName}'
+                                            : 'Welcome back, Parent',
+                                        style: const TextStyle(
+                                          color: Color(0xFF94A3B8),
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
-                              onSelected: (value) async {
-                                if (value == 'notifications') {
-                                  context.push('/notifications');
-                                } else if (value == 'role') {
-                                  context.push(AppRoutes.roleSelection);
-                                } else if (value == 'logout') {
-                                  await ref.read(authNotifierProvider.notifier).signOut();
-                                  if (context.mounted) {
-                                    context.go(AppRoutes.login);
-                                  }
-                                }
-                              },
                             ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // Hero Status Card
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    child: Container(
-                      padding: const EdgeInsets.all(22),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF4F46E5), Color(0xFF6366F1), Color(0xFF818CF8)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(22),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF4F46E5).withOpacity(0.35),
-                            blurRadius: 16,
-                            offset: const Offset(0, 6),
+                          ),
+                          const SizedBox(width: 8),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Notification Bell
+                              InkWell(
+                                onTap: () => context.push('/notifications'),
+                                borderRadius: BorderRadius.circular(14),
+                                child: Container(
+                                  width: 44,
+                                  height: 44,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF14243B),
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(color: _cardBorder),
+                                  ),
+                                  child: Stack(
+                                    alignment: Alignment.center,
+                                    children: [
+                                      const Icon(
+                                        Icons.notifications_outlined,
+                                        color: Colors.white,
+                                        size: 22,
+                                      ),
+                                      if (ref.watch(unreadNotificationCountProvider) > 0)
+                                        Positioned(
+                                          top: 10,
+                                          right: 10,
+                                          child: Container(
+                                            width: 8,
+                                            height: 8,
+                                            decoration: const BoxDecoration(
+                                              color: Color(0xFFEF4444),
+                                              shape: BoxShape.circle,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              // Settings & Sign Out Button
+                              InkWell(
+                                onTap: () => _showSettingsSheet(context, ref, user),
+                                borderRadius: BorderRadius.circular(14),
+                                child: Container(
+                                  width: 44,
+                                  height: 44,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF14243B),
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(color: _cardBorder),
+                                  ),
+                                  child: const Icon(
+                                    Icons.settings_outlined,
+                                    color: Colors.white,
+                                    size: 22,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: const Row(
-                                  children: [
-                                    Icon(Icons.security_rounded, size: 14, color: Colors.white),
-                                    SizedBox(width: 6),
-                                    Text(
-                                      'Active Guarding',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                    ),
+                  ),
+
+                  // 2. Hero Card: "Your family is safe right now"
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Container(
+                        padding: const EdgeInsets.all(22),
+                        decoration: BoxDecoration(
+                          color: _heroBg,
+                          borderRadius: BorderRadius.circular(22),
+                          border: Border.all(color: _heroBorder, width: 1.2),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'All protections on',
+                              style: TextStyle(
+                                color: _tealAccent,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.2,
                               ),
-                              const Icon(Icons.family_restroom_rounded, color: Colors.white70, size: 28),
-                            ],
-                          ),
-                          const SizedBox(height: 14),
+                            ),
+                            const SizedBox(height: 10),
+                            const Text(
+                              'Your family is safe right\nnow',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 23,
+                                height: 1.25,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: -0.4,
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            // Metrics row
+                            Row(
+                              children: [
+                                _buildMetricBox('Limits', 'Enforced'),
+                                const SizedBox(width: 10),
+                                _buildMetricBox('GPS', 'Live'),
+                                const SizedBox(width: 10),
+                                _buildMetricBox('Approvals', 'Instant'),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // 3. Children Header with "+ Add child"
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 26, 20, 14),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
                           const Text(
-                            'Family Protection Active',
+                            'Children',
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 20,
-                              fontWeight: FontWeight.w800,
+                              fontWeight: FontWeight.w900,
                               letterSpacing: -0.3,
                             ),
                           ),
-                          const SizedBox(height: 6),
-                          Text(
-                            user?.hasFamily == true
-                                ? 'All child device rules, limits, and location sync are active.'
-                                : 'Pair your children\'s devices to monitor screen time and keep them safe.',
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.9),
-                              fontSize: 13,
-                              height: 1.35,
+                          InkWell(
+                            onTap: () => context.push(AppRoutes.familySetup),
+                            borderRadius: BorderRadius.circular(8),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                              child: Row(
+                                children: const [
+                                  Icon(Icons.add_rounded, size: 18, color: _tealAccent),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'Add child',
+                                    style: TextStyle(
+                                      color: _tealAccent,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ],
                       ),
                     ),
                   ),
-                ),
 
-                // Pending Requests Banner
-                if (familyId != null)
-                  _PendingRequestsBanner(familyId: familyId, isDark: isDark),
-
-                // Connected Children Header
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Connected Children',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.2,
-                          ),
-                        ),
-                        TextButton.icon(
-                          onPressed: () => context.push(AppRoutes.familySetup),
-                          icon: const Icon(Icons.add_rounded, size: 18),
-                          label: const Text('Add Child', style: TextStyle(fontWeight: FontWeight.bold)),
-                        ),
-                      ],
+                  // 4. Children Cards List
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: _buildChildrenList(context, familyId),
                     ),
                   ),
-                ),
 
-                // Connected Children List
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: _buildChildrenSection(context, familyId, isDark),
+                  // Bottom padding to leave room for the floating bottom navigation bar
+                  const SliverToBoxAdapter(
+                    child: SizedBox(height: 100),
                   ),
-                ),
+                ],
+              ),
 
-                // Management Tools Header
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
-                    child: Text(
-                      'Management Tools',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.2,
-                      ),
-                    ),
-                  ),
-                ),
-
-                // Quick Actions Grid
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                  sliver: SliverGrid.count(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 14,
-                    mainAxisSpacing: 14,
-                    childAspectRatio: 1.25,
-                    children: [
-                      _QuickActionTile(
-                        icon: Icons.qr_code_scanner_rounded,
-                        title: 'Pair Devices',
-                        subtitle: 'Generate pairing QR',
-                        gradientColors: const [Color(0xFF2563EB), Color(0xFF4F46E5)],
-                        onTap: () => context.push(AppRoutes.familySetup),
-                      ),
-                      _QuickActionTile(
-                        icon: Icons.apps_rounded,
-                        title: 'App Rules',
-                        subtitle: 'Block & set limits',
-                        gradientColors: const [Color(0xFF059669), Color(0xFF10B981)],
-                        onTap: () => context.push(AppRoutes.parentApps),
-                      ),
-                      _QuickActionTile(
-                        icon: Icons.pin_drop_rounded,
-                        title: 'Live Location',
-                        subtitle: 'Family GPS map',
-                        gradientColors: const [Color(0xFFD97706), Color(0xFFF59E0B)],
-                        onTap: () => context.push(AppRoutes.parentLocation),
-                      ),
-                      _QuickActionTile(
-                        icon: Icons.pending_actions_rounded,
-                        title: 'App Requests',
-                        subtitle: 'Approve child access',
-                        gradientColors: const [Color(0xFF7C3AED), Color(0xFF8B5CF6)],
-                        onTap: () => context.push(AppRoutes.parentRequests),
-                      ),
-                      _QuickActionTile(
-                        icon: Icons.school_rounded,
-                        title: 'Education Center',
-                        subtitle: 'Upload & assign lessons',
-                        gradientColors: const [Color(0xFF0284C7), Color(0xFF0EA5E9)],
-                        onTap: () => context.push(AppRoutes.parentEducation),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+              // Floating Bottom Navigation Bar
+              Positioned(
+                bottom: 16,
+                left: 14,
+                right: 14,
+                child: _buildFloatingBottomBar(context),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildChildrenSection(BuildContext context, String? familyId, bool isDark) {
+  // ── Metric Box in Hero Card ─────────────────────────────────────────
+  Widget _buildMetricBox(String label, String value) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: _metricBg,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFF093530)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                color: Color(0xFF86A5A1),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Children Cards ─────────────────────────────────────────────────
+  Widget _buildChildrenList(BuildContext context, String? familyId) {
     if (familyId == null || familyId.isEmpty) {
-      return _buildEmptyFamilyCard(context, isDark);
+      return _buildEmptyChildPlaceholder(context);
     }
 
     return StreamBuilder<QuerySnapshot>(
@@ -455,112 +380,156 @@ class ParentHomeScreen extends ConsumerWidget {
           return const Center(
             child: Padding(
               padding: EdgeInsets.all(24.0),
-              child: CircularProgressIndicator(strokeWidth: 2),
+              child: CircularProgressIndicator(color: _tealAccent, strokeWidth: 2),
             ),
           );
         }
 
-        if (snapshot.hasError) {
-          return _buildEmptyFamilyCard(context, isDark);
-        }
-
         final children = snapshot.data?.docs ?? [];
         if (children.isEmpty) {
-          return _buildEmptyFamilyCard(context, isDark);
+          return _buildEmptyChildPlaceholder(context);
         }
 
         return Column(
           children: children.map((doc) {
             final childData = doc.data() as Map<String, dynamic>;
-            final childName = childData['displayName'] ?? 'Child';
+            final childName = childData['displayName'] ?? childData['name'] ?? 'Child';
             final childEmail = childData['email'] ?? '';
-            final lastSeen = childData['lastSeen'] as Timestamp?;
+            final childId = doc.id;
+            final initial = childName.isNotEmpty ? childName[0].toUpperCase() : 'C';
 
             return Container(
-              margin: const EdgeInsets.only(bottom: 12),
+              margin: const EdgeInsets.only(bottom: 14),
+              padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
-                    blurRadius: 10,
-                    offset: const Offset(0, 3),
+                color: _cardBg,
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: _cardBorder),
+              ),
+              child: Column(
+                children: [
+                  // Child Header Info
+                  Row(
+                    children: [
+                      // Avatar squircle with status dot
+                      Stack(
+                        children: [
+                          Container(
+                            width: 52,
+                            height: 52,
+                            decoration: BoxDecoration(
+                              color: _tealAccent,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Center(
+                              child: Text(
+                                initial,
+                                style: const TextStyle(
+                                  color: Color(0xFF042421),
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: Container(
+                              width: 14,
+                              height: 14,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF10B981),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: _cardBg, width: 2.2),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              childName,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 17,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              childEmail.isNotEmpty ? childEmail : 'Protected Device',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Color(0xFF8BA0B8),
+                                fontSize: 13,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: const [
+                                Icon(
+                                  Icons.shield_outlined,
+                                  size: 13,
+                                  color: _tealAccent,
+                                ),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Protected · online',
+                                  style: TextStyle(
+                                    color: _tealAccent,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  // Three action buttons
+                  Row(
+                    children: [
+                      // Rules button
+                      Expanded(
+                        child: _buildActionButton(
+                          icon: Icons.tune_rounded,
+                          label: 'Rules',
+                          isSolid: false,
+                          onTap: () => context.push('/parent-apps/$childId/$childName'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      // Location button
+                      Expanded(
+                        child: _buildActionButton(
+                          icon: Icons.location_on_outlined,
+                          label: 'Location',
+                          isSolid: false,
+                          onTap: () => context.push(AppRoutes.parentLocation),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      // Lessons button (Solid teal)
+                      Expanded(
+                        child: _buildActionButton(
+                          icon: Icons.school_outlined,
+                          label: 'Lessons',
+                          isSolid: true,
+                          onTap: () => context.push(AppRoutes.parentEducation),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
-              ),
-              child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                leading: Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF3B82F6), Color(0xFF6366F1)],
-                    ),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Center(
-                    child: Text(
-                      childName.isNotEmpty ? childName[0].toUpperCase() : 'C',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-                title: Text(
-                  childName,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(childEmail, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFF10B981),
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          lastSeen != null
-                              ? 'Last active: ${_formatLastSeen(lastSeen.toDate())}'
-                              : 'Online & Protected',
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Color(0xFF059669)),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                trailing: ElevatedButton.icon(
-                  onPressed: () {
-                    context.push('/parent-apps/${doc.id}/$childName');
-                  },
-                  icon: const Icon(Icons.tune_rounded, size: 16),
-                  label: const Text('Rules', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF4F46E5),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    minimumSize: Size.zero,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                ),
-                onTap: () {
-                  context.push('/parent-apps/${doc.id}/$childName');
-                },
               ),
             );
           }).toList(),
@@ -569,47 +538,114 @@ class ParentHomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildEmptyFamilyCard(BuildContext context, bool isDark) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required bool isSolid,
+    required VoidCallback onTap,
+  }) {
+    if (isSolid) {
+      return ElevatedButton(
+        onPressed: onTap,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: _tealAccent,
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: const Color(0xFF042421)),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: Color(0xFF042421),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      );
+    } else {
+      return OutlinedButton(
+        onPressed: onTap,
+        style: OutlinedButton.styleFrom(
+          backgroundColor: const Color(0xFF0E1A2C),
+          side: const BorderSide(color: Color(0xFF223A5B)),
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: Colors.white),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  Widget _buildEmptyChildPlaceholder(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(26),
+      decoration: BoxDecoration(
+        color: _cardBg,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: _cardBorder),
       ),
       child: Column(
         children: [
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFF4F46E5).withOpacity(0.1),
+              color: _tealAccent.withOpacity(0.12),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.family_restroom_rounded, size: 40, color: Color(0xFF4F46E5)),
+            child: const Icon(Icons.group_add_rounded, size: 36, color: _tealAccent),
           ),
           const SizedBox(height: 14),
           const Text(
             'No Children Connected Yet',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16),
           ),
           const SizedBox(height: 6),
           const Text(
-            'Scan your family pairing code on your child\'s phone to start monitoring.',
+            'Link your child\'s phone with a quick QR scan to start protecting them.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
+            style: TextStyle(color: Color(0xFF8BA0B8), fontSize: 13),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
           ElevatedButton.icon(
             onPressed: () => context.push(AppRoutes.familySetup),
             icon: const Icon(Icons.qr_code_rounded, size: 18),
             label: const Text('Pair Child Device'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF4F46E5),
-              foregroundColor: Colors.white,
+              backgroundColor: _tealAccent,
+              foregroundColor: const Color(0xFF042421),
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
           ),
         ],
@@ -617,218 +653,406 @@ class ParentHomeScreen extends ConsumerWidget {
     );
   }
 
-  String _formatLastSeen(DateTime lastSeen) {
-    final difference = DateTime.now().difference(lastSeen);
-    if (difference.inMinutes < 1) {
-      return 'Just now';
-    } else if (difference.inHours < 1) {
-      return '${difference.inMinutes}m ago';
-    } else if (difference.inDays < 1) {
-      return '${difference.inHours}h ago';
-    } else {
-      return '${difference.inDays}d ago';
-    }
-  }
-}
-
-/// Quick action grid tile widget
-class _QuickActionTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final List<Color> gradientColors;
-  final VoidCallback onTap;
-
-  const _QuickActionTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.gradientColors,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E293B) : Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+  // ── Floating Bottom Navigation Bar ─────────────────────────────────
+  Widget _buildFloatingBottomBar(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0A1424),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: const Color(0xFF1E3554)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.4),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
-              blurRadius: 10,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(colors: gradientColors),
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: [
-                  BoxShadow(
-                    color: gradientColors.first.withOpacity(0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          // 1. Home (Selected)
+          _buildNavPill(
+            icon: Icons.home_outlined,
+            label: 'Home',
+            isSelected: true,
+            onTap: () {},
+          ),
+          // 2. Control
+          _buildNavPill(
+            icon: Icons.grid_view_rounded,
+            label: 'Control',
+            isSelected: false,
+            onTap: () => context.push(AppRoutes.parentApps),
+          ),
+          // 3. Location
+          _buildNavPill(
+            icon: Icons.location_on_outlined,
+            label: 'Location',
+            isSelected: false,
+            onTap: () => context.push(AppRoutes.parentLocation),
+          ),
+          // 4. Requests
+          _buildNavPill(
+            icon: Icons.access_time_rounded,
+            label: 'Requests',
+            isSelected: false,
+            onTap: () => context.push(AppRoutes.parentRequests),
+          ),
+          // 5. Alerts
+          _buildNavPill(
+            icon: Icons.notifications_none_rounded,
+            label: 'Alerts',
+            isSelected: false,
+            onTap: () => context.push('/notifications'),
+          ),
+          // 6. Profile
+          _buildNavPill(
+            icon: Icons.person_rounded,
+            label: 'Profile',
+            isSelected: false,
+            onTap: () => context.push(AppRoutes.profile),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNavPill({
+    required IconData icon,
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+          decoration: BoxDecoration(
+            color: isSelected ? const Color(0xFF0E3835) : const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(20),
+            border: isSelected ? Border.all(color: _tealAccent.withOpacity(0.5)) : null,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                color: isSelected ? _tealAccent : const Color(0xFF475569),
+                size: 19,
               ),
-              child: Icon(icon, color: Colors.white, size: 22),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
+              const SizedBox(height: 2),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  label,
                   style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 15,
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    color: isSelected ? _tealAccent : const Color(0xFF475569),
+                    fontSize: 9.5,
+                    fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                  ),
-                ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
-}
 
-class _PendingRequestsBanner extends ConsumerWidget {
-  final String familyId;
-  final bool isDark;
-
-  const _PendingRequestsBanner({required this.familyId, required this.isDark});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final pendingAsync = ref.watch(parentPendingRequestsProvider([familyId]));
-
-    return pendingAsync.when(
-      data: (requests) {
-        if (requests.isEmpty) return const SliverToBoxAdapter(child: SizedBox.shrink());
-        final count = requests.length;
-        final firstReq = requests.first.request;
-        final childName = requests.first.child?.displayName ?? firstReq.childName ?? 'Child';
-        final appName = firstReq.appName;
-
-        return SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-            child: Material(
-              color: Colors.transparent,
-              borderRadius: BorderRadius.circular(16),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(16),
-                onTap: () => context.push(AppRoutes.parentRequests),
-                child: Container(
-                  padding: const EdgeInsets.all(16),
+  // ── Unified Settings & Sign Out Modal Sheet ────────────────────────
+  void _showSettingsSheet(BuildContext context, WidgetRef ref, dynamic user) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 30),
+        decoration: const BoxDecoration(
+          color: Color(0xFF0F1E33),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          border: Border(top: BorderSide(color: Color(0xFF1E3554), width: 1.5)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Drag handle
+            Center(
+              child: Container(
+                width: 44,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF334B6E),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            // Profile row
+            Row(
+              children: [
+                Container(
+                  width: 50,
+                  height: 50,
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFFEF3C7), Color(0xFFFDE68A)],
-                    ),
+                    color: _tealAccent,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.4)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFFF59E0B).withOpacity(0.15),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
+                  ),
+                  child: Center(
+                    child: Text(
+                      (user?.displayName != null && user!.displayName.isNotEmpty)
+                          ? user.displayName[0].toUpperCase()
+                          : 'P',
+                      style: const TextStyle(
+                        color: Color(0xFF042421),
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        user?.displayName != null && user!.displayName.isNotEmpty
+                            ? user.displayName
+                            : 'Parent Account',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        user?.email != null && user!.email.isNotEmpty
+                            ? user.email
+                            : 'Protected Parent Portal',
+                        style: const TextStyle(
+                          color: Color(0xFF8BA0B8),
+                          fontSize: 12.5,
+                        ),
                       ),
                     ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _tealAccent.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: _tealAccent.withOpacity(0.3)),
+                  ),
+                  child: const Text(
+                    'PARENT',
+                    style: TextStyle(
+                      color: _tealAccent,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            const Divider(color: Color(0xFF1E3554)),
+            const SizedBox(height: 8),
+            // Setting items
+            _buildSettingsTile(
+              icon: Icons.person_outline_rounded,
+              title: 'My Profile & Account',
+              subtitle: 'Edit name, security, theme, and language',
+              onTap: () {
+                Navigator.pop(context);
+                context.push(AppRoutes.profile);
+              },
+            ),
+            _buildSettingsTile(
+              icon: Icons.qr_code_scanner_rounded,
+              title: 'Pair Child Device',
+              subtitle: 'Generate pairing QR code for child setup',
+              onTap: () {
+                Navigator.pop(context);
+                context.push(AppRoutes.familySetup);
+              },
+            ),
+            _buildSettingsTile(
+              icon: Icons.swap_horiz_rounded,
+              title: 'Switch Role',
+              subtitle: 'Change between Parent and Child mode',
+              onTap: () {
+                Navigator.pop(context);
+                context.push(AppRoutes.roleSelection);
+              },
+            ),
+            _buildSettingsTile(
+              icon: Icons.admin_panel_settings_outlined,
+              title: 'Device Permissions',
+              subtitle: 'Check system monitoring and overlay status',
+              onTap: () {
+                Navigator.pop(context);
+                context.push(AppRoutes.childPermissions);
+              },
+            ),
+            // Theme / Color Mode Toggle
+            Consumer(
+              builder: (context, ref, _) {
+                final currentMode = ref.watch(themeModeProvider);
+                final isDark = currentMode == ThemeMode.dark;
+                return Container(
+                  margin: const EdgeInsets.symmetric(vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF14243B),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: _cardBorder),
                   ),
                   child: Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(10),
+                        padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF59E0B),
-                          borderRadius: BorderRadius.circular(12),
+                          color: _tealAccent.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(Icons.notifications_active_rounded, color: Colors.white, size: 22),
+                        child: Icon(
+                          isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+                          color: _tealAccent,
+                          size: 20,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
-                              children: [
-                                Text(
-                                  count == 1 ? '1 Pending App Request' : '$count Pending App Requests',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                    color: Color(0xFF92400E),
-                                  ),
-                                ),
-                                const Spacer(),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFDC2626),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: const Text(
-                                    'ACTION NEEDED',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 10,
-                                    ),
-                                  ),
-                                ),
-                              ],
+                            const Text(
+                              'Dark Navy Palette',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
-                            const SizedBox(height: 4),
                             Text(
-                              count == 1
-                                  ? '$childName requested permission for $appName'
-                                  : '$childName and others are waiting for permission',
+                              isDark ? 'Unified Dark Navy across all pages' : 'Light theme enabled',
                               style: const TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF78350F),
+                                color: Color(0xFF8BA0B8),
+                                fontSize: 11.5,
                               ),
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Color(0xFF92400E)),
+                      Switch(
+                        value: isDark,
+                        activeColor: _tealAccent,
+                        activeTrackColor: const Color(0xFF0D5E57),
+                        inactiveThumbColor: Colors.grey,
+                        inactiveTrackColor: const Color(0xFF1E3554),
+                        onChanged: (val) {
+                          ref.read(themeModeProvider.notifier).toggleTheme();
+                        },
+                      ),
                     ],
                   ),
+                );
+              },
+            ),
+            const SizedBox(height: 16),
+            // Sign Out Button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  await ref.read(authNotifierProvider.notifier).signOut();
+                  if (context.mounted) {
+                    context.go(AppRoutes.login);
+                  }
+                },
+                icon: const Icon(Icons.logout_rounded, size: 18, color: Colors.white),
+                label: const Text(
+                  'Sign Out',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFDC2626),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  elevation: 0,
                 ),
               ),
             ),
-          ),
-        );
-      },
-      loading: () => const SliverToBoxAdapter(child: SizedBox.shrink()),
-      error: (_, __) => const SliverToBoxAdapter(child: SizedBox.shrink()),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSettingsTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF14243B),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: _cardBorder),
+              ),
+              child: Icon(icon, color: _tealAccent, size: 20),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      color: Color(0xFF8BA0B8),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFF475569), size: 14),
+          ],
+        ),
+      ),
     );
   }
 }

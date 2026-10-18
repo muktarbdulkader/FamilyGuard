@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../../../core/services/education_service.dart';
 
 class SendEducationalDialog extends ConsumerStatefulWidget {
@@ -46,6 +47,7 @@ class _SendEducationalDialogState extends ConsumerState<SendEducationalDialog> {
   final _urlController = TextEditingController();
   final _noteController = TextEditingController();
 
+  PlatformFile? _selectedFile;
   String _selectedSubject = 'Science';
   bool _isLoading = false;
 
@@ -66,6 +68,42 @@ class _SendEducationalDialogState extends ConsumerState<SendEducationalDialog> {
     super.dispose();
   }
 
+  Future<void> _pickFile() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: [
+          'pdf',
+          'doc',
+          'docx',
+          'ppt',
+          'pptx',
+          'mp4',
+          'jpg',
+          'jpeg',
+          'png',
+        ],
+        withData: true,
+      );
+
+      if (result != null && result.files.isNotEmpty) {
+        setState(() {
+          _selectedFile = result.files.first;
+          if (_titleController.text.trim().isEmpty) {
+            final baseName = _selectedFile!.name.split('.').first;
+            _titleController.text = baseName.replaceAll('_', ' ');
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error selecting file: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -81,6 +119,7 @@ class _SendEducationalDialogState extends ConsumerState<SendEducationalDialog> {
         url: _urlController.text.isNotEmpty ? _urlController.text : null,
         senderName: widget.parentName.isNotEmpty ? widget.parentName : 'Parent',
         childName: widget.childName,
+        file: _selectedFile,
       );
 
       if (mounted) {
@@ -285,18 +324,88 @@ class _SendEducationalDialogState extends ConsumerState<SendEducationalDialog> {
               ),
               const SizedBox(height: 14),
 
-              // URL / Web Link Field
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Study Link or Video URL (Optional)',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF334155),
+              // Document Attachment Section
+              const Text(
+                'Upload Document / File (Optional)',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF334155),
+                ),
+              ),
+              const SizedBox(height: 6),
+              if (_selectedFile != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0FDF4),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFF86EFAC)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.description_rounded, color: Color(0xFF16A34A), size: 24),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _selectedFile!.name,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF166534)),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              '${(_selectedFile!.size / 1024).toStringAsFixed(1)} KB • Document Attached',
+                              style: const TextStyle(fontSize: 11, color: Color(0xFF15803D)),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded, size: 20, color: Color(0xFFDC2626)),
+                        onPressed: () => setState(() => _selectedFile = null),
+                        tooltip: 'Remove attached file',
+                      ),
+                    ],
+                  ),
+                )
+              else
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _pickFile,
+                    icon: const Icon(Icons.upload_file_rounded, size: 20, color: Color(0xFF4F46E5)),
+                    label: const Text(
+                      'Attach PDF, Word Doc, PPT, or Image',
+                      style: TextStyle(color: Color(0xFF4F46E5), fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+                      side: const BorderSide(color: Color(0xFFC7D2FE)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      backgroundColor: const Color(0xFFEEF2FF).withOpacity(0.5),
                     ),
                   ),
+                ),
+              const SizedBox(height: 14),
+
+              // URL / Web Link Field
+              Row(
+                children: [
+                  const Flexible(
+                    child: Text(
+                      'Study Link or Video URL (Optional)',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF334155),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   Text(
                     'YouTube, Web, etc.',
                     style: TextStyle(fontSize: 11, color: Colors.grey[500]),

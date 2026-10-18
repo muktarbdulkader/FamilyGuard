@@ -619,11 +619,12 @@ class _AppRequestScreenState extends ConsumerState<AppRequestScreen> {
     var permission = await RequestService.instance.getActivePermission(widget.packageName);
     permission ??= TemporaryPermission(
       packageName: widget.packageName,
-      appName: widget.appName,
       grantedAt: DateTime.now(),
       expiresAt: _pendingRequest?.accessExpiresAt ??
           DateTime.now().add(Duration(minutes: _pendingRequest?.grantedMinutes ?? 30)),
       grantedBy: _pendingRequest?.decidedBy ?? 'Parent',
+      requestId: _pendingRequest?.id ?? '',
+      authToken: _pendingRequest?.requestNonce ?? '',
     );
     if (mounted) {
       setState(() {

@@ -36,6 +36,8 @@ class AppRoutes {
   
   // Settings and other routes
   static const String settings = '/settings';
+  static const String profile = '/profile';
+  static const String languageSettings = '/language-settings';
   static const String privacy = '/privacy';
   static const String help = '/help';
 }

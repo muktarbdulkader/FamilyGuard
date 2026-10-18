@@ -150,6 +150,39 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     }
   }
 
+  /// Handle Google Sign In / Registration
+  Future<void> _handleGoogleSignIn() async {
+    final authNotifier = ref.read(authNotifierProvider.notifier);
+    final user = await authNotifier.signInWithGoogle();
+
+    if (user != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text('Welcome, ${user.displayName}!'),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFF10B981),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+
+      if (user.role == UserRole.none) {
+        context.go(AppRoutes.roleSelection);
+      } else if (user.role == UserRole.parent) {
+        context.go(AppRoutes.parentHome);
+      } else if (user.role == UserRole.child) {
+        context.go(AppRoutes.childHome);
+      }
+    }
+  }
+
   /// Handle Password Reset
   Future<void> _handlePasswordReset() async {
     final emailController = TextEditingController(text: _signInEmailController.text.trim());
@@ -745,7 +778,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             onPressed: _handleSignIn,
           ),
 
-          const SizedBox(height: 16),
+          _buildDivider(isDark),
+
+          // Google Sign In Button
+          _buildGoogleSignInButton(isDark, label: 'Continue with Google'),
+
+          const SizedBox(height: 18),
 
           // Switch to Register
           Center(
@@ -897,7 +935,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             onPressed: _handleSignUp,
           ),
 
-          const SizedBox(height: 16),
+          _buildDivider(isDark),
+
+          // Google Sign Up Button
+          _buildGoogleSignInButton(isDark, label: 'Sign up with Google'),
+
+          const SizedBox(height: 18),
 
           // Switch to Sign In
           Center(
@@ -986,6 +1029,97 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                   Icon(icon, size: 18),
                 ],
               ),
+      ),
+    );
+  }
+
+  Widget _buildDivider(bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Row(
+        children: [
+          Expanded(child: Divider(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1))),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: Text(
+              'OR',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.8,
+                color: isDark ? Colors.grey[400] : const Color(0xFF64748B),
+              ),
+            ),
+          ),
+          Expanded(child: Divider(color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1))),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGoogleSignInButton(bool isDark, {required String label}) {
+    final authState = ref.watch(authNotifierProvider);
+
+    return Container(
+      height: 52,
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: authState.isLoading ? null : _handleGoogleSignIn,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Google "G" icon
+                Container(
+                  width: 26,
+                  height: 26,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      'G',
+                      style: TextStyle(
+                        fontFamily: 'sans-serif',
+                        fontWeight: FontWeight.w900,
+                        fontSize: 18,
+                        color: Colors.blue[600],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? Colors.white : const Color(0xFF1E293B),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

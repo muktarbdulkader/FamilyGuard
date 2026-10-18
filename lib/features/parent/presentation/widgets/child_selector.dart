@@ -16,6 +16,8 @@ class ChildSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -24,15 +26,15 @@ class ChildSelector extends StatelessWidget {
             Icon(
               Icons.child_care_outlined,
               size: 20,
-              color: Colors.grey[700],
+              color: isDark ? const Color(0xFF2DD4BF) : Colors.grey[700],
             ),
             const SizedBox(width: 8),
             Text(
               'Child',
               style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[700],
-                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: isDark ? Colors.white : Colors.grey[700],
+                fontSize: 15,
               ),
             ),
           ],
@@ -55,16 +57,25 @@ class ChildSelector extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey[300]!),
-              borderRadius: BorderRadius.circular(12),
-              color: Colors.white,
+              border: Border.all(
+                color: isDark ? const Color(0xFF1E3554) : Colors.grey[300]!,
+              ),
+              borderRadius: BorderRadius.circular(14),
+              color: isDark ? const Color(0xFF132238) : Colors.white,
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<ChildModel>(
                 value: selectedChild,
-                hint: const Text('Select a child'),
+                dropdownColor: isDark ? const Color(0xFF132238) : Colors.white,
+                hint: Text(
+                  'Select a child',
+                  style: TextStyle(color: isDark ? const Color(0xFF8BA0B8) : Colors.grey[600]),
+                ),
                 isExpanded: true,
-                icon: const Icon(Icons.keyboard_arrow_down),
+                icon: Icon(
+                  Icons.keyboard_arrow_down,
+                  color: isDark ? const Color(0xFF8BA0B8) : Colors.grey[700],
+                ),
                 items: children.map((child) {
                   return DropdownMenuItem<ChildModel>(
                     value: child,
@@ -87,8 +98,9 @@ class ChildSelector extends StatelessWidget {
                             children: [
                               Text(
                                 child.displayName,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w500,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark ? Colors.white : Colors.black87,
                                 ),
                               ),
                               Text(
@@ -141,17 +153,35 @@ class _ChildCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final cardBg = isDark
+        ? (isSelected ? const Color(0xFF0F2B38) : const Color(0xFF132238))
+        : (isSelected ? Colors.green[50]! : Colors.white);
+
+    final borderColor = isDark
+        ? (isSelected ? const Color(0xFF2DD4BF) : const Color(0xFF1E3554))
+        : (isSelected ? Colors.green[300]! : Colors.grey[300]!);
+
+    final avatarBg = isDark
+        ? const Color(0xFF063D39)
+        : Colors.green[100]!;
+
+    final avatarColor = isDark
+        ? const Color(0xFF2DD4BF)
+        : Colors.green[700]!;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.green[50] : Colors.white,
-          borderRadius: BorderRadius.circular(12),
+          color: cardBg,
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: isSelected ? Colors.green[300]! : Colors.grey[300]!,
-            width: isSelected ? 2 : 1,
+            color: borderColor,
+            width: isSelected ? 1.5 : 1,
           ),
         ),
         child: Row(
@@ -160,30 +190,33 @@ class _ChildCard extends StatelessWidget {
             Stack(
               children: [
                 CircleAvatar(
-                  radius: 24,
-                  backgroundColor: Colors.green[100],
+                  radius: 22,
+                  backgroundColor: avatarBg,
                   child: Icon(
                     Icons.child_care,
-                    color: Colors.green[700],
-                    size: 28,
+                    color: avatarColor,
+                    size: 24,
                   ),
                 ),
                 Positioned(
                   right: 0,
                   bottom: 0,
                   child: Container(
-                    width: 16,
-                    height: 16,
+                    width: 13,
+                    height: 13,
                     decoration: BoxDecoration(
                       color: child.statusColor,
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
+                      border: Border.all(
+                        color: isDark ? const Color(0xFF132238) : Colors.white,
+                        width: 2,
+                      ),
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -191,12 +224,12 @@ class _ChildCard extends StatelessWidget {
                   Text(
                     child.displayName,
                     style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: isSelected ? Colors.green[800] : Colors.black87,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15.5,
+                      color: isDark ? Colors.white : (isSelected ? Colors.green[800] : Colors.black87),
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 3),
                   Row(
                     children: [
                       Container(
@@ -205,14 +238,14 @@ class _ChildCard extends StatelessWidget {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: child.statusColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
+                          color: child.statusColor.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
                           child.statusText,
                           style: TextStyle(
                             fontSize: 11,
-                            fontWeight: FontWeight.w500,
+                            fontWeight: FontWeight.w600,
                             color: child.statusColor,
                           ),
                         ),
@@ -222,14 +255,14 @@ class _ChildCard extends StatelessWidget {
                         Icon(
                           Icons.phone_android,
                           size: 12,
-                          color: Colors.grey[600],
+                          color: isDark ? const Color(0xFF8BA0B8) : Colors.grey[600],
                         ),
                         const SizedBox(width: 2),
                         Expanded(
                           child: Text(
                             child.deviceInfo!,
                             style: TextStyle(
-                              color: Colors.grey[600],
+                              color: isDark ? const Color(0xFF8BA0B8) : Colors.grey[600],
                               fontSize: 11,
                             ),
                             overflow: TextOverflow.ellipsis,
@@ -244,7 +277,7 @@ class _ChildCard extends StatelessWidget {
             if (isSelected)
               Icon(
                 Icons.check_circle,
-                color: Colors.green[600],
+                color: isDark ? const Color(0xFF2DD4BF) : Colors.green[600],
                 size: 20,
               ),
           ],

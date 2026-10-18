@@ -9,6 +9,8 @@ class UserModel {
   final DateTime createdAt;
   final DateTime updatedAt;
   final String? familyId;
+  final String? phoneNumber;
+  final String? photoUrl;
 
   const UserModel({
     required this.uid,
@@ -18,6 +20,8 @@ class UserModel {
     required this.createdAt,
     required this.updatedAt,
     this.familyId,
+    this.phoneNumber,
+    this.photoUrl,
   });
 
   /// Get user ID (alias for uid for compatibility)
@@ -37,6 +41,8 @@ class UserModel {
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       familyId: data['familyId'],
+      phoneNumber: data['phoneNumber'] as String?,
+      photoUrl: data['photoUrl'] as String?,
     );
   }
 
@@ -50,6 +56,8 @@ class UserModel {
       createdAt: DateTime.parse(json['createdAt']),
       updatedAt: DateTime.parse(json['updatedAt']),
       familyId: json['familyId'],
+      phoneNumber: json['phoneNumber'] as String?,
+      photoUrl: json['photoUrl'] as String?,
     );
   }
 
@@ -63,6 +71,8 @@ class UserModel {
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
       if (familyId != null) 'familyId': familyId,
+      if (phoneNumber != null) 'phoneNumber': phoneNumber,
+      if (photoUrl != null) 'photoUrl': photoUrl,
     };
   }
 
@@ -76,6 +86,8 @@ class UserModel {
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       if (familyId != null) 'familyId': familyId,
+      if (phoneNumber != null) 'phoneNumber': phoneNumber,
+      if (photoUrl != null) 'photoUrl': photoUrl,
     };
   }
 
@@ -88,6 +100,8 @@ class UserModel {
     DateTime? createdAt,
     DateTime? updatedAt,
     String? familyId,
+    String? phoneNumber,
+    String? photoUrl,
   }) {
     return UserModel(
       uid: uid ?? this.uid,
@@ -97,6 +111,8 @@ class UserModel {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       familyId: familyId ?? this.familyId,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      photoUrl: photoUrl ?? this.photoUrl,
     );
   }
 

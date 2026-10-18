@@ -20,6 +20,8 @@ import '../../features/family/presentation/screens/pairing/qr_code_screen.dart';
 import '../../features/requests/presentation/screens/app_requests_screen.dart';
 import '../../features/parent/presentation/screens/parent_education_screen.dart';
 import '../../features/child/presentation/screens/child_education_screen.dart';
+import '../../features/profile/presentation/screens/profile_screen.dart';
+import '../../features/profile/presentation/pages/language_settings_page.dart';
 import '../constants/app_routes.dart';
 import '../models/user_model.dart';
 import 'auth_provider.dart';
@@ -103,6 +105,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const RoleSelectionScreen(),
       ),
       
+      GoRoute(
+        path: AppRoutes.languageSettings,
+        builder: (context, state) => const LanguageSettingsPage(),
+      ),
+
       // Parent home route
       GoRoute(
         path: AppRoutes.parentHome,
@@ -233,6 +240,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/notifications',
         name: 'notifications',
         builder: (context, state) => const ParentNotificationsScreen(),
+      ),
+
+      // Profile route
+      GoRoute(
+        path: AppRoutes.profile,
+        name: 'profile',
+        builder: (context, state) => const ProfileScreen(),
       ),
       
       // Error route for undefined routes

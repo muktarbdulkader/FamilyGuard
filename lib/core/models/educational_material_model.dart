@@ -187,17 +187,27 @@ class EducationalMaterial {
 
   factory EducationalMaterial.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>? ?? {};
-    final rawAssignedIds = List<String>.from(data['assignedChildIds'] ?? []);
-    final rawChildNames = Map<String, String>.from(data['assignedChildNames'] ?? {});
+    final rawAssignedIds = (data['assignedChildIds'] as List<dynamic>?)
+            ?.map((e) => e.toString())
+            .toList() ??
+        [];
+    final rawChildNames = <String, String>{};
+    if (data['assignedChildNames'] is Map) {
+      (data['assignedChildNames'] as Map).forEach((k, v) {
+        rawChildNames[k.toString()] = v.toString();
+      });
+    }
 
     final progressMap = <String, ChildLearningProgress>{};
-    final rawProgress = data['childProgress'] as Map<String, dynamic>? ?? {};
+    final rawProgress = data['childProgress'] as Map<dynamic, dynamic>? ?? {};
     for (final entry in rawProgress.entries) {
       if (entry.value is Map) {
-        progressMap[entry.key] = ChildLearningProgress.fromMap(
-          entry.key,
-          Map<String, dynamic>.from(entry.value as Map),
-        );
+        try {
+          progressMap[entry.key.toString()] = ChildLearningProgress.fromMap(
+            entry.key.toString(),
+            Map<String, dynamic>.from(entry.value as Map),
+          );
+        } catch (_) {}
       }
     }
 
@@ -217,27 +227,34 @@ class EducationalMaterial {
       orElse: () => EduFileType.fromExtension(data['fileName'] as String?),
     );
 
+    DateTime parseDate(dynamic val, [DateTime? fallback]) {
+      if (val is Timestamp) return val.toDate();
+      if (val is String) return DateTime.tryParse(val) ?? fallback ?? DateTime.now();
+      if (val is int) return DateTime.fromMillisecondsSinceEpoch(val);
+      return fallback ?? DateTime.now();
+    }
+
     return EducationalMaterial(
       id: doc.id,
-      familyId: (data['familyId'] as String?) ?? '',
-      parentId: (data['parentId'] as String?) ?? '',
-      parentName: (data['parentName'] as String?) ?? 'Parent',
-      title: (data['title'] as String?) ?? '',
-      description: (data['description'] as String?) ?? '',
-      subject: (data['subject'] as String?) ?? 'General',
-      gradeLevel: (data['gradeLevel'] as String?) ?? 'All Grades',
+      familyId: (data['familyId'] ?? '').toString(),
+      parentId: (data['parentId'] ?? '').toString(),
+      parentName: (data['parentName'] ?? 'Parent').toString(),
+      title: (data['title'] ?? '').toString(),
+      description: (data['description'] ?? '').toString(),
+      subject: (data['subject'] ?? 'General').toString(),
+      gradeLevel: (data['gradeLevel'] ?? 'All Grades').toString(),
       materialType: type,
-      fileUrl: (data['fileUrl'] as String?) ?? '',
+      fileUrl: (data['fileUrl'] ?? '').toString(),
       fileName: data['fileName'] as String?,
       fileSizeBytes: data['fileSizeBytes'] as int?,
       storagePath: data['storagePath'] as String?,
       instructions: data['instructions'] as String?,
-      dueDate: (data['dueDate'] as Timestamp?)?.toDate(),
+      dueDate: data['dueDate'] != null ? parseDate(data['dueDate'], null) : null,
       assignedChildIds: rawAssignedIds,
       assignedChildNames: rawChildNames,
       childProgress: progressMap,
-      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      createdAt: parseDate(data['createdAt']),
+      updatedAt: parseDate(data['updatedAt']),
     );
   }
 

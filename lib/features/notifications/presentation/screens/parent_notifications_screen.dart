@@ -44,14 +44,16 @@ class _ParentNotificationsScreenState extends ConsumerState<ParentNotificationsS
     final unreadCount = ref.watch(unreadNotificationCountProvider);
     final urgentNotifications = ref.watch(urgentNotificationsProvider);
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: isDark ? const Color(0xFF0C1829) : const Color(0xFFF8FAFC),
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF0F172A),
+        backgroundColor: isDark ? const Color(0xFF0C1829) : Colors.white,
+        foregroundColor: isDark ? Colors.white : const Color(0xFF0F172A),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: isDark ? Colors.white : const Color(0xFF0F172A)),
           onPressed: () => context.pop(),
         ),
         title: Column(
@@ -59,22 +61,22 @@ class _ParentNotificationsScreenState extends ConsumerState<ParentNotificationsS
           children: [
             Row(
               children: [
-                const Text(
+                Text(
                   'Notifications',
-                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: isDark ? Colors.white : const Color(0xFF0F172A)),
                 ),
                 if (unreadCount > 0) ...[
                   const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF4F46E5),
+                      color: isDark ? const Color(0xFF2DD4BF) : const Color(0xFF4F46E5),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
                       '$unreadCount New',
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: isDark ? const Color(0xFF0C1829) : Colors.white,
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
                       ),
@@ -83,16 +85,16 @@ class _ParentNotificationsScreenState extends ConsumerState<ParentNotificationsS
                 ],
               ],
             ),
-            const Text(
+            Text(
               'Real-time child alerts & permissions',
-              style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+              style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF8BA0B8) : const Color(0xFF64748B)),
             ),
           ],
         ),
         actions: [
           if (unreadCount > 0)
             IconButton(
-              icon: const Icon(Icons.done_all_rounded, color: Color(0xFF4F46E5)),
+              icon: Icon(Icons.done_all_rounded, color: isDark ? const Color(0xFF2DD4BF) : const Color(0xFF4F46E5)),
               tooltip: 'Mark all as read',
               onPressed: () {
                 ref.read(notificationActionsProvider).markAllAsRead();
@@ -108,9 +110,9 @@ class _ParentNotificationsScreenState extends ConsumerState<ParentNotificationsS
         ],
         bottom: TabBar(
           controller: _tabController,
-          labelColor: const Color(0xFF4F46E5),
-          unselectedLabelColor: const Color(0xFF64748B),
-          indicatorColor: const Color(0xFF4F46E5),
+          labelColor: isDark ? const Color(0xFF2DD4BF) : const Color(0xFF4F46E5),
+          unselectedLabelColor: isDark ? const Color(0xFF8BA0B8) : const Color(0xFF64748B),
+          indicatorColor: isDark ? const Color(0xFF2DD4BF) : const Color(0xFF4F46E5),
           indicatorWeight: 3,
           labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
           tabs: [

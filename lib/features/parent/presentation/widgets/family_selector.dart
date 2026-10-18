@@ -16,6 +16,9 @@ class FamilySelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final labelColor = isDark ? Colors.white : Colors.grey[700]!;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -24,15 +27,15 @@ class FamilySelector extends StatelessWidget {
             Icon(
               Icons.home_outlined,
               size: 20,
-              color: Colors.grey[700],
+              color: isDark ? const Color(0xFF2DD4BF) : Colors.grey[700],
             ),
             const SizedBox(width: 8),
             Text(
               'Family',
               style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[700],
-                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: labelColor,
+                fontSize: 15,
               ),
             ),
           ],
@@ -52,16 +55,25 @@ class FamilySelector extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey[300]!),
-              borderRadius: BorderRadius.circular(12),
-              color: Colors.white,
+              border: Border.all(
+                color: isDark ? const Color(0xFF1E3554) : Colors.grey[300]!,
+              ),
+              borderRadius: BorderRadius.circular(14),
+              color: isDark ? const Color(0xFF132238) : Colors.white,
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<FamilyModel>(
                 value: selectedFamily,
-                hint: const Text('Select a family'),
+                dropdownColor: isDark ? const Color(0xFF132238) : Colors.white,
+                hint: Text(
+                  'Select a family',
+                  style: TextStyle(color: isDark ? const Color(0xFF8BA0B8) : Colors.grey[600]),
+                ),
                 isExpanded: true,
-                icon: const Icon(Icons.keyboard_arrow_down),
+                icon: Icon(
+                  Icons.keyboard_arrow_down,
+                  color: isDark ? const Color(0xFF8BA0B8) : Colors.grey[700],
+                ),
                 items: families.map((family) {
                   return DropdownMenuItem<FamilyModel>(
                     value: family,
@@ -70,7 +82,7 @@ class FamilySelector extends StatelessWidget {
                         Icon(
                           Icons.home,
                           size: 20,
-                          color: Colors.blue[600],
+                          color: isDark ? const Color(0xFF2DD4BF) : Colors.blue[600],
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -80,15 +92,16 @@ class FamilySelector extends StatelessWidget {
                             children: [
                               Text(
                                 family.name,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w500,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark ? Colors.white : Colors.black87,
                                 ),
                               ),
                               Text(
                                 '${family.childIds.length} children',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: Colors.grey[600],
+                                  color: isDark ? const Color(0xFF8BA0B8) : Colors.grey[600],
                                 ),
                               ),
                             ],
@@ -126,35 +139,53 @@ class _FamilyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final cardBg = isDark
+        ? (isSelected ? const Color(0xFF0F2B38) : const Color(0xFF132238))
+        : (isSelected ? Colors.blue[50]! : Colors.white);
+
+    final borderColor = isDark
+        ? (isSelected ? const Color(0xFF2DD4BF) : const Color(0xFF1E3554))
+        : (isSelected ? Colors.blue[300]! : Colors.grey[300]!);
+
+    final iconBg = isDark
+        ? const Color(0xFF063D39)
+        : (isSelected ? Colors.blue[100]! : Colors.grey[100]!);
+
+    final iconColor = isDark
+        ? const Color(0xFF2DD4BF)
+        : Colors.blue[700]!;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.blue[50] : Colors.white,
-          borderRadius: BorderRadius.circular(12),
+          color: cardBg,
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: isSelected ? Colors.blue[300]! : Colors.grey[300]!,
-            width: isSelected ? 2 : 1,
+            color: borderColor,
+            width: isSelected ? 1.5 : 1,
           ),
         ),
         child: Row(
           children: [
             Container(
-              width: 48,
-              height: 48,
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
-                color: Colors.blue[100],
+                color: iconBg,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
-                Icons.home,
-                color: Colors.blue[700],
-                size: 24,
+                Icons.home_rounded,
+                color: iconColor,
+                size: 22,
               ),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -162,38 +193,38 @@ class _FamilyCard extends StatelessWidget {
                   Text(
                     family.name,
                     style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: isSelected ? Colors.blue[800] : Colors.black87,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15.5,
+                      color: isDark ? Colors.white : (isSelected ? Colors.blue[800] : Colors.black87),
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 3),
                   Row(
                     children: [
                       Icon(
                         Icons.people_outline,
                         size: 14,
-                        color: Colors.grey[600],
+                        color: isDark ? const Color(0xFF8BA0B8) : Colors.grey[600],
                       ),
                       const SizedBox(width: 4),
                       Text(
                         '${family.childIds.length} children',
                         style: TextStyle(
-                          color: Colors.grey[600],
+                          color: isDark ? const Color(0xFF8BA0B8) : Colors.grey[600],
                           fontSize: 12,
                         ),
                       ),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 14),
                       Icon(
                         Icons.calendar_today_outlined,
-                        size: 14,
-                        color: Colors.grey[600],
+                        size: 13,
+                        color: isDark ? const Color(0xFF8BA0B8) : Colors.grey[600],
                       ),
                       const SizedBox(width: 4),
                       Text(
                         'Created ${_formatDate(family.createdAt)}',
                         style: TextStyle(
-                          color: Colors.grey[600],
+                          color: isDark ? const Color(0xFF8BA0B8) : Colors.grey[600],
                           fontSize: 12,
                         ),
                       ),
@@ -205,7 +236,7 @@ class _FamilyCard extends StatelessWidget {
             if (isSelected)
               Icon(
                 Icons.check_circle,
-                color: Colors.blue[600],
+                color: isDark ? const Color(0xFF2DD4BF) : Colors.blue[600],
                 size: 20,
               ),
           ],

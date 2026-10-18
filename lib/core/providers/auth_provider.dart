@@ -154,6 +154,28 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  /// Sign in with Google
+  Future<UserModel?> signInWithGoogle() async {
+    state = state.copyWith(isLoading: true, clearError: true);
+
+    final result = await _authService.signInWithGoogle();
+
+    if (result.isSuccess) {
+      state = state.copyWith(
+        isLoading: false,
+        user: result.data,
+        clearError: true,
+      );
+      return result.data;
+    } else {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: result.errorMessage,
+      );
+      return null;
+    }
+  }
+
   /// Sign out user
   Future<void> signOut() async {
     state = state.copyWith(isLoading: true, clearError: true);
@@ -182,6 +204,85 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = state.copyWith(
         isLoading: false,
         user: result.data,
+        clearError: true,
+      );
+      return true;
+    } else {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: result.errorMessage,
+      );
+      return false;
+    }
+  }
+
+  /// Update user profile (name, phone, photo)
+  Future<bool> updateProfile({
+    String? displayName,
+    String? phoneNumber,
+    String? photoUrl,
+  }) async {
+    if (state.user == null) return false;
+    state = state.copyWith(isLoading: true, clearError: true);
+
+    final result = await _authService.updateUserProfile(
+      uid: state.user!.uid,
+      displayName: displayName,
+      phoneNumber: phoneNumber,
+      photoUrl: photoUrl,
+    );
+
+    if (result.isSuccess) {
+      state = state.copyWith(
+        isLoading: false,
+        user: result.data,
+        clearError: true,
+      );
+      return true;
+    } else {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: result.errorMessage,
+      );
+      return false;
+    }
+  }
+
+  /// Change password securely with reauthentication
+  Future<bool> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+
+    final result = await _authService.changePassword(
+      currentPassword: currentPassword,
+      newPassword: newPassword,
+    );
+
+    state = state.copyWith(isLoading: false);
+
+    if (result.isSuccess) {
+      state = state.copyWith(clearError: true);
+      return true;
+    } else {
+      state = state.copyWith(errorMessage: result.errorMessage);
+      return false;
+    }
+  }
+
+  /// Delete account with reauthentication
+  Future<bool> deleteAccountWithPassword(String password) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+
+    final result = await _authService.reauthenticateAndDeleteAccount(
+      password: password,
+    );
+
+    if (result.isSuccess) {
+      state = state.copyWith(
+        isLoading: false,
+        clearUser: true,
         clearError: true,
       );
       return true;

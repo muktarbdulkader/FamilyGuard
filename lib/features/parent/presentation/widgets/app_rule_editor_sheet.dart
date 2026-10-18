@@ -58,11 +58,13 @@ class _AppRuleEditorSheetState extends ConsumerState<AppRuleEditorSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(24),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF132238) : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: SingleChildScrollView(
         child: Column(
@@ -196,6 +198,8 @@ class _AppRuleEditorSheetState extends ConsumerState<AppRuleEditorSheet> {
 
   Widget _buildRuleTypeOption(AppControlRule ruleType) {
     final isSelected = _selectedRuleType == ruleType;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final activeColor = isDark ? const Color(0xFF2DD4BF) : Theme.of(context).primaryColor;
     
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -203,20 +207,22 @@ class _AppRuleEditorSheetState extends ConsumerState<AppRuleEditorSheet> {
         onTap: () => setState(() => _selectedRuleType = ruleType),
         borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             border: Border.all(
-              color: isSelected ? Theme.of(context).primaryColor : Colors.grey[300]!,
-              width: isSelected ? 2 : 1,
+              color: isSelected ? activeColor : (isDark ? const Color(0xFF1E3554) : Colors.grey[300]!),
+              width: isSelected ? 1.5 : 1,
             ),
             borderRadius: BorderRadius.circular(12),
-            color: isSelected ? Theme.of(context).primaryColor.withOpacity(0.1) : null,
+            color: isSelected
+                ? (isDark ? const Color(0xFF063D39) : Theme.of(context).primaryColor.withOpacity(0.1))
+                : (isDark ? const Color(0xFF14243B) : null),
           ),
           child: Row(
             children: [
               Icon(
                 _getRuleTypeIcon(ruleType),
-                color: isSelected ? Theme.of(context).primaryColor : Colors.grey[600],
+                color: isSelected ? activeColor : (isDark ? const Color(0xFF8BA0B8) : Colors.grey[600]),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -227,14 +233,14 @@ class _AppRuleEditorSheetState extends ConsumerState<AppRuleEditorSheet> {
                       _getRuleTypeName(ruleType),
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
-                        color: isSelected ? Theme.of(context).primaryColor : Colors.black87,
+                        color: isDark ? Colors.white : (isSelected ? activeColor : Colors.black87),
                       ),
                     ),
                     Text(
                       _getRuleTypeDescription(ruleType),
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey[600],
+                        color: isDark ? const Color(0xFF8BA0B8) : Colors.grey[600],
                       ),
                     ),
                   ],
@@ -243,7 +249,8 @@ class _AppRuleEditorSheetState extends ConsumerState<AppRuleEditorSheet> {
               if (isSelected)
                 Icon(
                   Icons.check_circle,
-                  color: Theme.of(context).primaryColor,
+                  color: activeColor,
+                  size: 20,
                 ),
             ],
           ),
@@ -253,30 +260,39 @@ class _AppRuleEditorSheetState extends ConsumerState<AppRuleEditorSheet> {
   }
 
   Widget _buildTimeLimitSettings() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Daily Time Limit',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+          style: TextStyle(
+            fontSize: 15,
             fontWeight: FontWeight.bold,
+            color: isDark ? Colors.white : Colors.black87,
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.grey[50],
+            color: isDark ? const Color(0xFF14243B) : Colors.grey[50],
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey[300]!),
+            border: Border.all(color: isDark ? const Color(0xFF1E3554) : Colors.grey[300]!),
           ),
           child: Column(
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('${(_dailyLimitMinutes / 60).floor()}h ${_dailyLimitMinutes % 60}m'),
-                  Text('$_dailyLimitMinutes minutes'),
+                  Text(
+                    '${(_dailyLimitMinutes / 60).floor()}h ${_dailyLimitMinutes % 60}m',
+                    style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87),
+                  ),
+                  Text(
+                    '$_dailyLimitMinutes minutes',
+                    style: TextStyle(color: isDark ? const Color(0xFF8BA0B8) : Colors.grey[600]),
+                  ),
                 ],
               ),
               const SizedBox(height: 16),
@@ -285,6 +301,7 @@ class _AppRuleEditorSheetState extends ConsumerState<AppRuleEditorSheet> {
                 min: 5,
                 max: 480, // 8 hours
                 divisions: 95,
+                activeColor: isDark ? const Color(0xFF2DD4BF) : Theme.of(context).primaryColor,
                 onChanged: (value) => setState(() => _dailyLimitMinutes = value.round().clamp(5, 480)),
               ),
             ],
@@ -295,22 +312,25 @@ class _AppRuleEditorSheetState extends ConsumerState<AppRuleEditorSheet> {
   }
 
   Widget _buildTimeWindowSettings() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Allowed Time Window',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+          style: TextStyle(
+            fontSize: 15,
             fontWeight: FontWeight.bold,
+            color: isDark ? Colors.white : Colors.black87,
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.grey[50],
+            color: isDark ? const Color(0xFF14243B) : Colors.grey[50],
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey[300]!),
+            border: Border.all(color: isDark ? const Color(0xFF1E3554) : Colors.grey[300]!),
           ),
           child: Column(
             children: [
@@ -324,7 +344,7 @@ class _AppRuleEditorSheetState extends ConsumerState<AppRuleEditorSheet> {
                           'Start Time',
                           style: TextStyle(
                             fontWeight: FontWeight.w600,
-                            color: Colors.grey[700],
+                            color: isDark ? const Color(0xFF8BA0B8) : Colors.grey[700],
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -333,13 +353,13 @@ class _AppRuleEditorSheetState extends ConsumerState<AppRuleEditorSheet> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                             decoration: BoxDecoration(
-                              color: Colors.white,
-                              border: Border.all(color: Colors.grey[300]!),
+                              color: isDark ? const Color(0xFF0C1829) : Colors.white,
+                              border: Border.all(color: isDark ? const Color(0xFF1E3554) : Colors.grey[300]!),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
                               _allowedStartTime.format(context),
-                              style: const TextStyle(fontSize: 16),
+                              style: TextStyle(fontSize: 16, color: isDark ? Colors.white : Colors.black87),
                             ),
                           ),
                         ),
@@ -355,7 +375,7 @@ class _AppRuleEditorSheetState extends ConsumerState<AppRuleEditorSheet> {
                           'End Time',
                           style: TextStyle(
                             fontWeight: FontWeight.w600,
-                            color: Colors.grey[700],
+                            color: isDark ? const Color(0xFF8BA0B8) : Colors.grey[700],
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -364,13 +384,13 @@ class _AppRuleEditorSheetState extends ConsumerState<AppRuleEditorSheet> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                             decoration: BoxDecoration(
-                              color: Colors.white,
-                              border: Border.all(color: Colors.grey[300]!),
+                              color: isDark ? const Color(0xFF0C1829) : Colors.white,
+                              border: Border.all(color: isDark ? const Color(0xFF1E3554) : Colors.grey[300]!),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
                               _allowedEndTime.format(context),
-                              style: const TextStyle(fontSize: 16),
+                              style: TextStyle(fontSize: 16, color: isDark ? Colors.white : Colors.black87),
                             ),
                           ),
                         ),

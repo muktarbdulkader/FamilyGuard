@@ -224,6 +224,7 @@ match /families/{familyId}/children/{childId} {
    firebase deploy --only firestore:rules
    firebase deploy --only firestore:indexes
    firebase deploy --only storage
+   <!-- firebase use project-686968535480 -->
    
    # Cloud Functions
    firebase deploy --only functions
