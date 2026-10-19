@@ -9,6 +9,7 @@ import '../../../../core/providers/auth_provider.dart';
 import '../../../../core/providers/notification_provider.dart';
 import '../../../../core/providers/family_provider.dart';
 import '../../../../core/models/family_model.dart';
+import '../../../../l10n/app_localizations.dart';
 
 /// Parent Notifications Screen with top-tier UI:
 /// - Prominently displays the child's name with custom avatars and tags
@@ -40,11 +41,13 @@ class _ParentNotificationsScreenState extends ConsumerState<ParentNotificationsS
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final notificationsAsync = ref.watch(currentUserNotificationsProvider);
     final unreadCount = ref.watch(unreadNotificationCountProvider);
     final urgentNotifications = ref.watch(urgentNotificationsProvider);
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isRtl = Directionality.of(context) == TextDirection.rtl;
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0C1829) : const Color(0xFFF8FAFC),
@@ -53,7 +56,11 @@ class _ParentNotificationsScreenState extends ConsumerState<ParentNotificationsS
         backgroundColor: isDark ? const Color(0xFF0C1829) : Colors.white,
         foregroundColor: isDark ? Colors.white : const Color(0xFF0F172A),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+          icon: Icon(
+            isRtl ? Icons.arrow_forward_ios_rounded : Icons.arrow_back_ios_new_rounded,
+            size: 20,
+            color: isDark ? Colors.white : const Color(0xFF0F172A),
+          ),
           onPressed: () => context.pop(),
         ),
         title: Column(
@@ -62,7 +69,7 @@ class _ParentNotificationsScreenState extends ConsumerState<ParentNotificationsS
             Row(
               children: [
                 Text(
-                  'Notifications',
+                  l10n.notifications,
                   style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: isDark ? Colors.white : const Color(0xFF0F172A)),
                 ),
                 if (unreadCount > 0) ...[
@@ -86,7 +93,7 @@ class _ParentNotificationsScreenState extends ConsumerState<ParentNotificationsS
               ],
             ),
             Text(
-              'Real-time child alerts & permissions',
+              l10n.realTimeAlerts,
               style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF8BA0B8) : const Color(0xFF64748B)),
             ),
           ],
@@ -95,7 +102,7 @@ class _ParentNotificationsScreenState extends ConsumerState<ParentNotificationsS
           if (unreadCount > 0)
             IconButton(
               icon: Icon(Icons.done_all_rounded, color: isDark ? const Color(0xFF2DD4BF) : const Color(0xFF4F46E5)),
-              tooltip: 'Mark all as read',
+              tooltip: l10n.markAllAsRead,
               onPressed: () {
                 ref.read(notificationActionsProvider).markAllAsRead();
                 ScaffoldMessenger.of(context).showSnackBar(

@@ -7,6 +7,7 @@ import '../../../../core/services/location_service.dart';
 import '../../../../core/services/geocoding_service.dart';
 import '../../../../core/providers/user_provider.dart';
 import '../../../../core/providers/family_provider.dart';
+import '../../../../l10n/app_localizations.dart';
 
 /// Family Location Screen — shows child locations without requiring a Maps API key.
 /// Tapping a location card opens the native maps app via a geo: URI.
@@ -112,6 +113,7 @@ class _FamilyMapScreenState extends ConsumerState<FamilyMapScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     ref.listen(currentUserDataProvider, (prev, next) {
       final fid = widget.familyId ?? next.value?.familyId;
       if (fid != null && fid.isNotEmpty && fid != _activeFamilyId) {
@@ -144,23 +146,23 @@ class _FamilyMapScreenState extends ConsumerState<FamilyMapScreen> {
         elevation: 0,
         backgroundColor: Colors.white,
         foregroundColor: const Color(0xFF0F172A),
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Family Locations',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+              l10n.familyLocations,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
             ),
             Text(
-              'Live GPS tracking',
-              style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+              l10n.liveGpsTracking,
+              style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
             ),
           ],
         ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'Refresh',
+            tooltip: l10n.refresh,
             onPressed: () {
               setState(() {
                 _isLoading = true;

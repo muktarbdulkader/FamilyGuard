@@ -68,20 +68,29 @@ class ParentalControlApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Get router instance from Riverpod provider
     final router = ref.watch(routerProvider);
     final themeMode = ref.watch(themeModeProvider);
-    
+    final locale = ref.watch(localeProvider);
+
     return MaterialApp.router(
       title: AppConstants.appName,
       debugShowCheckedModeBanner: false,
-      
-      // Use custom theme system
+      locale: locale,
+      supportedLocales: const [
+        Locale('en'),
+        Locale('om'),
+        Locale('am'),
+        Locale('ar'),
+      ],
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeMode,
-      
-      // Router configuration for navigation
       routerConfig: router,
     );
   }

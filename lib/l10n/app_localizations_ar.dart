@@ -60,7 +60,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get error => 'خطأ';
 
   @override
-  String get success => 'نجاح';
+  String get success => 'تم بنجاح';
 
   @override
   String get chooseLanguage => 'اختر لغتك المفضلة';
@@ -92,10 +92,10 @@ class AppLocalizationsAr extends AppLocalizations {
   String get role => 'الدور';
 
   @override
-  String get parent => 'والد';
+  String get parent => 'ولي الأمر';
 
   @override
-  String get child => 'طفل';
+  String get child => 'الطفل';
 
   @override
   String get security => 'الأمان';
@@ -104,7 +104,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get resetPassword => 'إعادة تعيين كلمة المرور';
 
   @override
-  String get forgotPassword => 'نسيت كلمة المرور؟';
+  String get forgotPassword => 'هل نسيت كلمة المرور؟';
 
   @override
   String get accountSettings => 'إعدادات الحساب';
@@ -128,7 +128,13 @@ class AppLocalizationsAr extends AppLocalizations {
   String get privacyPolicy => 'سياسة الخصوصية';
 
   @override
+  String get privacyPolicySubtitle => 'اقرأ التزاماتنا بشأن أمان البيانات';
+
+  @override
   String get termsOfService => 'شروط الخدمة';
+
+  @override
+  String get termsOfServiceSubtitle => 'الشروط والإرشادات القياسية';
 
   @override
   String get appVersion => 'إصدار التطبيق';
@@ -177,7 +183,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get profileUpdated => 'تم تحديث الملف الشخصي بنجاح';
 
   @override
-  String get children => 'الأطفال';
+  String get children => 'الأبناء';
 
   @override
   String get addChild => '+ إضافة طفل';
@@ -201,16 +207,16 @@ class AppLocalizationsAr extends AppLocalizations {
   String get family => 'العائلة';
 
   @override
-  String get familySafe => 'عائلتك آمنة الآن';
+  String get familySafe => 'عائلتك في أمان تام الآن';
 
   @override
-  String get childSafe => 'أنت آمن ومحمي الآن';
+  String get childSafe => 'أنت بأمان وحماية كاملة الآن';
 
   @override
   String get limits => 'الحدود';
 
   @override
-  String get enforced => 'مُنفذ';
+  String get enforced => 'مُطبّق';
 
   @override
   String get gps => 'GPS';
@@ -270,7 +276,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get noRequests => 'لا توجد طلبات معلقة';
 
   @override
-  String get emptyStates => 'لا شيء هنا بعد';
+  String get emptyStates => 'لا يوجد شيء هنا بعد';
 
   @override
   String get session => 'الجلسة';
@@ -306,17 +312,17 @@ class AppLocalizationsAr extends AppLocalizations {
   String get userNotFound => 'لم يتم العثور على حساب بهذا البريد';
 
   @override
-  String get tooManyRequests => 'محاولات كثيرة جداً. حاول مرة أخرى لاحقاً.';
+  String get tooManyRequests => 'محاولات كثيرة جداً. يرجى المحاولة لاحقاً';
 
   @override
-  String get networkError => 'خطأ في الشبكة. تحقق من اتصالك.';
+  String get networkError => 'خطأ في الشبكة. يرجى التحقق من اتصالك';
 
   @override
-  String get reauthRequired => 'يرجى تسجيل الدخول مرة أخرى للمتابعة';
+  String get reauthRequired => 'يرجى تسجيل الدخول مجدداً للمتابعة';
 
   @override
   String get changePasswordDescription =>
-      'أدخل كلمة المرور الحالية وكلمة مرور جديدة';
+      'أدخل كلمة المرور الحالية والجديدة لتحديث بياناتك';
 
   @override
   String get appLanguage => 'لغة التطبيق';
@@ -377,4 +383,130 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get saving => 'جار الحفظ...';
+
+  @override
+  String get errorLoadingDashboard => 'فشل تحميل لوحة التحكم';
+
+  @override
+  String get allProtectionsOn => 'جميع أنظمة الحماية مفعلة';
+
+  @override
+  String get familySafeNow => 'عائلتك في أمان\nالآن';
+
+  @override
+  String get protectedDevice => 'جهاز محمي';
+
+  @override
+  String get noChildrenConnectedYet => 'لا يوجد أطفال متصلون بعد';
+
+  @override
+  String get noChildrenDescription =>
+      'اربط هاتف طفلك بمسح سريع لرمز QR لبدء الحماية.';
+
+  @override
+  String get parentAccount => 'حساب ولي الأمر';
+
+  @override
+  String get protectedParentPortal => 'بوابة الوالدين الآمنة';
+
+  @override
+  String get settingsProfileSubtitle => 'تعديل الاسم والأمان والمظهر واللغة';
+
+  @override
+  String get settingsPairSubtitle => 'إنشاء رمز QR لإعداد هاتف الطفل';
+
+  @override
+  String get settingsSwitchRoleSubtitle => 'التبديل بين وضع ولي الأمر والطفل';
+
+  @override
+  String get settingsDevicePermissionsSubtitle =>
+      'التحقق من حالة مراقبة النظام والأذونات';
+
+  @override
+  String get darkNavyPalette => 'السمة الكحلية الداكنة';
+
+  @override
+  String get darkNavyDescription => 'مظهر كحلي داكن موحد لجميع الشاشات';
+
+  @override
+  String get lightThemeEnabled => 'تم تفعيل الوضع الفاتح';
+
+  @override
+  String get pending => 'معلق';
+
+  @override
+  String get approved => 'تمت الموافقة';
+
+  @override
+  String get denied => 'مرفوض';
+
+  @override
+  String get all => 'الكل';
+
+  @override
+  String get familyControls => 'عناصر تحكم العائلة';
+
+  @override
+  String get parentDashboard => 'لوحة تحكم الرقابة الأبوية';
+
+  @override
+  String get familyLocations => 'مواقع العائلة';
+
+  @override
+  String get liveGpsTracking => 'تتبع GPS المباشر';
+
+  @override
+  String get appRequests => 'طلبات التطبيقات';
+
+  @override
+  String get approveOrDenyRequests => 'الموافقة على وصول الطفل أو رفضه';
+
+  @override
+  String get educationCenter => 'مركز التعليم';
+
+  @override
+  String get manageLearningMaterials => 'إدارة وتتبع المواد التعليمية';
+
+  @override
+  String get uploadMaterial => 'رفع مادة تعليمية';
+
+  @override
+  String get realTimeAlerts => 'تنبيهات وأذونات في الوقت الفعلي';
+
+  @override
+  String get markAllAsRead => 'تحديد الكل كمقروء';
+
+  @override
+  String get openNativeMaps => 'فتح في الخرائط';
+
+  @override
+  String get aboutSmartGuard => 'حول الحارس الذكي';
+
+  @override
+  String get smartGuardDescription => 'يحافظ FamilyGuard على توازن وأمان جهازك';
+
+  @override
+  String get gotIt => 'حسناً، فهمت!';
+
+  @override
+  String get familyGroup => 'مجموعة العائلة';
+
+  @override
+  String get familyGroupConnected => 'متصل بالوالدين';
+
+  @override
+  String get familyGroupScanPrompt => 'امسح رمز QR الخاص بولي الأمر للربط';
+
+  @override
+  String get aboutSmartGuardSubtitle =>
+      'كيف تحافظ الحدود الرقمية الصحية على أمانك';
+
+  @override
+  String get noChildrenLinkedYet => 'لا يوجد أطفال مرتبطون حتى الآن';
+
+  @override
+  String get noPendingRequests => 'لا توجد طلبات معلقة';
+
+  @override
+  String get noNotificationsYet => 'لا توجد إشعارات جديدة';
 }

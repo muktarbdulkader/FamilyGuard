@@ -11,6 +11,8 @@ import '../../../../core/providers/notification_provider.dart';
 import '../../../../core/providers/theme_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/services/notification_service.dart';
+import '../../../../core/providers/locale_provider.dart';
+import '../../../../l10n/app_localizations.dart';
 
 /// Pixel-matched Parent Home Screen
 /// Matches the exact sleek dark teal & slate styling:
@@ -31,6 +33,7 @@ class ParentHomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
     final userData = ref.watch(currentUserDataProvider);
     final familyId = userData.value?.familyId ??
         ref.watch(selectedFamilyProvider)?.id ??
@@ -55,9 +58,9 @@ class ParentHomeScreen extends ConsumerWidget {
                 children: [
                   const Icon(Icons.error_outline_rounded, size: 48, color: Color(0xFFEF4444)),
                   const SizedBox(height: 12),
-                  const Text(
-                    'Failed to load dashboard',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                  Text(
+                    l10n.errorLoadingDashboard,
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
                   ),
                   const SizedBox(height: 16),
                   ElevatedButton(
@@ -66,7 +69,7 @@ class ParentHomeScreen extends ConsumerWidget {
                       backgroundColor: _tealAccent,
                       foregroundColor: const Color(0xFF0C1829),
                     ),
-                    child: const Text('Retry'),
+                    child: Text(l10n.retry),
                   ),
                 ],
               ),
@@ -109,9 +112,9 @@ class ParentHomeScreen extends ConsumerWidget {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      const Text(
-                                        'FamilyGuard',
-                                        style: TextStyle(
+                                      Text(
+                                        l10n.appName,
+                                        style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 20,
                                           fontWeight: FontWeight.w900,
@@ -121,8 +124,8 @@ class ParentHomeScreen extends ConsumerWidget {
                                       const SizedBox(height: 2),
                                       Text(
                                         user?.displayName != null && user!.displayName.isNotEmpty
-                                            ? 'Welcome back, ${user.displayName}'
-                                            : 'Welcome back, Parent',
+                                            ? '${l10n.welcomeMessage} ${user.displayName}'
+                                            : '${l10n.welcomeMessage} ${l10n.parent}',
                                         style: const TextStyle(
                                           color: Color(0xFF94A3B8),
                                           fontSize: 13,
@@ -219,9 +222,9 @@ class ParentHomeScreen extends ConsumerWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'All protections on',
-                              style: TextStyle(
+                            Text(
+                              l10n.allProtectionsOn,
+                              style: const TextStyle(
                                 color: _tealAccent,
                                 fontSize: 13,
                                 fontWeight: FontWeight.w700,
@@ -229,9 +232,9 @@ class ParentHomeScreen extends ConsumerWidget {
                               ),
                             ),
                             const SizedBox(height: 10),
-                            const Text(
-                              'Your family is safe right\nnow',
-                              style: TextStyle(
+                            Text(
+                              l10n.familySafeNow,
+                              style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 23,
                                 height: 1.25,
@@ -243,11 +246,11 @@ class ParentHomeScreen extends ConsumerWidget {
                             // Metrics row
                             Row(
                               children: [
-                                _buildMetricBox('Limits', 'Enforced'),
+                                _buildMetricBox(l10n.limits, l10n.enforced),
                                 const SizedBox(width: 10),
-                                _buildMetricBox('GPS', 'Live'),
+                                _buildMetricBox(l10n.gps, l10n.live),
                                 const SizedBox(width: 10),
-                                _buildMetricBox('Approvals', 'Instant'),
+                                _buildMetricBox(l10n.approvals, l10n.instant),
                               ],
                             ),
                           ],
@@ -263,9 +266,9 @@ class ParentHomeScreen extends ConsumerWidget {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            'Children',
-                            style: TextStyle(
+                          Text(
+                            l10n.children,
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 20,
                               fontWeight: FontWeight.w900,
@@ -278,12 +281,12 @@ class ParentHomeScreen extends ConsumerWidget {
                             child: Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                               child: Row(
-                                children: const [
-                                  Icon(Icons.add_rounded, size: 18, color: _tealAccent),
-                                  SizedBox(width: 4),
+                                children: [
+                                  const Icon(Icons.add_rounded, size: 18, color: _tealAccent),
+                                  const SizedBox(width: 4),
                                   Text(
-                                    'Add child',
-                                    style: TextStyle(
+                                    l10n.addChild,
+                                    style: const TextStyle(
                                       color: _tealAccent,
                                       fontSize: 14,
                                       fontWeight: FontWeight.w700,
@@ -365,6 +368,7 @@ class ParentHomeScreen extends ConsumerWidget {
 
   // ── Children Cards ─────────────────────────────────────────────────
   Widget _buildChildrenList(BuildContext context, String? familyId) {
+    final l10n = AppLocalizations.of(context);
     if (familyId == null || familyId.isEmpty) {
       return _buildEmptyChildPlaceholder(context);
     }
@@ -393,7 +397,7 @@ class ParentHomeScreen extends ConsumerWidget {
         return Column(
           children: children.map((doc) {
             final childData = doc.data() as Map<String, dynamic>;
-            final childName = childData['displayName'] ?? childData['name'] ?? 'Child';
+            final childName = childData['displayName'] ?? childData['name'] ?? l10n.child;
             final childEmail = childData['email'] ?? '';
             final childId = doc.id;
             final initial = childName.isNotEmpty ? childName[0].toUpperCase() : 'C';
@@ -462,7 +466,7 @@ class ParentHomeScreen extends ConsumerWidget {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              childEmail.isNotEmpty ? childEmail : 'Protected Device',
+                              childEmail.isNotEmpty ? childEmail : l10n.protectedDevice,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
@@ -472,16 +476,16 @@ class ParentHomeScreen extends ConsumerWidget {
                             ),
                             const SizedBox(height: 4),
                             Row(
-                              children: const [
-                                Icon(
+                              children: [
+                                const Icon(
                                   Icons.shield_outlined,
                                   size: 13,
                                   color: _tealAccent,
                                 ),
-                                SizedBox(width: 4),
+                                const SizedBox(width: 4),
                                 Text(
-                                  'Protected · online',
-                                  style: TextStyle(
+                                  '${l10n.protected} · ${l10n.online}',
+                                  style: const TextStyle(
                                     color: _tealAccent,
                                     fontSize: 12,
                                     fontWeight: FontWeight.w700,
@@ -502,7 +506,7 @@ class ParentHomeScreen extends ConsumerWidget {
                       Expanded(
                         child: _buildActionButton(
                           icon: Icons.tune_rounded,
-                          label: 'Rules',
+                          label: l10n.rules,
                           isSolid: false,
                           onTap: () => context.push('/parent-apps/$childId/$childName'),
                         ),
@@ -512,7 +516,7 @@ class ParentHomeScreen extends ConsumerWidget {
                       Expanded(
                         child: _buildActionButton(
                           icon: Icons.location_on_outlined,
-                          label: 'Location',
+                          label: l10n.location,
                           isSolid: false,
                           onTap: () => context.push(AppRoutes.parentLocation),
                         ),
@@ -522,7 +526,7 @@ class ParentHomeScreen extends ConsumerWidget {
                       Expanded(
                         child: _buildActionButton(
                           icon: Icons.school_outlined,
-                          label: 'Lessons',
+                          label: l10n.lessons,
                           isSolid: true,
                           onTap: () => context.push(AppRoutes.parentEducation),
                         ),
@@ -608,6 +612,7 @@ class ParentHomeScreen extends ConsumerWidget {
   }
 
   Widget _buildEmptyChildPlaceholder(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(26),
       decoration: BoxDecoration(
@@ -626,21 +631,21 @@ class ParentHomeScreen extends ConsumerWidget {
             child: const Icon(Icons.group_add_rounded, size: 36, color: _tealAccent),
           ),
           const SizedBox(height: 14),
-          const Text(
-            'No Children Connected Yet',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16),
+          Text(
+            l10n.noChildrenConnectedYet,
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16),
           ),
           const SizedBox(height: 6),
-          const Text(
-            'Link your child\'s phone with a quick QR scan to start protecting them.',
+          Text(
+            l10n.noChildrenDescription,
             textAlign: TextAlign.center,
-            style: TextStyle(color: Color(0xFF8BA0B8), fontSize: 13),
+            style: const TextStyle(color: Color(0xFF8BA0B8), fontSize: 13),
           ),
           const SizedBox(height: 18),
           ElevatedButton.icon(
             onPressed: () => context.push(AppRoutes.familySetup),
             icon: const Icon(Icons.qr_code_rounded, size: 18),
-            label: const Text('Pair Child Device'),
+            label: Text(l10n.pairChildDevice),
             style: ElevatedButton.styleFrom(
               backgroundColor: _tealAccent,
               foregroundColor: const Color(0xFF042421),
@@ -655,6 +660,7 @@ class ParentHomeScreen extends ConsumerWidget {
 
   // ── Floating Bottom Navigation Bar ─────────────────────────────────
   Widget _buildFloatingBottomBar(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
       decoration: BoxDecoration(
@@ -675,42 +681,42 @@ class ParentHomeScreen extends ConsumerWidget {
           // 1. Home (Selected)
           _buildNavPill(
             icon: Icons.home_outlined,
-            label: 'Home',
+            label: l10n.home,
             isSelected: true,
             onTap: () {},
           ),
           // 2. Control
           _buildNavPill(
             icon: Icons.grid_view_rounded,
-            label: 'Control',
+            label: l10n.control,
             isSelected: false,
             onTap: () => context.push(AppRoutes.parentApps),
           ),
           // 3. Location
           _buildNavPill(
             icon: Icons.location_on_outlined,
-            label: 'Location',
+            label: l10n.location,
             isSelected: false,
             onTap: () => context.push(AppRoutes.parentLocation),
           ),
           // 4. Requests
           _buildNavPill(
             icon: Icons.access_time_rounded,
-            label: 'Requests',
+            label: l10n.requests,
             isSelected: false,
             onTap: () => context.push(AppRoutes.parentRequests),
           ),
           // 5. Alerts
           _buildNavPill(
             icon: Icons.notifications_none_rounded,
-            label: 'Alerts',
+            label: l10n.alerts,
             isSelected: false,
             onTap: () => context.push('/notifications'),
           ),
           // 6. Profile
           _buildNavPill(
             icon: Icons.person_rounded,
-            label: 'Profile',
+            label: l10n.profile,
             isSelected: false,
             onTap: () => context.push(AppRoutes.profile),
           ),
@@ -765,6 +771,7 @@ class ParentHomeScreen extends ConsumerWidget {
 
   // ── Unified Settings & Sign Out Modal Sheet ────────────────────────
   void _showSettingsSheet(BuildContext context, WidgetRef ref, dynamic user) {
+    final l10n = AppLocalizations.of(context);
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -823,7 +830,7 @@ class ParentHomeScreen extends ConsumerWidget {
                       Text(
                         user?.displayName != null && user!.displayName.isNotEmpty
                             ? user.displayName
-                            : 'Parent Account',
+                            : l10n.parentAccount,
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 17,
@@ -834,7 +841,7 @@ class ParentHomeScreen extends ConsumerWidget {
                       Text(
                         user?.email != null && user!.email.isNotEmpty
                             ? user.email
-                            : 'Protected Parent Portal',
+                            : l10n.protectedParentPortal,
                         style: const TextStyle(
                           color: Color(0xFF8BA0B8),
                           fontSize: 12.5,
@@ -850,9 +857,9 @@ class ParentHomeScreen extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: _tealAccent.withOpacity(0.3)),
                   ),
-                  child: const Text(
-                    'PARENT',
-                    style: TextStyle(
+                  child: Text(
+                    l10n.parent.toUpperCase(),
+                    style: const TextStyle(
                       color: _tealAccent,
                       fontSize: 10,
                       fontWeight: FontWeight.w900,
@@ -868,8 +875,8 @@ class ParentHomeScreen extends ConsumerWidget {
             // Setting items
             _buildSettingsTile(
               icon: Icons.person_outline_rounded,
-              title: 'My Profile & Account',
-              subtitle: 'Edit name, security, theme, and language',
+              title: l10n.myProfile,
+              subtitle: l10n.settingsProfileSubtitle,
               onTap: () {
                 Navigator.pop(context);
                 context.push(AppRoutes.profile);
@@ -877,8 +884,8 @@ class ParentHomeScreen extends ConsumerWidget {
             ),
             _buildSettingsTile(
               icon: Icons.qr_code_scanner_rounded,
-              title: 'Pair Child Device',
-              subtitle: 'Generate pairing QR code for child setup',
+              title: l10n.pairChildDevice,
+              subtitle: l10n.settingsPairSubtitle,
               onTap: () {
                 Navigator.pop(context);
                 context.push(AppRoutes.familySetup);
@@ -886,8 +893,8 @@ class ParentHomeScreen extends ConsumerWidget {
             ),
             _buildSettingsTile(
               icon: Icons.swap_horiz_rounded,
-              title: 'Switch Role',
-              subtitle: 'Change between Parent and Child mode',
+              title: l10n.switchRole,
+              subtitle: l10n.settingsSwitchRoleSubtitle,
               onTap: () {
                 Navigator.pop(context);
                 context.push(AppRoutes.roleSelection);
@@ -895,11 +902,25 @@ class ParentHomeScreen extends ConsumerWidget {
             ),
             _buildSettingsTile(
               icon: Icons.admin_panel_settings_outlined,
-              title: 'Device Permissions',
-              subtitle: 'Check system monitoring and overlay status',
+              title: l10n.devicePermissions,
+              subtitle: l10n.settingsDevicePermissionsSubtitle,
               onTap: () {
                 Navigator.pop(context);
                 context.push(AppRoutes.childPermissions);
+              },
+            ),
+            Consumer(
+              builder: (context, ref, _) {
+                final currentLang = ref.watch(currentLanguageProvider);
+                return _buildSettingsTile(
+                  icon: Icons.language_rounded,
+                  title: l10n.language,
+                  subtitle: '${currentLang.nativeName}  ${currentLang.flag}',
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.push(AppRoutes.languageSettings);
+                  },
+                );
               },
             ),
             // Theme / Color Mode Toggle
@@ -934,16 +955,16 @@ class ParentHomeScreen extends ConsumerWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'Dark Navy Palette',
-                              style: TextStyle(
+                            Text(
+                              l10n.darkNavyPalette,
+                              style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
                             Text(
-                              isDark ? 'Unified Dark Navy across all pages' : 'Light theme enabled',
+                              isDark ? l10n.darkNavyDescription : l10n.lightThemeEnabled,
                               style: const TextStyle(
                                 color: Color(0xFF8BA0B8),
                                 fontSize: 11.5,
@@ -980,9 +1001,9 @@ class ParentHomeScreen extends ConsumerWidget {
                   }
                 },
                 icon: const Icon(Icons.logout_rounded, size: 18, color: Colors.white),
-                label: const Text(
-                  'Sign Out',
-                  style: TextStyle(
+                label: Text(
+                  l10n.signOut,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
@@ -1049,7 +1070,13 @@ class ParentHomeScreen extends ConsumerWidget {
                 ],
               ),
             ),
-            const Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFF475569), size: 14),
+            Icon(
+              Directionality.of(context) == TextDirection.rtl
+                  ? Icons.arrow_back_ios_rounded
+                  : Icons.arrow_forward_ios_rounded,
+              color: const Color(0xFF475569),
+              size: 14,
+            ),
           ],
         ),
       ),

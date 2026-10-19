@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/models/educational_material_model.dart';
 import '../../../../core/providers/user_provider.dart';
 import '../../../../core/services/education_service.dart';
+import '../../../../l10n/app_localizations.dart';
 import 'material_viewer_screen.dart';
 
 class ChildEducationScreen extends ConsumerStatefulWidget {
@@ -49,6 +50,7 @@ class _ChildEducationScreenState extends ConsumerState<ChildEducationScreen> wit
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final user = ref.watch(currentUserDataProvider).value;
 
@@ -58,7 +60,7 @@ class _ChildEducationScreenState extends ConsumerState<ChildEducationScreen> wit
 
     if (familyId.isEmpty || childId.isEmpty) {
       return Scaffold(
-        appBar: AppBar(title: const Text('My Learning')),
+        appBar: AppBar(title: Text(l10n.myLearning)),
         body: const Center(
           child: Padding(
             padding: EdgeInsets.all(24),
@@ -82,9 +84,9 @@ class _ChildEducationScreenState extends ConsumerState<ChildEducationScreen> wit
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'My Learning',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+            Text(
+              l10n.myLearning,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
             ),
             Text(
               'Hello, $childName • Ready to study?',
@@ -98,11 +100,11 @@ class _ChildEducationScreenState extends ConsumerState<ChildEducationScreen> wit
           controller: _tabController,
           isScrollable: false,
           indicatorSize: TabBarIndicatorSize.tab,
-          tabs: const [
-            Tab(text: 'All'),
-            Tab(text: 'To Do'),
-            Tab(text: 'In Progress'),
-            Tab(text: 'Done'),
+          tabs: [
+            Tab(text: l10n.all),
+            const Tab(text: 'To Do'),
+            const Tab(text: 'In Progress'),
+            Tab(text: l10n.done),
           ],
         ),
       ),

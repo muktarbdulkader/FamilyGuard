@@ -8,7 +8,9 @@ import '../../../../core/providers/auth_provider.dart';
 import '../../../../core/providers/family_provider.dart';
 import '../../../../core/providers/theme_provider.dart';
 import '../../../../core/providers/user_provider.dart';
+import '../../../../core/providers/locale_provider.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../l10n/app_localizations.dart';
 
 /// Professional, pixel-matched Profile and Account Management Screen
 /// Matches the FamilyGuard dark navy & teal branding.
@@ -26,7 +28,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   static const Color _tealAccent = AppColors.tealAccent;
 
   bool _notificationsEnabled = true;
-  String _selectedLanguage = 'English (US)';
 
   @override
   void initState() {
@@ -40,7 +41,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (mounted) {
         setState(() {
           _notificationsEnabled = prefs.getBool('notifications_enabled') ?? true;
-          _selectedLanguage = prefs.getString('app_language') ?? 'English (US)';
         });
       }
     } catch (_) {}
@@ -56,7 +56,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final userAsync = ref.watch(currentUserDataProvider);
+    final currentLanguage = ref.watch(currentLanguageProvider);
     final user = userAsync.value;
     final isParent = user?.isParent ?? true;
 
@@ -86,7 +88,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       backgroundColor: _tealAccent,
                       foregroundColor: const Color(0xFF0C1829),
                     ),
-                    child: const Text('Retry'),
+                    child: Text(l10n.retry),
                   ),
                 ],
               ),
@@ -130,9 +132,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               ),
                             ),
                             const SizedBox(width: 14),
-                            const Text(
-                              'Profile & Settings',
-                              style: TextStyle(
+                            Text(
+                              l10n.profileSettings,
+                              style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 20,
                                 fontWeight: FontWeight.w900,
@@ -148,7 +150,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                        child: _buildProfileHeaderCard(currentUser),
+                        child: _buildProfileHeaderCard(l10n, currentUser),
                       ),
                     ),
 
@@ -156,7 +158,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                        child: _buildPersonalInfoSection(currentUser),
+                        child: _buildPersonalInfoSection(l10n, currentUser),
                       ),
                     ),
 
@@ -165,7 +167,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       SliverToBoxAdapter(
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                          child: _buildFamilyManagementSection(currentUser),
+                          child: _buildFamilyManagementSection(l10n, currentUser),
                         ),
                       ),
 
@@ -173,7 +175,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                        child: _buildSecuritySection(currentUser),
+                        child: _buildSecuritySection(l10n, currentUser),
                       ),
                     ),
 
@@ -181,7 +183,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                        child: _buildAccountSettingsSection(),
+                        child: _buildAccountSettingsSection(l10n),
                       ),
                     ),
 
@@ -189,7 +191,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                        child: _buildAccountActionsSection(),
+                        child: _buildAccountActionsSection(l10n),
                       ),
                     ),
 
@@ -205,7 +207,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   bottom: 16,
                   left: 14,
                   right: 14,
-                  child: _buildFloatingBottomBar(context, isParent),
+                  child: _buildFloatingBottomBar(context, l10n, isParent),
                 ),
               ],
             );
@@ -216,7 +218,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   // ── Profile Header Card ───────────────────────────────────────────
-  Widget _buildProfileHeaderCard(UserModel? user) {
+  Widget _buildProfileHeaderCard(AppLocalizations l10n, UserModel? user) {
     final displayName = user?.displayName.isNotEmpty == true ? user!.displayName : 'Family Member';
     final email = user?.email.isNotEmpty == true ? user!.email : 'No email provided';
     final initial = displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U';
@@ -270,7 +272,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 bottom: 0,
                 right: 0,
                 child: InkWell(
-                  onTap: () => _showEditProfileSheet(user),
+                  onTap: () => _showEditProfileSheet(l10n, user),
                   borderRadius: BorderRadius.circular(10),
                   child: Container(
                     padding: const EdgeInsets.all(4),
@@ -322,7 +324,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         ),
                       ),
                       child: Text(
-                        isParent ? 'PARENT' : 'CHILD',
+                        isParent ? l10n.parent.toUpperCase() : l10n.child.toUpperCase(),
                         style: TextStyle(
                           color: isParent ? _tealAccent : const Color(0xFFA78BFA),
                           fontSize: 10,
@@ -347,7 +349,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 const SizedBox(height: 10),
                 // Edit Profile Button
                 InkWell(
-                  onTap: () => _showEditProfileSheet(user),
+                  onTap: () => _showEditProfileSheet(l10n, user),
                   borderRadius: BorderRadius.circular(10),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -356,14 +358,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: _cardBorder),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.edit_outlined, size: 14, color: _tealAccent),
-                        SizedBox(width: 6),
+                        const Icon(Icons.edit_outlined, size: 14, color: _tealAccent),
+                        const SizedBox(width: 6),
                         Text(
-                          'Edit Profile',
-                          style: TextStyle(
+                          l10n.editProfile,
+                          style: const TextStyle(
                             color: _tealAccent,
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
@@ -382,43 +384,43 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   // ── Personal Information Section ──────────────────────────────────
-  Widget _buildPersonalInfoSection(UserModel? user) {
-    final phone = user?.phoneNumber?.isNotEmpty == true ? user!.phoneNumber! : 'Not set';
+  Widget _buildPersonalInfoSection(AppLocalizations l10n, UserModel? user) {
+    final phone = user?.phoneNumber?.isNotEmpty == true ? user!.phoneNumber! : l10n.noResults;
 
     return _buildSectionCard(
-      title: 'Personal Information',
+      title: l10n.personalInfo,
       icon: Icons.person_outline_rounded,
       children: [
         _buildInfoRow(
-          label: 'Full Name',
-          value: user?.displayName.isNotEmpty == true ? user!.displayName : 'Not set',
+          label: l10n.fullName,
+          value: user?.displayName.isNotEmpty == true ? user!.displayName : l10n.noResults,
           icon: Icons.badge_outlined,
-          onTap: () => _showEditProfileSheet(user),
+          onTap: () => _showEditProfileSheet(l10n, user),
         ),
         const Divider(color: Color(0xFF1E3554), height: 20),
         _buildInfoRow(
-          label: 'Email Address',
-          value: user?.email.isNotEmpty == true ? user!.email : 'Not set',
+          label: l10n.emailAddress,
+          value: user?.email.isNotEmpty == true ? user!.email : l10n.noResults,
           icon: Icons.mail_outline_rounded,
           isVerified: true,
         ),
         const Divider(color: Color(0xFF1E3554), height: 20),
         _buildInfoRow(
-          label: 'Phone Number',
+          label: l10n.phoneNumber,
           value: phone,
           icon: Icons.phone_outlined,
-          onTap: () => _showEditProfileSheet(user),
+          onTap: () => _showEditProfileSheet(l10n, user),
         ),
       ],
     );
   }
 
   // ── Family Management Section (Parent Only) ───────────────────────
-  Widget _buildFamilyManagementSection(UserModel? user) {
+  Widget _buildFamilyManagementSection(AppLocalizations l10n, UserModel? user) {
     final childrenList = ref.watch(familyChildrenProvider).value ?? [];
 
     return _buildSectionCard(
-      title: 'Family & Devices',
+      title: l10n.family,
       icon: Icons.family_restroom_rounded,
       children: [
         Row(
@@ -427,9 +429,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Linked Children',
-                  style: TextStyle(
+                Text(
+                  l10n.children,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
@@ -437,7 +439,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${childrenList.length} child ${childrenList.length == 1 ? "device" : "devices"} protected',
+                  '${childrenList.length} ${l10n.children} ${l10n.protected}',
                   style: const TextStyle(
                     color: Color(0xFF8BA0B8),
                     fontSize: 12,
@@ -448,7 +450,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ElevatedButton.icon(
               onPressed: () => context.push(AppRoutes.familySetup),
               icon: const Icon(Icons.qr_code_rounded, size: 16),
-              label: const Text('Pair Device'),
+              label: Text(l10n.pairChildDevice),
               style: ElevatedButton.styleFrom(
                 backgroundColor: _tealAccent,
                 foregroundColor: const Color(0xFF042421),
@@ -464,35 +466,35 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   // ── Security Section ──────────────────────────────────────────────
-  Widget _buildSecuritySection(UserModel? user) {
+  Widget _buildSecuritySection(AppLocalizations l10n, UserModel? user) {
     return _buildSectionCard(
-      title: 'Security',
+      title: l10n.security,
       icon: Icons.security_rounded,
       children: [
         _buildActionTile(
           icon: Icons.lock_outline_rounded,
-          title: 'Change Password',
-          subtitle: 'Update your account password securely',
-          onTap: () => _showChangePasswordDialog(user?.email ?? ''),
+          title: l10n.changePassword,
+          subtitle: l10n.changePasswordDescription,
+          onTap: () => _showChangePasswordDialog(l10n, user?.email ?? ''),
         ),
         const Divider(color: Color(0xFF1E3554), height: 16),
         _buildActionTile(
           icon: Icons.lock_reset_rounded,
-          title: 'Reset Password via Email',
+          title: l10n.resetPassword,
           subtitle: 'Send password recovery link to your inbox',
-          onTap: () => _handleResetPassword(user?.email ?? ''),
+          onTap: () => _handleResetPassword(l10n, user?.email ?? ''),
         ),
       ],
     );
   }
 
   // ── Account Settings Section ──────────────────────────────────────
-  Widget _buildAccountSettingsSection() {
+  Widget _buildAccountSettingsSection(AppLocalizations l10n) {
     final themeMode = ref.watch(themeModeProvider);
     final isDark = themeMode == ThemeMode.dark;
 
     return _buildSectionCard(
-      title: 'Account Settings',
+      title: l10n.accountSettings,
       icon: Icons.tune_rounded,
       children: [
         // Push Notifications Toggle
@@ -508,13 +510,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               child: const Icon(Icons.notifications_active_outlined, color: _tealAccent, size: 18),
             ),
             const SizedBox(width: 12),
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Push Notifications',
-                    style: TextStyle(
+                    l10n.pushNotifications,
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
@@ -560,16 +562,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Appearance',
-                    style: TextStyle(
+                  Text(
+                    l10n.appearance,
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                   Text(
-                    isDark ? 'Dark Navy (Default)' : 'Light Mode',
+                    isDark ? l10n.darkMode : l10n.lightMode,
                     style: const TextStyle(color: Color(0xFF8BA0B8), fontSize: 11.5),
                   ),
                 ],
@@ -592,8 +594,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         // Language
         _buildActionTile(
           icon: Icons.language_rounded,
-          title: 'Language',
-          subtitle: _selectedLanguage,
+          title: l10n.language,
+          subtitle: '${currentLanguage.nativeName}  ${currentLanguage.flag}',
           onTap: () => context.push(AppRoutes.languageSettings),
         ),
         const Divider(color: Color(0xFF1E3554), height: 16),
@@ -601,18 +603,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         // Privacy Policy
         _buildActionTile(
           icon: Icons.privacy_tip_outlined,
-          title: 'Privacy Policy',
-          subtitle: 'Read our commitments to data security',
-          onTap: _showPrivacyPolicyModal,
+          title: l10n.privacyPolicy,
+          subtitle: l10n.privacyPolicySubtitle,
+          onTap: () => _showPrivacyPolicyModal(l10n),
         ),
         const Divider(color: Color(0xFF1E3554), height: 16),
 
         // Terms and Conditions
         _buildActionTile(
           icon: Icons.description_outlined,
-          title: 'Terms of Service',
-          subtitle: 'Standard conditions and guidelines',
-          onTap: _showTermsModal,
+          title: l10n.termsOfService,
+          subtitle: l10n.termsOfServiceSubtitle,
+          onTap: () => _showTermsModal(l10n),
         ),
         const Divider(color: Color(0xFF1E3554), height: 20),
 
@@ -636,18 +638,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   // ── Account Actions Section (Sign Out, Delete) ────────────────────
-  Widget _buildAccountActionsSection() {
+  Widget _buildAccountActionsSection(AppLocalizations l10n) {
     return _buildSectionCard(
-      title: 'Account Actions',
+      title: l10n.accountActions,
       icon: Icons.manage_accounts_outlined,
       children: [
         // Sign Out Button
         SizedBox(
           width: double.infinity,
           child: ElevatedButton.icon(
-            onPressed: _showSignOutConfirmDialog,
+            onPressed: () => _showSignOutConfirmDialog(l10n),
             icon: const Icon(Icons.logout_rounded, size: 18),
-            label: const Text('Sign Out'),
+            label: Text(l10n.signOut),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF1E3554),
               foregroundColor: Colors.white,
@@ -662,11 +664,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         SizedBox(
           width: double.infinity,
           child: TextButton.icon(
-            onPressed: _showDeleteAccountDialog,
+            onPressed: () => _showDeleteAccountDialog(l10n),
             icon: const Icon(Icons.delete_forever_rounded, size: 18, color: Color(0xFFEF4444)),
-            label: const Text(
-              'Delete Account & Data',
-              style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.w700, fontSize: 13),
+            label: Text(
+              l10n.deleteAccount,
+              style: const TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.w700, fontSize: 13),
             ),
           ),
         ),
@@ -675,7 +677,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   // ── Floating Bottom Navigation Bar (6-item compact responsive) ────
-  Widget _buildFloatingBottomBar(BuildContext context, bool isParent) {
+  Widget _buildFloatingBottomBar(BuildContext context, AppLocalizations l10n, bool isParent) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
       decoration: BoxDecoration(
@@ -696,7 +698,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           // 1. Home
           _buildNavPill(
             icon: Icons.home_outlined,
-            label: 'Home',
+            label: l10n.home,
             isSelected: false,
             onTap: () {
               context.go(isParent ? AppRoutes.parentHome : AppRoutes.childHome);
@@ -705,7 +707,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           // 2. Control
           _buildNavPill(
             icon: Icons.grid_view_rounded,
-            label: 'Control',
+            label: l10n.control,
             isSelected: false,
             onTap: () {
               context.push(isParent ? AppRoutes.parentApps : AppRoutes.childApps);
@@ -714,7 +716,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           // 3. Location
           _buildNavPill(
             icon: Icons.location_on_outlined,
-            label: 'Location',
+            label: l10n.location,
             isSelected: false,
             onTap: () {
               context.push(isParent ? AppRoutes.parentLocation : AppRoutes.childStatus);
@@ -723,7 +725,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           // 4. Requests
           _buildNavPill(
             icon: Icons.access_time_rounded,
-            label: 'Requests',
+            label: l10n.requests,
             isSelected: false,
             onTap: () {
               context.push(AppRoutes.parentRequests);
@@ -732,7 +734,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           // 5. Alerts
           _buildNavPill(
             icon: Icons.notifications_none_rounded,
-            label: 'Alerts',
+            label: l10n.alerts,
             isSelected: false,
             onTap: () {
               context.push('/notifications');
@@ -741,7 +743,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           // 6. Profile (Selected)
           _buildNavPill(
             icon: Icons.person_rounded,
-            label: 'Profile',
+            label: l10n.profile,
             isSelected: true,
             onTap: () {},
           ),
@@ -955,7 +957,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ],
               ),
             ),
-            const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Color(0xFF64748B)),
+            Icon(
+              Directionality.of(context) == TextDirection.rtl
+                  ? Icons.arrow_back_ios_rounded
+                  : Icons.arrow_forward_ios_rounded,
+              size: 14,
+              color: const Color(0xFF64748B),
+            ),
           ],
         ),
       ),
@@ -965,7 +973,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   // ── Modals & Dialogs ──────────────────────────────────────────────
 
   /// Edit Personal Information (Name, Phone)
-  void _showEditProfileSheet(UserModel? user) {
+  void _showEditProfileSheet(AppLocalizations l10n, UserModel? user) {
     final nameController = TextEditingController(text: user?.displayName ?? '');
     final phoneController = TextEditingController(text: user?.phoneNumber ?? '');
     final formKey = GlobalKey<FormState>();
@@ -1005,9 +1013,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
                     ),
                     const SizedBox(height: 18),
-                    const Text(
-                      'Edit Personal Info',
-                      style: TextStyle(
+                    Text(
+                      l10n.editProfile,
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 18,
                         fontWeight: FontWeight.w900,
@@ -1024,7 +1032,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       controller: nameController,
                       style: const TextStyle(color: Colors.white),
                       decoration: InputDecoration(
-                        labelText: 'Full Name',
+                        labelText: l10n.fullName,
                         labelStyle: const TextStyle(color: Color(0xFF8BA0B8)),
                         filled: true,
                         fillColor: const Color(0xFF14243B),
@@ -1044,7 +1052,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
                       validator: (val) {
                         if (val == null || val.trim().isEmpty) {
-                          return 'Please enter your name';
+                          return l10n.fieldRequired;
                         }
                         return null;
                       },
@@ -1056,7 +1064,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       keyboardType: TextInputType.phone,
                       style: const TextStyle(color: Colors.white),
                       decoration: InputDecoration(
-                        labelText: 'Phone Number (Optional)',
+                        labelText: l10n.phoneNumber,
                         labelStyle: const TextStyle(color: Color(0xFF8BA0B8)),
                         filled: true,
                         fillColor: const Color(0xFF14243B),
@@ -1087,7 +1095,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                             ),
-                            child: const Text('Cancel'),
+                            child: Text(l10n.cancel),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -1113,7 +1121,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                         SnackBar(
                                           content: Text(
                                             success
-                                                ? 'Profile updated successfully'
+                                                ? l10n.profileUpdated
                                                 : (ref.read(authNotifierProvider).errorMessage ??
                                                     'Failed to update profile'),
                                           ),
@@ -1140,9 +1148,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                       width: 18,
                                       child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF042421)),
                                     )
-                                  : const Text(
-                                      'Save Changes',
-                                      style: TextStyle(fontWeight: FontWeight.w800),
+                                  : Text(
+                                      l10n.save,
+                                      style: const TextStyle(fontWeight: FontWeight.w800),
                                     ),
                           ),
                         ),
@@ -1159,7 +1167,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   /// Change Password Dialog
-  void _showChangePasswordDialog(String email) {
+  void _showChangePasswordDialog(AppLocalizations l10n, String email) {
     final currentPasswordController = TextEditingController();
     final newPasswordController = TextEditingController();
     final confirmPasswordController = TextEditingController();
@@ -1203,17 +1211,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
                     ),
                     const SizedBox(height: 18),
-                    const Text(
-                      'Change Password',
-                      style: TextStyle(
+                    Text(
+                      l10n.changePassword,
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 18,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
                     const SizedBox(height: 6),
-                    const Text(
-                      'Enter your current password and pick a new secure password.',
+                    Text(
+                      l10n.changePasswordDescription,
                       style: TextStyle(color: Color(0xFF8BA0B8), fontSize: 12),
                     ),
                     const SizedBox(height: 18),
@@ -1223,7 +1231,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       obscureText: obscureCurrent,
                       style: const TextStyle(color: Colors.white),
                       decoration: InputDecoration(
-                        labelText: 'Current Password',
+                        labelText: l10n.currentPassword,
                         labelStyle: const TextStyle(color: Color(0xFF8BA0B8)),
                         filled: true,
                         fillColor: const Color(0xFF14243B),
@@ -1247,7 +1255,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
                       validator: (val) {
                         if (val == null || val.isEmpty) {
-                          return 'Please enter your current password';
+                          return l10n.currentPasswordRequired;
                         }
                         return null;
                       },
@@ -1259,7 +1267,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       obscureText: obscureNew,
                       style: const TextStyle(color: Colors.white),
                       decoration: InputDecoration(
-                        labelText: 'New Password (min 6 characters)',
+                        labelText: l10n.newPassword,
                         labelStyle: const TextStyle(color: Color(0xFF8BA0B8)),
                         filled: true,
                         fillColor: const Color(0xFF14243B),
@@ -1283,7 +1291,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
                       validator: (val) {
                         if (val == null || val.length < 6) {
-                          return 'Password must be at least 6 characters';
+                          return l10n.passwordMinLength;
                         }
                         return null;
                       },
@@ -1295,7 +1303,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       obscureText: obscureConfirm,
                       style: const TextStyle(color: Colors.white),
                       decoration: InputDecoration(
-                        labelText: 'Confirm New Password',
+                        labelText: l10n.confirmNewPassword,
                         labelStyle: const TextStyle(color: Color(0xFF8BA0B8)),
                         filled: true,
                         fillColor: const Color(0xFF14243B),
@@ -1319,7 +1327,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
                       validator: (val) {
                         if (val != newPasswordController.text) {
-                          return 'Passwords do not match';
+                          return l10n.passwordsDoNotMatch;
                         }
                         return null;
                       },
@@ -1336,7 +1344,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                             ),
-                            child: const Text('Cancel'),
+                            child: Text(l10n.cancel),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -1362,7 +1370,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                         SnackBar(
                                           content: Text(
                                             success
-                                                ? 'Password changed successfully!'
+                                                ? l10n.passwordChanged
                                                 : (ref.read(authNotifierProvider).errorMessage ??
                                                     'Failed to change password'),
                                           ),
@@ -1386,10 +1394,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                     width: 18,
                                     child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF042421)),
                                   )
-                                : const Text(
-                                    'Save Password',
-                                    style: TextStyle(fontWeight: FontWeight.w800),
-                                  ),
+                                  : Text(
+                                      l10n.saveNewPassword,
+                                      style: const TextStyle(fontWeight: FontWeight.w800),
+                                    ),
                           ),
                         ),
                       ],
@@ -1405,7 +1413,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   /// Reset Password via Email
-  Future<void> _handleResetPassword(String email) async {
+  Future<void> _handleResetPassword(AppLocalizations l10n, String email) async {
     if (email.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -1421,7 +1429,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF0F1E33),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Reset Password', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+        title: Text(l10n.resetPassword, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
         content: Text(
           'Send a password reset email to $email?',
           style: const TextStyle(color: Color(0xFF8BA0B8)),
@@ -1429,7 +1437,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel', style: TextStyle(color: Color(0xFF8BA0B8))),
+            child: Text(l10n.cancel, style: const TextStyle(color: Color(0xFF8BA0B8))),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -1437,7 +1445,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               backgroundColor: _tealAccent,
               foregroundColor: const Color(0xFF042421),
             ),
-            child: const Text('Send Email'),
+            child: Text(l10n.send),
           ),
         ],
       ),
@@ -1450,7 +1458,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           SnackBar(
             content: Text(
               success
-                  ? 'Password reset email sent to $email. Please check your inbox.'
+                  ? '${l10n.passwordResetSent} to $email. Please check your inbox.'
                   : (ref.read(authNotifierProvider).errorMessage ?? 'Failed to send reset email'),
             ),
             backgroundColor: success ? const Color(0xFF0E3835) : const Color(0xFFDC2626),
@@ -1463,7 +1471,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
 
   /// Privacy Policy Modal
-  void _showPrivacyPolicyModal() {
+  void _showPrivacyPolicyModal(AppLocalizations l10n) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1493,9 +1501,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
               ),
               const SizedBox(height: 18),
-              const Text(
-                'Privacy Policy',
-                style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900),
+              Text(
+                l10n.privacyPolicy,
+                style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 12),
               const Text(
@@ -1518,7 +1526,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   /// Terms of Service Modal
-  void _showTermsModal() {
+  void _showTermsModal(AppLocalizations l10n) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1548,9 +1556,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
               ),
               const SizedBox(height: 18),
-              const Text(
-                'Terms of Service',
-                style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900),
+              Text(
+                l10n.termsOfService,
+                style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 12),
               const Text(
@@ -1570,21 +1578,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   /// Sign Out Confirmation Dialog
-  void _showSignOutConfirmDialog() {
+  void _showSignOutConfirmDialog(AppLocalizations l10n) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF0F1E33),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Sign Out', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
-        content: const Text(
-          'Are you sure you want to sign out of FamilyGuard?',
-          style: TextStyle(color: Color(0xFF8BA0B8)),
+        title: Text(l10n.signOutConfirmTitle, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+        content: Text(
+          l10n.signOutConfirmMessage,
+          style: const TextStyle(color: Color(0xFF8BA0B8)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: Color(0xFF8BA0B8))),
+            child: Text(l10n.cancel, style: const TextStyle(color: Color(0xFF8BA0B8))),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -1598,7 +1606,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               backgroundColor: const Color(0xFFDC2626),
               foregroundColor: Colors.white,
             ),
-            child: const Text('Sign Out'),
+            child: Text(l10n.signOut),
           ),
         ],
       ),
@@ -1606,7 +1614,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   /// Delete Account Securely with Password Confirmation
-  void _showDeleteAccountDialog() {
+  void _showDeleteAccountDialog(AppLocalizations l10n) {
     final passwordController = TextEditingController();
     bool isDeleting = false;
 
@@ -1616,17 +1624,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         builder: (dialogCtx, setDialogState) => AlertDialog(
           backgroundColor: const Color(0xFF0F1E33),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text(
-            'Delete Account',
-            style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.w800),
+          title: Text(
+            l10n.deleteAccountConfirmTitle,
+            style: const TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.w800),
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'This action is irreversible. All your family links, rules, and history will be permanently deleted.',
-                style: TextStyle(color: Color(0xFF8BA0B8), fontSize: 13),
+              Text(
+                l10n.deleteAccountConfirmMessage,
+                style: const TextStyle(color: Color(0xFF8BA0B8), fontSize: 13),
               ),
               const SizedBox(height: 16),
               TextField(
@@ -1634,7 +1642,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 obscureText: true,
                 style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
-                  labelText: 'Confirm your password',
+                  labelText: l10n.password,
                   labelStyle: const TextStyle(color: Color(0xFF8BA0B8)),
                   filled: true,
                   fillColor: const Color(0xFF14243B),
@@ -1646,7 +1654,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogCtx),
-              child: const Text('Cancel', style: TextStyle(color: Color(0xFF8BA0B8))),
+              child: Text(l10n.cancel, style: const TextStyle(color: Color(0xFF8BA0B8))),
             ),
             ElevatedButton(
               onPressed: isDeleting
@@ -1686,7 +1694,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       width: 16,
                       child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                     )
-                  : const Text('Confirm Delete'),
+                  : Text(l10n.delete),
             ),
           ],
         ),

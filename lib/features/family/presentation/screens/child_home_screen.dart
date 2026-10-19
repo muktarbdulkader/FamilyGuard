@@ -14,6 +14,8 @@ import '../../../../core/services/permission_service.dart';
 import '../../../../core/services/location_service.dart';
 import '../../../../core/services/education_service.dart';
 import '../../../../core/services/notification_service.dart';
+import '../../../../core/providers/locale_provider.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../../child/presentation/screens/child_education_screen.dart';
 
 /// Pixel-matched Child Companion Home Screen
@@ -103,6 +105,7 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final userData = ref.watch(currentUserDataProvider);
 
     userData.whenData((user) => _triggerBackgroundSync(user));
@@ -122,7 +125,7 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                 children: [
                   const Icon(Icons.error_outline_rounded, size: 48, color: Color(0xFFEF4444)),
                   const SizedBox(height: 12),
-                  const Text('Failed to load status', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  Text(l10n.errorLoadingDashboard, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: () => ref.refresh(currentUserDataProvider),
@@ -130,7 +133,7 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                       backgroundColor: _tealAccent,
                       foregroundColor: const Color(0xFF0C1829),
                     ),
-                    child: const Text('Retry'),
+                    child: Text(l10n.retry),
                   ),
                 ],
               ),
@@ -172,9 +175,9 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      const Text(
-                                        'FamilyGuard',
-                                        style: TextStyle(
+                                      Text(
+                                        l10n.appName,
+                                        style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 20,
                                           fontWeight: FontWeight.w900,
@@ -183,7 +186,7 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
-                                        'Welcome, ${user?.displayName ?? 'Friend'}',
+                                        '${l10n.welcomeMessage} ${user?.displayName ?? 'Friend'}',
                                         style: const TextStyle(
                                           color: Color(0xFF94A3B8),
                                           fontSize: 13,
@@ -201,7 +204,7 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                           const SizedBox(width: 8),
                           // Settings & Sign Out button
                           InkWell(
-                            onTap: () => _showSettingsSheet(context, ref, user),
+                            onTap: () => _showSettingsSheet(context, ref, user, l10n),
                             borderRadius: BorderRadius.circular(14),
                             child: Container(
                               width: 44,
@@ -305,9 +308,9 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'All protections on',
-                              style: TextStyle(
+                            Text(
+                              l10n.allProtectionsOn,
+                              style: const TextStyle(
                                 color: _tealAccent,
                                 fontSize: 13,
                                 fontWeight: FontWeight.w700,
@@ -315,11 +318,11 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                               ),
                             ),
                             const SizedBox(height: 10),
-                            const Text(
-                              'You are safe and protected\nright now',
-                              style: TextStyle(
+                            Text(
+                              l10n.childSafe,
+                              style: const TextStyle(
                                 color: Colors.white,
-                                fontSize: 23,
+                                fontSize: 22,
                                 height: 1.25,
                                 fontWeight: FontWeight.w900,
                                 letterSpacing: -0.4,
@@ -329,11 +332,11 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                             // Metrics row
                             Row(
                               children: [
-                                _buildMetricBox('Limits', 'Balanced'),
+                                _buildMetricBox(l10n.limits, 'Balanced'),
                                 const SizedBox(width: 10),
-                                _buildMetricBox('Learning', 'Active'),
+                                _buildMetricBox(l10n.lessons, 'Active'),
                                 const SizedBox(width: 10),
-                                _buildMetricBox('Status', user?.hasFamily == true ? 'Linked' : 'Pair Code'),
+                                _buildMetricBox(l10n.role, user?.hasFamily == true ? 'Linked' : 'Pair Code'),
                               ],
                             ),
                           ],
@@ -350,9 +353,9 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'My Learning',
-                              style: TextStyle(
+                            Text(
+                              l10n.myLearning,
+                              style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 20,
                                 fontWeight: FontWeight.w900,
@@ -373,9 +376,9 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            'My Protection',
-                            style: TextStyle(
+                          Text(
+                            l10n.myProtection,
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 20,
                               fontWeight: FontWeight.w900,
@@ -423,7 +426,7 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                 bottom: 16,
                 left: 18,
                 right: 18,
-                child: _buildChildFloatingBottomBar(context, user),
+                child: _buildChildFloatingBottomBar(context, user, l10n),
               ),
             ],
           ),
@@ -775,7 +778,7 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
   }
 
   // ── Floating Bottom Navigation Bar for Child ────────────────────────
-  Widget _buildChildFloatingBottomBar(BuildContext context, dynamic user) {
+  Widget _buildChildFloatingBottomBar(BuildContext context, dynamic user, AppLocalizations l10n) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
@@ -796,21 +799,21 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
           // Home (Selected)
           _buildNavPill(
             icon: Icons.home_outlined,
-            label: 'Home',
+            label: l10n.home,
             isSelected: true,
             onTap: () {},
           ),
           // Apps
           _buildNavPill(
             icon: Icons.grid_view_rounded,
-            label: 'Apps',
+            label: l10n.apps,
             isSelected: false,
             onTap: () => context.push(AppRoutes.childApps),
           ),
           // Lessons
           _buildNavPill(
             icon: Icons.school_outlined,
-            label: 'Lessons',
+            label: l10n.lessons,
             isSelected: false,
             onTap: () {
               if (user?.familyId != null) {
@@ -830,14 +833,14 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
           // Health
           _buildNavPill(
             icon: Icons.health_and_safety_outlined,
-            label: 'Health',
+            label: l10n.health,
             isSelected: false,
             onTap: () => context.push(AppRoutes.childStatus),
           ),
-          // Permissions
+          // Permissions / Setup
           _buildNavPill(
             icon: Icons.shield_outlined,
-            label: 'Setup',
+            label: l10n.setup,
             isSelected: false,
             onTap: () => context.push(AppRoutes.childPermissions),
           ),
@@ -957,7 +960,7 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
   }
 
   // ── Unified Settings & Sign Out Modal Sheet for Child ──────────────
-  void _showSettingsSheet(BuildContext context, WidgetRef ref, dynamic user) {
+  void _showSettingsSheet(BuildContext context, WidgetRef ref, dynamic user, AppLocalizations l10n) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -1043,9 +1046,9 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: _tealAccent.withOpacity(0.3)),
                   ),
-                  child: const Text(
-                    'CHILD',
-                    style: TextStyle(
+                  child: Text(
+                    l10n.child.toUpperCase(),
+                    style: const TextStyle(
                       color: _tealAccent,
                       fontSize: 10,
                       fontWeight: FontWeight.w900,
@@ -1061,8 +1064,8 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
             // Setting items
             _buildSettingsTile(
               icon: Icons.person_outline_rounded,
-              title: 'My Profile & Account',
-              subtitle: 'Edit name, security, and appearance',
+              title: l10n.myProfile,
+              subtitle: l10n.settingsProfileSubtitle,
               onTap: () {
                 Navigator.pop(context);
                 context.push(AppRoutes.profile);
@@ -1070,8 +1073,8 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
             ),
             _buildSettingsTile(
               icon: Icons.qr_code_scanner_rounded,
-              title: 'Family Group',
-              subtitle: user?.hasFamily == true ? 'Connected with parents' : 'Scan parent QR code to link',
+              title: l10n.familyGroup,
+              subtitle: user?.hasFamily == true ? l10n.familyGroupConnected : l10n.familyGroupScanPrompt,
               onTap: () {
                 Navigator.pop(context);
                 context.push(AppRoutes.familyJoin);
@@ -1079,8 +1082,8 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
             ),
             _buildSettingsTile(
               icon: Icons.admin_panel_settings_outlined,
-              title: 'Device Permissions',
-              subtitle: 'Check system monitoring and overlay status',
+              title: l10n.devicePermissions,
+              subtitle: l10n.settingsDevicePermissionsSubtitle,
               onTap: () {
                 Navigator.pop(context);
                 context.push(AppRoutes.childPermissions);
@@ -1088,8 +1091,8 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
             ),
             _buildSettingsTile(
               icon: Icons.info_outline_rounded,
-              title: 'About Smart Guard',
-              subtitle: 'How healthy digital limits keep you safe',
+              title: l10n.aboutSmartGuard,
+              subtitle: l10n.aboutSmartGuardSubtitle,
               onTap: () {
                 Navigator.pop(context);
                 _showMonitoringInfo(context);
@@ -1097,11 +1100,25 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
             ),
             _buildSettingsTile(
               icon: Icons.swap_horiz_rounded,
-              title: 'Switch Role',
-              subtitle: 'Change between Parent and Child mode',
+              title: l10n.switchRole,
+              subtitle: l10n.settingsSwitchRoleSubtitle,
               onTap: () {
                 Navigator.pop(context);
                 context.push(AppRoutes.roleSelection);
+              },
+            ),
+            Consumer(
+              builder: (context, ref, _) {
+                final currentLang = ref.watch(currentLanguageProvider);
+                return _buildSettingsTile(
+                  icon: Icons.language_rounded,
+                  title: l10n.language,
+                  subtitle: '${currentLang.nativeName}  ${currentLang.flag}',
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.push(AppRoutes.languageSettings);
+                  },
+                );
               },
             ),
             // Theme / Color Mode Toggle
@@ -1251,7 +1268,13 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                 ],
               ),
             ),
-            const Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFF475569), size: 14),
+            Icon(
+              Directionality.of(context) == TextDirection.rtl
+                  ? Icons.arrow_back_ios_rounded
+                  : Icons.arrow_forward_ios_rounded,
+              color: const Color(0xFF475569),
+              size: 14,
+            ),
           ],
         ),
       ),

@@ -5,6 +5,7 @@ import '../../../../core/models/request_model.dart';
 import '../../../../core/providers/auth_provider.dart';
 import '../../../../core/providers/user_provider.dart';
 import '../../../../core/providers/family_provider.dart';
+import '../../../../l10n/app_localizations.dart';
 
 /// Parent screen for reviewing and acting on child app access requests
 class AppRequestsScreen extends ConsumerStatefulWidget {
@@ -32,6 +33,7 @@ class _AppRequestsScreenState extends ConsumerState<AppRequestsScreen>
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final userAsync = ref.watch(currentUserDataProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -44,9 +46,9 @@ class _AppRequestsScreenState extends ConsumerState<AppRequestsScreen>
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('App Requests',
+            Text(l10n.appRequests,
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: isDark ? Colors.white : const Color(0xFF0F172A))),
-            Text('Approve or deny child access',
+            Text(l10n.approveOrDenyRequests,
                 style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF8BA0B8) : const Color(0xFF64748B))),
           ],
         ),
@@ -56,10 +58,10 @@ class _AppRequestsScreenState extends ConsumerState<AppRequestsScreen>
           unselectedLabelColor: isDark ? const Color(0xFF8BA0B8) : const Color(0xFF94A3B8),
           indicatorColor: isDark ? const Color(0xFF2DD4BF) : const Color(0xFF4F46E5),
           indicatorWeight: 3,
-          tabs: const [
-            Tab(text: 'Pending'),
-            Tab(text: 'Approved'),
-            Tab(text: 'Denied'),
+          tabs: [
+            Tab(text: l10n.pending),
+            Tab(text: l10n.approved),
+            Tab(text: l10n.denied),
           ],
         ),
       ),

@@ -336,11 +336,23 @@ abstract class AppLocalizations {
   /// **'Privacy Policy'**
   String get privacyPolicy;
 
+  /// No description provided for @privacyPolicySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Read our commitments to data security'**
+  String get privacyPolicySubtitle;
+
   /// No description provided for @termsOfService.
   ///
   /// In en, this message translates to:
   /// **'Terms of Service'**
   String get termsOfService;
+
+  /// No description provided for @termsOfServiceSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Standard conditions and guidelines'**
+  String get termsOfServiceSubtitle;
 
   /// No description provided for @appVersion.
   ///
@@ -833,6 +845,252 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Saving...'**
   String get saving;
+
+  /// No description provided for @errorLoadingDashboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load dashboard'**
+  String get errorLoadingDashboard;
+
+  /// No description provided for @allProtectionsOn.
+  ///
+  /// In en, this message translates to:
+  /// **'All protections on'**
+  String get allProtectionsOn;
+
+  /// No description provided for @familySafeNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Your family is safe right\nnow'**
+  String get familySafeNow;
+
+  /// No description provided for @protectedDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Protected Device'**
+  String get protectedDevice;
+
+  /// No description provided for @noChildrenConnectedYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No Children Connected Yet'**
+  String get noChildrenConnectedYet;
+
+  /// No description provided for @noChildrenDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Link your child\'s phone with a quick QR scan to start protecting them.'**
+  String get noChildrenDescription;
+
+  /// No description provided for @parentAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Parent Account'**
+  String get parentAccount;
+
+  /// No description provided for @protectedParentPortal.
+  ///
+  /// In en, this message translates to:
+  /// **'Protected Parent Portal'**
+  String get protectedParentPortal;
+
+  /// No description provided for @settingsProfileSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit name, security, theme, and language'**
+  String get settingsProfileSubtitle;
+
+  /// No description provided for @settingsPairSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate pairing QR code for child setup'**
+  String get settingsPairSubtitle;
+
+  /// No description provided for @settingsSwitchRoleSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Change between Parent and Child mode'**
+  String get settingsSwitchRoleSubtitle;
+
+  /// No description provided for @settingsDevicePermissionsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Check system monitoring and overlay status'**
+  String get settingsDevicePermissionsSubtitle;
+
+  /// No description provided for @darkNavyPalette.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark Navy Palette'**
+  String get darkNavyPalette;
+
+  /// No description provided for @darkNavyDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Unified Dark Navy across all pages'**
+  String get darkNavyDescription;
+
+  /// No description provided for @lightThemeEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Light theme enabled'**
+  String get lightThemeEnabled;
+
+  /// No description provided for @pending.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending'**
+  String get pending;
+
+  /// No description provided for @approved.
+  ///
+  /// In en, this message translates to:
+  /// **'Approved'**
+  String get approved;
+
+  /// No description provided for @denied.
+  ///
+  /// In en, this message translates to:
+  /// **'Denied'**
+  String get denied;
+
+  /// No description provided for @all.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get all;
+
+  /// No description provided for @familyControls.
+  ///
+  /// In en, this message translates to:
+  /// **'Family Controls'**
+  String get familyControls;
+
+  /// No description provided for @parentDashboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Parental Control Dashboard'**
+  String get parentDashboard;
+
+  /// No description provided for @familyLocations.
+  ///
+  /// In en, this message translates to:
+  /// **'Family Locations'**
+  String get familyLocations;
+
+  /// No description provided for @liveGpsTracking.
+  ///
+  /// In en, this message translates to:
+  /// **'Live GPS tracking'**
+  String get liveGpsTracking;
+
+  /// No description provided for @appRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'App Requests'**
+  String get appRequests;
+
+  /// No description provided for @approveOrDenyRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'Approve or deny child access'**
+  String get approveOrDenyRequests;
+
+  /// No description provided for @educationCenter.
+  ///
+  /// In en, this message translates to:
+  /// **'Education Center'**
+  String get educationCenter;
+
+  /// No description provided for @manageLearningMaterials.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage and track learning materials'**
+  String get manageLearningMaterials;
+
+  /// No description provided for @uploadMaterial.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload Material'**
+  String get uploadMaterial;
+
+  /// No description provided for @realTimeAlerts.
+  ///
+  /// In en, this message translates to:
+  /// **'Real-time child alerts & permissions'**
+  String get realTimeAlerts;
+
+  /// No description provided for @markAllAsRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark all as read'**
+  String get markAllAsRead;
+
+  /// No description provided for @openNativeMaps.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in Maps'**
+  String get openNativeMaps;
+
+  /// No description provided for @aboutSmartGuard.
+  ///
+  /// In en, this message translates to:
+  /// **'About Smart Guard'**
+  String get aboutSmartGuard;
+
+  /// No description provided for @smartGuardDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'FamilyGuard keeps your device balanced and safe'**
+  String get smartGuardDescription;
+
+  /// No description provided for @gotIt.
+  ///
+  /// In en, this message translates to:
+  /// **'Got it!'**
+  String get gotIt;
+
+  /// No description provided for @familyGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Family Group'**
+  String get familyGroup;
+
+  /// No description provided for @familyGroupConnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected with parents'**
+  String get familyGroupConnected;
+
+  /// No description provided for @familyGroupScanPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan parent QR code to link'**
+  String get familyGroupScanPrompt;
+
+  /// No description provided for @aboutSmartGuardSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'How healthy digital limits keep you safe'**
+  String get aboutSmartGuardSubtitle;
+
+  /// No description provided for @noChildrenLinkedYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No children linked yet'**
+  String get noChildrenLinkedYet;
+
+  /// No description provided for @noPendingRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'No pending requests'**
+  String get noPendingRequests;
+
+  /// No description provided for @noNotificationsYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No notifications yet'**
+  String get noNotificationsYet;
 }
 
 class _AppLocalizationsDelegate

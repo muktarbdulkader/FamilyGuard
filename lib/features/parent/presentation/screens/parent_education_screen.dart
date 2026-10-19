@@ -9,6 +9,7 @@ import '../../../../core/providers/user_provider.dart';
 import '../../../../core/services/education_service.dart';
 import '../widgets/material_detail_sheet.dart';
 import '../widgets/upload_material_sheet.dart';
+import '../../../../l10n/app_localizations.dart';
 
 class ParentEducationScreen extends ConsumerStatefulWidget {
   const ParentEducationScreen({super.key});
@@ -33,6 +34,7 @@ class _ParentEducationScreenState extends ConsumerState<ParentEducationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final userAsync = ref.watch(currentUserDataProvider);
     final selectedFamily = ref.watch(selectedFamilyProvider);
@@ -48,23 +50,23 @@ class _ParentEducationScreenState extends ConsumerState<ParentEducationScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Education Center',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+              l10n.educationCenter,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
             ),
             Text(
-              'Manage and track learning materials',
-              style: TextStyle(fontSize: 12),
+              l10n.manageLearningMaterials,
+              style: const TextStyle(fontSize: 12),
             ),
           ],
         ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh',
+            tooltip: l10n.refresh,
             onPressed: () {
               if (familyId.isNotEmpty) {
                 ref.invalidate(familyEducationalMaterialsProvider(familyId));
@@ -76,9 +78,9 @@ class _ParentEducationScreenState extends ConsumerState<ParentEducationScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openUploadSheet(context, familyId, user?.uid ?? '', user?.displayName ?? 'Parent'),
         icon: const Icon(Icons.add),
-        label: const Text(
-          'Upload Material',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        label: Text(
+          l10n.uploadMaterial,
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
       body: materialsAsync.when(

@@ -20,6 +20,7 @@ import '../../../../core/models/educational_material_model.dart';
 import '../../../../core/services/education_service.dart';
 import '../../../../core/providers/auth_provider.dart';
 import '../../../../core/providers/theme_provider.dart';
+import '../../../../l10n/app_localizations.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Main parent dashboard screen with family and child selection
@@ -70,6 +71,7 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final familiesAsync = ref.watch(userFamiliesProvider);
     final selectedFamily = ref.watch(selectedFamilyProvider);
     final selectedChild = ref.watch(selectedChildProvider);
@@ -87,6 +89,7 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
     final hasSelection = effectiveFamilyId.isNotEmpty && effectiveChildId.isNotEmpty;
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isRtl = Directionality.of(context) == TextDirection.rtl;
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0C1829) : Colors.grey[50],
@@ -111,7 +114,7 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                     children: [
                       IconButton(
                         icon: Icon(
-                          Icons.arrow_back_ios_new_rounded,
+                          isRtl ? Icons.arrow_forward_ios_rounded : Icons.arrow_back_ios_new_rounded,
                           size: 20,
                           color: isDark ? Colors.white : const Color(0xFF0F172A),
                         ),
@@ -148,7 +151,7 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Family Controls',
+                              l10n.familyControls,
                               style: TextStyle(
                                 fontWeight: FontWeight.w800,
                                 fontSize: 18,
@@ -157,7 +160,7 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                               ),
                             ),
                             Text(
-                              'Parental Control Dashboard',
+                              l10n.parentDashboard,
                               style: TextStyle(
                                 color: isDark ? const Color(0xFF8BA0B8) : const Color(0xFF64748B),
                                 fontSize: 12,
@@ -173,7 +176,7 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                           Icons.settings_outlined,
                           color: isDark ? const Color(0xFF8BA0B8) : const Color(0xFF64748B),
                         ),
-                        tooltip: 'Settings',
+                        tooltip: l10n.settings,
                       ),
                     ],
                   ),
@@ -256,10 +259,10 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                 indicatorWeight: 3,
                 labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                 unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
-                tabs: const [
-                  Tab(text: 'Apps', icon: Icon(Icons.apps_rounded, size: 20)),
-                  Tab(text: 'Usage', icon: Icon(Icons.bar_chart_rounded, size: 20)),
-                  Tab(text: 'Location', icon: Icon(Icons.location_on_rounded, size: 20)),
+                tabs: [
+                  Tab(text: l10n.apps, icon: const Icon(Icons.apps_rounded, size: 20)),
+                  const Tab(text: 'Usage', icon: Icon(Icons.bar_chart_rounded, size: 20)),
+                  Tab(text: l10n.location, icon: const Icon(Icons.location_on_rounded, size: 20)),
                 ],
               ),
             ),

@@ -18,7 +18,7 @@ class AppLocalizationsAm extends AppLocalizations {
   String get home => 'መነሻ';
 
   @override
-  String get control => 'መቆጣጠር';
+  String get control => 'ቁጥጥር';
 
   @override
   String get location => 'አቀማመጥ';
@@ -60,10 +60,10 @@ class AppLocalizationsAm extends AppLocalizations {
   String get error => 'ስህተት';
 
   @override
-  String get success => 'ስኬት';
+  String get success => 'ተሳክቷል';
 
   @override
-  String get chooseLanguage => 'የሚፈልጉትን ቋንቋ ይምረጡ';
+  String get chooseLanguage => 'የሚመርጡትን ቋንቋ ይምረጡ';
 
   @override
   String languageChangedTo(String language) {
@@ -113,22 +113,28 @@ class AppLocalizationsAm extends AppLocalizations {
   String get notifications => 'ማሳወቂያዎች';
 
   @override
-  String get pushNotifications => 'የፓሽ ማሳወቂያዎች';
+  String get pushNotifications => 'የስልክ ማሳወቂያዎች';
 
   @override
   String get appearance => 'መልክ';
 
   @override
-  String get darkMode => 'ጨለማ ሁነታ';
+  String get darkMode => 'ጨለማ ገጽታ';
 
   @override
-  String get lightMode => 'ብርሃን ሁነታ';
+  String get lightMode => 'ብርሃን ገጽታ';
 
   @override
   String get privacyPolicy => 'የግላዊነት ፖሊሲ';
 
   @override
-  String get termsOfService => 'የአገልግሎት ውሎዎች';
+  String get privacyPolicySubtitle => 'የውሂብ ደህንነት ቁርጠኝነታችንን ያንብቡ';
+
+  @override
+  String get termsOfService => 'የአገልግሎት ውሎች';
+
+  @override
+  String get termsOfServiceSubtitle => 'መደበኛ የአገልግሎት ውሎች እና መመሪያዎች';
 
   @override
   String get appVersion => 'የመተግበሪያ ስሪት';
@@ -137,10 +143,10 @@ class AppLocalizationsAm extends AppLocalizations {
   String get accountActions => 'የመለያ እርምጃዎች';
 
   @override
-  String get deleteAccount => 'መለያ እና ማገጃ ሰርዝ';
+  String get deleteAccount => 'መለያ እና ውሂብ ሰርዝ';
 
   @override
-  String get signOutConfirmTitle => 'ውጣ';
+  String get signOutConfirmTitle => 'መውጫ';
 
   @override
   String get signOutConfirmMessage => 'እርግጠኛ ነዎት መውጣት ይፈልጋሉ?';
@@ -159,19 +165,19 @@ class AppLocalizationsAm extends AppLocalizations {
   String get newPassword => 'አዲስ የይለፍ ቃል';
 
   @override
-  String get confirmNewPassword => 'አዲስ የይለፍ ቃል ያረጋግጡ';
+  String get confirmNewPassword => 'አዲሱን የይለፍ ቃል ያረጋግጡ';
 
   @override
   String get password => 'የይለፍ ቃል';
 
   @override
-  String get saveNewPassword => 'አዲስ የይለፍ ቃል አስቀምጥ';
+  String get saveNewPassword => 'አዲሱን የይለፍ ቃል አስቀምጥ';
 
   @override
   String get passwordChanged => 'የይለፍ ቃል በተሳካ ሁኔታ ተቀይሯል';
 
   @override
-  String get passwordResetSent => 'የይለፍ ቃል ዳግም አስጀምር ኢሜይል ተልኳል';
+  String get passwordResetSent => 'የይለፍ ቃል ዳግም ማስጀመሪያ ኢሜይል ተልኳል';
 
   @override
   String get profileUpdated => 'መገለጫ በተሳካ ሁኔታ ተስተካክሏል';
@@ -180,49 +186,49 @@ class AppLocalizationsAm extends AppLocalizations {
   String get children => 'ልጆች';
 
   @override
-  String get addChild => '+ ልጅ ያክሉ';
+  String get addChild => '+ ልጅ ጨምር';
 
   @override
   String get protected => 'የተጠበቀ';
 
   @override
-  String get online => 'መስመር ላይ';
+  String get online => 'ኦንላይን';
 
   @override
-  String get offline => 'መስመር ውጪ';
+  String get offline => 'ኦፍላይን';
 
   @override
-  String get rules => 'ደረጃዎች';
+  String get rules => 'ደንቦች';
 
   @override
-  String get lessons => 'ትምህርት';
+  String get lessons => 'ትምህርቶች';
 
   @override
   String get family => 'ቤተሰብ';
 
   @override
-  String get familySafe => 'ቤተሰብዎ አሁን ደህና ነው';
+  String get familySafe => 'ቤተሰብዎ አሁን ደህንነቱ የተጠበቀ ነው';
 
   @override
-  String get childSafe => 'እርስዎ ደህና የተጠበቁ ነዎት';
+  String get childSafe => 'አሁን ሙሉ በሙሉ ደህንነትዎ የተጠበቀ ነው';
 
   @override
   String get limits => 'ገደቦች';
 
   @override
-  String get enforced => 'የተፈቀደ';
+  String get enforced => 'ተግባራዊ ተደርጓል';
 
   @override
   String get gps => 'GPS';
 
   @override
-  String get live => 'ቀጥተኛ';
+  String get live => 'ቀጥታ';
 
   @override
   String get approvals => 'ማፅደቂያዎች';
 
   @override
-  String get instant => 'ፈጥኖ';
+  String get instant => 'ፈጣን';
 
   @override
   String get dashboard => 'ዳሽቦርድ';
@@ -240,7 +246,7 @@ class AppLocalizationsAm extends AppLocalizations {
   String get devicePermissions => 'የመሣሪያ ፈቃዶች';
 
   @override
-  String get myLearning => 'የእኔ ትምህርት';
+  String get myLearning => 'የትምህርት ገጼ';
 
   @override
   String get myProtection => 'የእኔ ጥበቃ';
@@ -258,10 +264,10 @@ class AppLocalizationsAm extends AppLocalizations {
   String get openLessons => 'ትምህርት ክፈት';
 
   @override
-  String get pendingLessons => 'ያልጠናቀቀ ትምህርት';
+  String get pendingLessons => 'ያልተጠናቀቁ ትምህርቶች';
 
   @override
-  String get noChildren => 'ምንም ልጅ አልተገናኘም';
+  String get noChildren => 'የተገናኙ ልጆች የሉም';
 
   @override
   String get noNotifications => 'ምንም ማሳወቂያ የለም';
@@ -270,10 +276,10 @@ class AppLocalizationsAm extends AppLocalizations {
   String get noRequests => 'ምንም ጥያቄ የለም';
 
   @override
-  String get emptyStates => 'እዚህ ምንም አይደለም';
+  String get emptyStates => 'እዚህ ምንም ነገር የለም';
 
   @override
-  String get session => 'ክፍለ ጊዜ';
+  String get session => 'ክፍለ-ጊዜ';
 
   @override
   String get welcomeMessage => 'እንኳን ደህና መጡ፣';
@@ -288,34 +294,34 @@ class AppLocalizationsAm extends AppLocalizations {
   String get newPasswordRequired => 'አዲስ የይለፍ ቃል ያስፈልጋል';
 
   @override
-  String get passwordMinLength => 'የይለፍ ቃል ቢያንስ 6 ቁምፍ መሆን አለበት';
+  String get passwordMinLength => 'የይለፍ ቃል ቢያንስ 6 ፊደላት መሆን አለበት';
 
   @override
   String get passwordsDoNotMatch => 'የይለፍ ቃሎቹ አይዛመዱም';
 
   @override
-  String get fieldRequired => 'ይህ ያስፈልጋል';
+  String get fieldRequired => 'ይህ ክፍተት መሞላት አለበት';
 
   @override
-  String get invalidEmail => 'ልክ ያልሆነ ኢሜይል';
+  String get invalidEmail => 'ልክ ያልሆነ የኢሜይል አድራሻ';
 
   @override
   String get wrongPassword => 'የተሳሳተ የይለፍ ቃል';
 
   @override
-  String get userNotFound => 'በዚህ ኢሜይል መለያ አልተገኘም';
+  String get userNotFound => 'በዚህ ኢሜይል የተመዘገበ መለያ የለም';
 
   @override
-  String get tooManyRequests => 'በጣም ብዙ ሙከራዎች። እባክዎ እንደገና ይሞክሩ።';
+  String get tooManyRequests => 'ብዙ ሙከራዎች ተደርገዋል። እባክዎ ቆይተው እንደገና ይሞክሩ';
 
   @override
-  String get networkError => 'የአውታረ መረት ስህተት። እባክዎ ግንኙነትዎን ያረጋግጡ።';
+  String get networkError => 'የበይነመረብ ስህተት። እባክዎ ግንኙነትዎን ያረጋግጡ';
 
   @override
-  String get reauthRequired => 'ለመቀጠል እባክዎ እንደገና ይግቡ።';
+  String get reauthRequired => 'ለመቀጠል እባክዎ እንደገና ይግቡ';
 
   @override
-  String get changePasswordDescription => 'የአሁኑን የይለፍ ቃል እና አዲስ የይለፍ ቃል ያስገቡ';
+  String get changePasswordDescription => 'የአሁኑን እና አዲሱን የይለፍ ቃል በማስገባት ያዘምኑ';
 
   @override
   String get appLanguage => 'የመተግበሪያ ቋንቋ';
@@ -342,10 +348,10 @@ class AppLocalizationsAm extends AppLocalizations {
   String get back => 'ተመለስ';
 
   @override
-  String get next => 'ቀጥል';
+  String get next => 'ቀጣይ';
 
   @override
-  String get done => 'ተከናውኗል';
+  String get done => 'ተጠናቋል';
 
   @override
   String get skip => 'ዝለል';
@@ -363,17 +369,142 @@ class AppLocalizationsAm extends AppLocalizations {
   String get search => 'ፈልግ';
 
   @override
-  String get filter => 'ማጣሪያ';
+  String get filter => 'አጣራ';
 
   @override
-  String get sort => 'ቅደም ተከተል';
+  String get sort => 'አስተካክል';
 
   @override
   String get refresh => 'አድስ';
 
   @override
-  String get updating => 'በማዘን ላይ...';
+  String get updating => 'በማዘመን ላይ...';
 
   @override
-  String get saving => 'በማስቀምጥ ላይ...';
+  String get saving => 'በማስቀመጥ ላይ...';
+
+  @override
+  String get errorLoadingDashboard => 'ዳሽቦርዱን መጫን አልተሳካም';
+
+  @override
+  String get allProtectionsOn => 'ሁሉም ጥበቃዎች በርተዋል';
+
+  @override
+  String get familySafeNow => 'ቤተሰብዎ አሁን\nደህንነቱ የተጠበቀ ነው';
+
+  @override
+  String get protectedDevice => 'የተጠበቀ መሣሪያ';
+
+  @override
+  String get noChildrenConnectedYet => 'እስካሁን ምንም ልጅ አልተገናኘም';
+
+  @override
+  String get noChildrenDescription => 'ልጅዎን ለመጠበቅ የስልኩን QR ኮድ በመቃኘት ያገናኙ።';
+
+  @override
+  String get parentAccount => 'የወላጅ መለያ';
+
+  @override
+  String get protectedParentPortal => 'የተጠበቀ የወላጅ ፖርታል';
+
+  @override
+  String get settingsProfileSubtitle => 'ስም፣ ደህንነት፣ ገጽታ እና ቋንቋ ያርትዑ';
+
+  @override
+  String get settingsPairSubtitle => 'የልጅ ስልክ ለማዋቀር QR ኮድ ይፍጠሩ';
+
+  @override
+  String get settingsSwitchRoleSubtitle => 'በወላጅ እና በልጅ ሁነታ መካከል ይቀይሩ';
+
+  @override
+  String get settingsDevicePermissionsSubtitle =>
+      'የስርዓት ክትትል እና የፍቃድ ሁኔታን ያረጋግጡ';
+
+  @override
+  String get darkNavyPalette => 'ጨለማ የባህር ኃይል ገጽታ';
+
+  @override
+  String get darkNavyDescription => 'በሁሉም ገጾች ላይ አንድ ወጥ የሆነ ጨለማ ገጽታ';
+
+  @override
+  String get lightThemeEnabled => 'የብርሃን ገጽታ ነቅቷል';
+
+  @override
+  String get pending => 'በመጠባበቅ ላይ';
+
+  @override
+  String get approved => 'የተፈቀደ';
+
+  @override
+  String get denied => 'የተከለከለ';
+
+  @override
+  String get all => 'ሁሉም';
+
+  @override
+  String get familyControls => 'የቤተሰብ ቁጥጥር';
+
+  @override
+  String get parentDashboard => 'የወላጅ ቁጥጥር ዳሽቦርድ';
+
+  @override
+  String get familyLocations => 'የቤተሰብ አቀማመጥ';
+
+  @override
+  String get liveGpsTracking => 'የቀጥታ GPS ክትትል';
+
+  @override
+  String get appRequests => 'የመተግበሪያ ጥያቄዎች';
+
+  @override
+  String get approveOrDenyRequests => 'የልጅ መዳረሻ ፍቀድ ወይም ከልክል';
+
+  @override
+  String get educationCenter => 'የትምህርት ማዕከል';
+
+  @override
+  String get manageLearningMaterials => 'የትምህርት ቁሳቁሶችን ይቆጣጠሩ እና ይከታተሉ';
+
+  @override
+  String get uploadMaterial => 'የትምህርት ቁሳቁስ ጫን';
+
+  @override
+  String get realTimeAlerts => 'የቀጥታ የልጆች ማስጠንቀቂያዎች';
+
+  @override
+  String get markAllAsRead => 'ሁሉንም እንደተነበበ ምልክት አድርግ';
+
+  @override
+  String get openNativeMaps => 'በካርታ ላይ ክፈት';
+
+  @override
+  String get aboutSmartGuard => 'ስለ Smart Guard';
+
+  @override
+  String get smartGuardDescription =>
+      'FamilyGuard መሣሪያዎን ሚዛናዊ እና ደህንነቱ የተጠበቀ ያደርጋል';
+
+  @override
+  String get gotIt => 'ተረድቻለሁ!';
+
+  @override
+  String get familyGroup => 'የቤተሰብ ቡድን';
+
+  @override
+  String get familyGroupConnected => 'ከወላጆች ጋር ተገናኝቷል';
+
+  @override
+  String get familyGroupScanPrompt => 'ለማገናኘት የወላጅ QR ኮድ ይቃኙ';
+
+  @override
+  String get aboutSmartGuardSubtitle => 'ጤናማ የዲጂታል ገደቦች እርስዎን እንዴት እንደሚጠብቁ';
+
+  @override
+  String get noChildrenLinkedYet => 'እስካሁን የተገናኘ ልጅ የለም';
+
+  @override
+  String get noPendingRequests => 'በመጠባበቅ ላይ ያለ ጥያቄ የለም';
+
+  @override
+  String get noNotificationsYet => 'ምንም ማሳወቂያ የለም';
 }

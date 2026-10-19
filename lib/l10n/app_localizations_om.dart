@@ -12,13 +12,13 @@ class AppLocalizationsOm extends AppLocalizations {
   String get appName => 'FamilyGuard';
 
   @override
-  String get welcome => 'Bagga\'uu';
+  String get welcome => 'Baga nagaan dhuftan';
 
   @override
   String get home => 'Mana';
 
   @override
-  String get control => 'To\'achuu';
+  String get control => 'To\'annoo';
 
   @override
   String get location => 'Iddoo';
@@ -27,13 +27,13 @@ class AppLocalizationsOm extends AppLocalizations {
   String get requests => 'Gaaffiiwwan';
 
   @override
-  String get alerts => 'Deebiiwwan';
+  String get alerts => 'Akeekkachiisa';
 
   @override
-  String get profile => 'Profaayilii';
+  String get profile => 'Piroofaayilii';
 
   @override
-  String get settings => 'Qindaa\'inaawwan';
+  String get settings => 'Qindaa\'inoota';
 
   @override
   String get save => 'Olkaa\'i';
@@ -42,13 +42,13 @@ class AppLocalizationsOm extends AppLocalizations {
   String get cancel => 'Haqi';
 
   @override
-  String get confirm => 'Mirkaneeffadhu';
+  String get confirm => 'Mirkaneessi';
 
   @override
   String get signOut => 'Ba\'i';
 
   @override
-  String get changePassword => 'Jecha Darbiijii Jijjiiri';
+  String get changePassword => 'Jecha Darbii Jijjiiri';
 
   @override
   String get language => 'Afaan';
@@ -67,14 +67,14 @@ class AppLocalizationsOm extends AppLocalizations {
 
   @override
   String languageChangedTo(String language) {
-    return 'Afaan $language tti jijjirame';
+    return 'Afaan gara $language tti jijjiirame';
   }
 
   @override
-  String get profileSettings => 'Profaayilii fi Qindaa\'inaawwan';
+  String get profileSettings => 'Piroofaayilii fi Qindaa\'inoota';
 
   @override
-  String get editProfile => 'Profaayilii Gulaali';
+  String get editProfile => 'Piroofaayilii Gulaali';
 
   @override
   String get personalInfo => 'Odeeffannoo Dhuunfaa';
@@ -95,16 +95,16 @@ class AppLocalizationsOm extends AppLocalizations {
   String get parent => 'Maatii';
 
   @override
-  String get child => 'Irranfachiisaa';
+  String get child => 'Mucaa';
 
   @override
-  String get security => 'Nageenyaa';
+  String get security => 'Nageenya';
 
   @override
-  String get resetPassword => 'Jecha Darbiijii Deebisi';
+  String get resetPassword => 'Jecha Darbii Deebisi';
 
   @override
-  String get forgotPassword => 'Jecha Darbiijii dagattee?';
+  String get forgotPassword => 'Jecha Darbii irranfattee?';
 
   @override
   String get accountSettings => 'Qindaa\'ina Herregaa';
@@ -113,25 +113,32 @@ class AppLocalizationsOm extends AppLocalizations {
   String get notifications => 'Beeksisawwan';
 
   @override
-  String get pushNotifications => 'Beeksisawwan Dhiyeessa';
+  String get pushNotifications => 'Beeksisawwan Bilbilaa';
 
   @override
-  String get appearance => 'Mul\'ata';
+  String get appearance => 'Bifa';
 
   @override
-  String get darkMode => 'Maddii Duukkana';
+  String get darkMode => 'Bifa Dukkanaawaa';
 
   @override
-  String get lightMode => 'Maddii Ifaa';
+  String get lightMode => 'Bifa Ifaa';
 
   @override
-  String get privacyPolicy => 'Imaammata Dhimmoonni';
+  String get privacyPolicy => 'Imaammata Dhuunfaa';
 
   @override
-  String get termsOfService => 'Tajajilaa Tajaajilaa';
+  String get privacyPolicySubtitle =>
+      'Imaammata dhimmoota nageenya daataa dubbisi';
 
   @override
-  String get appVersion => 'Gosti App';
+  String get termsOfService => 'Waliigaltee Tajaajilaa';
+
+  @override
+  String get termsOfServiceSubtitle => 'Qajeelfamoota fi dambiiwwan tajaajilaa';
+
+  @override
+  String get appVersion => 'Gosa Appii';
 
   @override
   String get accountActions => 'Gochoota Herregaa';
@@ -143,56 +150,56 @@ class AppLocalizationsOm extends AppLocalizations {
   String get signOutConfirmTitle => 'Ba\'uu';
 
   @override
-  String get signOutConfirmMessage => 'Sirritti ba\'uu barbaaddaa?';
+  String get signOutConfirmMessage => 'Dhuguma ba\'uu barbaaddaa?';
 
   @override
-  String get deleteAccountConfirmTitle => 'Herregaa Balleessuu';
+  String get deleteAccountConfirmTitle => 'Herrega Balleessuu';
 
   @override
   String get deleteAccountConfirmMessage =>
-      'Kun waan balleeffamuuf. Mirkaneeffadhu jecha darbiijii galchi.';
+      'Tarkaanfiin kun hin deebi\'u. Mirkaneessuuf jecha darbii galchi.';
 
   @override
-  String get currentPassword => 'Jecha Darbiijii Ammaa';
+  String get currentPassword => 'Jecha Darbii Ammaa';
 
   @override
-  String get newPassword => 'Jecha Darbiijii Haaraa';
+  String get newPassword => 'Jecha Darbii Haaraa';
 
   @override
-  String get confirmNewPassword => 'Jecha Darbiijii Haaraa Mirkaneeffadhu';
+  String get confirmNewPassword => 'Jecha Darbii Haaraa Mirkaneessi';
 
   @override
-  String get password => 'Jecha Darbiijii';
+  String get password => 'Jecha Darbii';
 
   @override
-  String get saveNewPassword => 'Jecha Darbiijii Haaraa Olkaa\'i';
+  String get saveNewPassword => 'Jecha Darbii Haaraa Olkaa\'i';
 
   @override
-  String get passwordChanged => 'Jecha Darbiijii milkaa\'ee jijjirame';
+  String get passwordChanged => 'Jechi darbii milkaa\'inaan jijjiirame';
 
   @override
-  String get passwordResetSent => 'Imeelii jecha darbiijii deebii ergame';
+  String get passwordResetSent => 'Imeeliin jecha darbii deebisu ergameera';
 
   @override
-  String get profileUpdated => 'Profaayilii milkaa\'ee jijjirame';
+  String get profileUpdated => 'Piroofaayiliin milkaa\'inaan haaromeera';
 
   @override
-  String get children => 'Irranfachiisaa';
+  String get children => 'Ijoollee';
 
   @override
-  String get addChild => '+ Irranfachiisaa dabali';
+  String get addChild => '+ Mucaa dabali';
 
   @override
-  String get protected => 'Eegame';
+  String get protected => 'Eegameera';
 
   @override
-  String get online => 'Online';
+  String get online => 'Toora Irra';
 
   @override
-  String get offline => 'Offline';
+  String get offline => 'Toora Ala';
 
   @override
-  String get rules => 'Qajeelfamtoota';
+  String get rules => 'Qajeelfamoota';
 
   @override
   String get lessons => 'Barnoota';
@@ -201,25 +208,25 @@ class AppLocalizationsOm extends AppLocalizations {
   String get family => 'Maatii';
 
   @override
-  String get familySafe => 'Maatiin kee amma nageenyaa qaba';
+  String get familySafe => 'Maatiin keessan amma nageenya qaba';
 
   @override
-  String get childSafe => 'Ati nageenyaa keessatti jirta';
+  String get childSafe => 'Amma nageenya fi eegumsa guutuu qabda';
 
   @override
-  String get limits => 'Daangaa';
+  String get limits => 'Daangaawwan';
 
   @override
-  String get enforced => 'Hojooon hojjate';
+  String get enforced => 'Hojiirra kan oole';
 
   @override
   String get gps => 'GPS';
 
   @override
-  String get live => 'Kallattii';
+  String get live => 'Kallattiin';
 
   @override
-  String get approvals => 'Walgalteewwan';
+  String get approvals => 'Hayyamoota';
 
   @override
   String get instant => 'Yeroodhaan';
@@ -228,123 +235,125 @@ class AppLocalizationsOm extends AppLocalizations {
   String get dashboard => 'Daashboordii';
 
   @override
-  String get myProfile => 'Profaayilii fi Herrega Kiyya';
+  String get myProfile => 'Piroofaayilii fi Herrega Kiyya';
 
   @override
   String get switchRole => 'Ga\'ee jijjiiri';
 
   @override
-  String get pairChildDevice => 'Mecha Irranfachiisaa walqunnamsiisi';
+  String get pairChildDevice => 'Meeshaa Mucaa Walqunnamsiisi';
 
   @override
-  String get devicePermissions => 'Hayyama Mechaa';
+  String get devicePermissions => 'Hayyama Meeshaa';
 
   @override
-  String get myLearning => 'Barnoonni Kiyya';
+  String get myLearning => 'Barnoota Kiyya';
 
   @override
-  String get myProtection => 'Eegummaa Kiyya';
+  String get myProtection => 'Eegumsa Kiyya';
 
   @override
-  String get apps => 'Appiletii';
+  String get apps => 'Appilikeeshinii';
 
   @override
   String get health => 'Fayyaa';
 
   @override
-  String get setup => 'Qindaa\'ina';
+  String get setup => 'Qindeessi';
 
   @override
   String get openLessons => 'Barnoota bani';
 
   @override
-  String get pendingLessons => 'Barnoota hin xumurin';
+  String get pendingLessons => 'Barnoota hafe';
 
   @override
-  String get noChildren => 'Irranfachiisaa hin jiran';
+  String get noChildren => 'Ijoolleen walqunnamsiifaman hin jiran';
 
   @override
-  String get noNotifications => 'Beeksisaa hin jiran';
+  String get noNotifications => 'Beeksisni hin jiru';
 
   @override
-  String get noRequests => 'Gaaffii hin jiran';
+  String get noRequests => 'Gaaffiin eegamu hin jiru';
 
   @override
-  String get emptyStates => 'Asiif hin jiran';
+  String get emptyStates => 'Wanti as jiru hin jiru';
 
   @override
   String get session => 'Kutaa';
 
   @override
-  String get welcomeMessage => 'Bagga\'uu,';
+  String get welcomeMessage => 'Baga deebite,';
 
   @override
-  String get subTitle => 'Nageenya. Walqunnamtii. Waliin.';
+  String get subTitle => 'Nagaa. Walqunnamtii. Waliin.';
 
   @override
-  String get currentPasswordRequired => 'Jecha darbiijii ammaa barbaachisa';
+  String get currentPasswordRequired => 'Jechi darbii ammaa barbaachisaadha';
 
   @override
-  String get newPasswordRequired => 'Jecha darbiijii haaraa barbaachisa';
+  String get newPasswordRequired => 'Jechi darbii haaraan barbaachisaadha';
 
   @override
-  String get passwordMinLength => 'Jechi darbiijii kanxiqqoo 6 ta\'uu qaba';
+  String get passwordMinLength =>
+      'Jechi darbii yoo xiqqaate qubee 6 ta\'uu qaba';
 
   @override
-  String get passwordsDoNotMatch => 'Jecha darbiijii walii hin galu';
+  String get passwordsDoNotMatch => 'Jechoonni darbii wal hin simne';
 
   @override
-  String get fieldRequired => 'Kun barbaachisa';
+  String get fieldRequired => 'Bakki kun guutamuu qaba';
 
   @override
-  String get invalidEmail => 'Imeelii sirrii miti';
+  String get invalidEmail => 'Teessoo imeelii sirrii miti';
 
   @override
-  String get wrongPassword => 'Jechi darbiijii sirrii miti';
+  String get wrongPassword => 'Jecha darbii dogoggoraa';
 
   @override
-  String get userNotFound => 'Herregaan kun hin argamne';
+  String get userNotFound => 'Herregni imeelii kanaan argame hin jiru';
 
   @override
-  String get tooManyRequests => 'Baay\'ee yaalaa. irra deebi\'ii yaali.';
+  String get tooManyRequests =>
+      'Yaalii baay\'ee godhame. Booda irra deebii yaali';
 
   @override
   String get networkError =>
-      'Dogoggora qunnamtii. walqunnamtii mirkaneeffadhu.';
+      'Dogoggora interneetii. Walqunnamtii keessan mirkaneeffadhaa';
 
   @override
-  String get reauthRequired => 'Irra deebi\'ii seenuudhaaf seenaa.';
+  String get reauthRequired => 'Itti fufuuf irra deebiin seenaa';
 
   @override
   String get changePasswordDescription =>
-      'Jecha darbiijii ammaa fi haaraa galchi';
+      'Jecha darbii ammaa fi haaraa galchuun haaromsaa';
 
   @override
   String get appLanguage => 'Afaan Appii';
 
   @override
-  String get selectLanguage => 'Afaan filadhu';
+  String get selectLanguage => 'Afaan Filadhu';
 
   @override
-  String get noResults => 'Bu\'aa hin argamne';
+  String get noResults => 'Wanti argame hin jiru';
 
   @override
-  String get retry => 'Irra deebi\'ii yaali';
+  String get retry => 'Irra deebi\'i';
 
   @override
   String get delete => 'Balleessi';
 
   @override
-  String get update => 'Jijjiiri';
+  String get update => 'Haaromsi';
 
   @override
   String get close => 'Cufi';
 
   @override
-  String get back => 'Deebi\'i';
+  String get back => 'Duubatti';
 
   @override
-  String get next => 'Itti aanu';
+  String get next => 'Itti aana';
 
   @override
   String get done => 'Xumurame';
@@ -353,7 +362,7 @@ class AppLocalizationsOm extends AppLocalizations {
   String get skip => 'Darbi';
 
   @override
-  String get or => 'yookaan';
+  String get or => 'yookiin';
 
   @override
   String get and => 'fi';
@@ -365,17 +374,148 @@ class AppLocalizationsOm extends AppLocalizations {
   String get search => 'Barbaadi';
 
   @override
-  String get filter => 'Calalchiisi';
+  String get filter => 'Gingilchi';
 
   @override
-  String get sort => 'Walitti qabsiisi';
+  String get sort => 'Tartiibsi';
 
   @override
   String get refresh => 'Haaromsi';
 
   @override
-  String get updating => 'Jijjiiraa jira...';
+  String get updating => 'Haaromaa jira...';
 
   @override
-  String get saving => 'Olkaa\'aa jira...';
+  String get saving => 'Olkaa\'amaa jira...';
+
+  @override
+  String get errorLoadingDashboard => 'Daashboordii fe\'uu hin dandeenye';
+
+  @override
+  String get allProtectionsOn => 'Eegumsi hundi hojiirra jira';
+
+  @override
+  String get familySafeNow => 'Maatiin kee amma\nnageenya qaba';
+
+  @override
+  String get protectedDevice => 'Meeshaa Eegame';
+
+  @override
+  String get noChildrenConnectedYet => 'Ijoolleen Walqunnamsiifaman Hin Jiran';
+
+  @override
+  String get noChildrenDescription =>
+      'Eegumsa eegaluuf bilbila mucaa keessanii koodii QR skaan godhaa.';
+
+  @override
+  String get parentAccount => 'Herrega Maatii';
+
+  @override
+  String get protectedParentPortal => 'Mooraa Maatii Eegame';
+
+  @override
+  String get settingsProfileSubtitle =>
+      'Maqaa, nageenya, bifa fi afaan gulaali';
+
+  @override
+  String get settingsPairSubtitle =>
+      'Qindeessuu mucaatiif koodii QR maddisiisi';
+
+  @override
+  String get settingsSwitchRoleSubtitle =>
+      'Gidduu haala Maatii fi Mucaa jijjiiri';
+
+  @override
+  String get settingsDevicePermissionsSubtitle =>
+      'Hordoffii sirnaa fi haala eegumsaa mirkaneessi';
+
+  @override
+  String get darkNavyPalette => 'Kuusaa Kilaasikii Dukkanaawaa';
+
+  @override
+  String get darkNavyDescription => 'Bifa walfakkaataa fuulawwan hunda irratti';
+
+  @override
+  String get lightThemeEnabled => 'Bifti ifaan hojiirra ooleera';
+
+  @override
+  String get pending => 'Kan eegamu';
+
+  @override
+  String get approved => 'Kan heyyamame';
+
+  @override
+  String get denied => 'Kan dhowwame';
+
+  @override
+  String get all => 'Hunda';
+
+  @override
+  String get familyControls => 'To\'annoo Maatii';
+
+  @override
+  String get parentDashboard => 'Daashboordii To\'annoo Maatii';
+
+  @override
+  String get familyLocations => 'Iddoo Maatii';
+
+  @override
+  String get liveGpsTracking => 'Hordoffii GPS Kallattii';
+
+  @override
+  String get appRequests => 'Gaaffiiwwan Appii';
+
+  @override
+  String get approveOrDenyRequests => 'Hayyami yookiin dhowwi';
+
+  @override
+  String get educationCenter => 'Giddugala Barnootaa';
+
+  @override
+  String get manageLearningMaterials => 'Meeshaalee barnootaa to\'adhu';
+
+  @override
+  String get uploadMaterial => 'Meeshaa Barnootaa Olfe\'i';
+
+  @override
+  String get realTimeAlerts => 'Akeekkachiisa yeroodhaa';
+
+  @override
+  String get markAllAsRead => 'Hunda akka dubbifametti mallatteessi';
+
+  @override
+  String get openNativeMaps => 'Kaartaa irratti bani';
+
+  @override
+  String get aboutSmartGuard => 'Waa\'ee Smart Guard';
+
+  @override
+  String get smartGuardDescription =>
+      'FamilyGuard nageenya fi madaallii bilbila keessanii eega';
+
+  @override
+  String get gotIt => 'Hubadheera!';
+
+  @override
+  String get familyGroup => 'Garee Maatii';
+
+  @override
+  String get familyGroupConnected => 'Maatii wajjin walqunnameera';
+
+  @override
+  String get familyGroupScanPrompt =>
+      'Walqunnamsiisuuf koodii QR maatii skaan godhaa';
+
+  @override
+  String get aboutSmartGuardSubtitle =>
+      'Daangaan dijitaalaa nageenya keessan akkamitti eega';
+
+  @override
+  String get noChildrenLinkedYet => 'Ijoolleen walqunnamsiifaman hin jiran';
+
+  @override
+  String get noPendingRequests => 'Gaaffiin eegamu hin jiru';
+
+  @override
+  String get noNotificationsYet => 'Beeksisni haaraan hin jiru';
 }

@@ -128,7 +128,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get privacyPolicy => 'Privacy Policy';
 
   @override
+  String get privacyPolicySubtitle => 'Read our commitments to data security';
+
+  @override
   String get termsOfService => 'Terms of Service';
+
+  @override
+  String get termsOfServiceSubtitle => 'Standard conditions and guidelines';
 
   @override
   String get appVersion => 'App Version';
@@ -377,4 +383,133 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get saving => 'Saving...';
+
+  @override
+  String get errorLoadingDashboard => 'Failed to load dashboard';
+
+  @override
+  String get allProtectionsOn => 'All protections on';
+
+  @override
+  String get familySafeNow => 'Your family is safe right\nnow';
+
+  @override
+  String get protectedDevice => 'Protected Device';
+
+  @override
+  String get noChildrenConnectedYet => 'No Children Connected Yet';
+
+  @override
+  String get noChildrenDescription =>
+      'Link your child\'s phone with a quick QR scan to start protecting them.';
+
+  @override
+  String get parentAccount => 'Parent Account';
+
+  @override
+  String get protectedParentPortal => 'Protected Parent Portal';
+
+  @override
+  String get settingsProfileSubtitle =>
+      'Edit name, security, theme, and language';
+
+  @override
+  String get settingsPairSubtitle => 'Generate pairing QR code for child setup';
+
+  @override
+  String get settingsSwitchRoleSubtitle =>
+      'Change between Parent and Child mode';
+
+  @override
+  String get settingsDevicePermissionsSubtitle =>
+      'Check system monitoring and overlay status';
+
+  @override
+  String get darkNavyPalette => 'Dark Navy Palette';
+
+  @override
+  String get darkNavyDescription => 'Unified Dark Navy across all pages';
+
+  @override
+  String get lightThemeEnabled => 'Light theme enabled';
+
+  @override
+  String get pending => 'Pending';
+
+  @override
+  String get approved => 'Approved';
+
+  @override
+  String get denied => 'Denied';
+
+  @override
+  String get all => 'All';
+
+  @override
+  String get familyControls => 'Family Controls';
+
+  @override
+  String get parentDashboard => 'Parental Control Dashboard';
+
+  @override
+  String get familyLocations => 'Family Locations';
+
+  @override
+  String get liveGpsTracking => 'Live GPS tracking';
+
+  @override
+  String get appRequests => 'App Requests';
+
+  @override
+  String get approveOrDenyRequests => 'Approve or deny child access';
+
+  @override
+  String get educationCenter => 'Education Center';
+
+  @override
+  String get manageLearningMaterials => 'Manage and track learning materials';
+
+  @override
+  String get uploadMaterial => 'Upload Material';
+
+  @override
+  String get realTimeAlerts => 'Real-time child alerts & permissions';
+
+  @override
+  String get markAllAsRead => 'Mark all as read';
+
+  @override
+  String get openNativeMaps => 'Open in Maps';
+
+  @override
+  String get aboutSmartGuard => 'About Smart Guard';
+
+  @override
+  String get smartGuardDescription =>
+      'FamilyGuard keeps your device balanced and safe';
+
+  @override
+  String get gotIt => 'Got it!';
+
+  @override
+  String get familyGroup => 'Family Group';
+
+  @override
+  String get familyGroupConnected => 'Connected with parents';
+
+  @override
+  String get familyGroupScanPrompt => 'Scan parent QR code to link';
+
+  @override
+  String get aboutSmartGuardSubtitle =>
+      'How healthy digital limits keep you safe';
+
+  @override
+  String get noChildrenLinkedYet => 'No children linked yet';
+
+  @override
+  String get noPendingRequests => 'No pending requests';
+
+  @override
+  String get noNotificationsYet => 'No notifications yet';
 }
