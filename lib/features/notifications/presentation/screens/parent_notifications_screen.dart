@@ -20,10 +20,12 @@ class ParentNotificationsScreen extends ConsumerStatefulWidget {
   const ParentNotificationsScreen({super.key});
 
   @override
-  ConsumerState<ParentNotificationsScreen> createState() => _ParentNotificationsScreenState();
+  ConsumerState<ParentNotificationsScreen> createState() =>
+      _ParentNotificationsScreenState();
 }
 
-class _ParentNotificationsScreenState extends ConsumerState<ParentNotificationsScreen>
+class _ParentNotificationsScreenState
+    extends ConsumerState<ParentNotificationsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
@@ -50,14 +52,18 @@ class _ParentNotificationsScreenState extends ConsumerState<ParentNotificationsS
     final isRtl = Directionality.of(context) == TextDirection.rtl;
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF0C1829) : const Color(0xFFF8FAFC),
+      backgroundColor: isDark
+          ? const Color(0xFF0C1829)
+          : const Color(0xFFF8FAFC),
       appBar: AppBar(
         elevation: 0,
         backgroundColor: isDark ? const Color(0xFF0C1829) : Colors.white,
         foregroundColor: isDark ? Colors.white : const Color(0xFF0F172A),
         leading: IconButton(
           icon: Icon(
-            isRtl ? Icons.arrow_forward_ios_rounded : Icons.arrow_back_ios_new_rounded,
+            isRtl
+                ? Icons.arrow_forward_ios_rounded
+                : Icons.arrow_back_ios_new_rounded,
             size: 20,
             color: isDark ? Colors.white : const Color(0xFF0F172A),
           ),
@@ -70,14 +76,23 @@ class _ParentNotificationsScreenState extends ConsumerState<ParentNotificationsS
               children: [
                 Text(
                   l10n.notifications,
-                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 18,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
                 ),
                 if (unreadCount > 0) ...[
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF2DD4BF) : const Color(0xFF4F46E5),
+                      color: isDark
+                          ? const Color(0xFF2DD4BF)
+                          : const Color(0xFF4F46E5),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -94,14 +109,24 @@ class _ParentNotificationsScreenState extends ConsumerState<ParentNotificationsS
             ),
             Text(
               l10n.realTimeAlerts,
-              style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF8BA0B8) : const Color(0xFF64748B)),
+              style: TextStyle(
+                fontSize: 12,
+                color: isDark
+                    ? const Color(0xFF8BA0B8)
+                    : const Color(0xFF64748B),
+              ),
             ),
           ],
         ),
         actions: [
           if (unreadCount > 0)
             IconButton(
-              icon: Icon(Icons.done_all_rounded, color: isDark ? const Color(0xFF2DD4BF) : const Color(0xFF4F46E5)),
+              icon: Icon(
+                Icons.done_all_rounded,
+                color: isDark
+                    ? const Color(0xFF2DD4BF)
+                    : const Color(0xFF4F46E5),
+              ),
               tooltip: l10n.markAllAsRead,
               onPressed: () {
                 ref.read(notificationActionsProvider).markAllAsRead();
@@ -117,11 +142,20 @@ class _ParentNotificationsScreenState extends ConsumerState<ParentNotificationsS
         ],
         bottom: TabBar(
           controller: _tabController,
-          labelColor: isDark ? const Color(0xFF2DD4BF) : const Color(0xFF4F46E5),
-          unselectedLabelColor: isDark ? const Color(0xFF8BA0B8) : const Color(0xFF64748B),
-          indicatorColor: isDark ? const Color(0xFF2DD4BF) : const Color(0xFF4F46E5),
+          labelColor: isDark
+              ? const Color(0xFF2DD4BF)
+              : const Color(0xFF4F46E5),
+          unselectedLabelColor: isDark
+              ? const Color(0xFF8BA0B8)
+              : const Color(0xFF64748B),
+          indicatorColor: isDark
+              ? const Color(0xFF2DD4BF)
+              : const Color(0xFF4F46E5),
           indicatorWeight: 3,
-          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+          labelStyle: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+          ),
           tabs: [
             Tab(
               child: Row(
@@ -158,7 +192,11 @@ class _ParentNotificationsScreenState extends ConsumerState<ParentNotificationsS
                       ),
                       child: Text(
                         '${urgentNotifications.length}',
-                        style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ],
@@ -179,7 +217,11 @@ class _ParentNotificationsScreenState extends ConsumerState<ParentNotificationsS
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.error_outline_rounded, size: 56, color: Color(0xFFEF4444)),
+                const Icon(
+                  Icons.error_outline_rounded,
+                  size: 56,
+                  color: Color(0xFFEF4444),
+                ),
                 const SizedBox(height: 16),
                 const Text(
                   'Error loading notifications',
@@ -189,11 +231,15 @@ class _ParentNotificationsScreenState extends ConsumerState<ParentNotificationsS
                 Text(
                   error.toString(),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                  style: const TextStyle(
+                    color: Color(0xFF64748B),
+                    fontSize: 13,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 ElevatedButton.icon(
-                  onPressed: () => ref.invalidate(currentUserNotificationsProvider),
+                  onPressed: () =>
+                      ref.invalidate(currentUserNotificationsProvider),
                   icon: const Icon(Icons.refresh_rounded),
                   label: const Text('Retry'),
                   style: ElevatedButton.styleFrom(
@@ -206,13 +252,17 @@ class _ParentNotificationsScreenState extends ConsumerState<ParentNotificationsS
           ),
         ),
         data: (notifications) {
-          final requestNotifications = notifications.where(
-            (n) => n.type == NotificationType.appRequest,
-          ).toList();
+          final requestNotifications = notifications
+              .where((n) => n.type == NotificationType.appRequest)
+              .toList();
 
-          final urgentList = notifications.where(
-            (n) => n.priority == NotificationPriority.urgent || n.priority == NotificationPriority.high,
-          ).toList();
+          final urgentList = notifications
+              .where(
+                (n) =>
+                    n.priority == NotificationPriority.urgent ||
+                    n.priority == NotificationPriority.high,
+              )
+              .toList();
 
           return TabBarView(
             controller: _tabController,
@@ -220,19 +270,22 @@ class _ParentNotificationsScreenState extends ConsumerState<ParentNotificationsS
               _NotificationList(
                 notifications: notifications,
                 emptyTitle: 'No notifications yet',
-                emptySubtitle: 'You will receive real-time alerts when children request apps, exceed limits, or install new applications.',
+                emptySubtitle:
+                    'You will receive real-time alerts when children request apps, exceed limits, or install new applications.',
                 emptyIcon: Icons.notifications_none_rounded,
               ),
               _NotificationList(
                 notifications: requestNotifications,
                 emptyTitle: 'No pending requests',
-                emptySubtitle: 'When your children request access to blocked applications, they will appear here for one-tap approval.',
+                emptySubtitle:
+                    'When your children request access to blocked applications, they will appear here for one-tap approval.',
                 emptyIcon: Icons.pending_actions_rounded,
               ),
               _NotificationList(
                 notifications: urgentList,
                 emptyTitle: 'All caught up!',
-                emptySubtitle: 'No critical alerts or security issues on any child device right now.',
+                emptySubtitle:
+                    'No critical alerts or security issues on any child device right now.',
                 emptyIcon: Icons.verified_user_rounded,
               ),
               const _NotificationSettingsTab(),
@@ -272,18 +325,30 @@ class _NotificationList extends ConsumerWidget {
                   color: const Color(0xFF4F46E5).withOpacity(0.08),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(emptyIcon, size: 54, color: const Color(0xFF4F46E5)),
+                child: Icon(
+                  emptyIcon,
+                  size: 54,
+                  color: const Color(0xFF4F46E5),
+                ),
               ),
               const SizedBox(height: 20),
               Text(
                 emptyTitle,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF0F172A),
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
               Text(
                 emptySubtitle,
-                style: const TextStyle(fontSize: 13, color: Color(0xFF64748B), height: 1.4),
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFF64748B),
+                  height: 1.4,
+                ),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -321,16 +386,20 @@ class _ChildNotificationCard extends ConsumerWidget {
 
     // Resolve real child name from notification or family children
     String childName = notification.childName.trim();
-    if (childName.isEmpty || childName.toLowerCase() == 'child' || childName.toLowerCase() == 'your child') {
+    if (childName.isEmpty ||
+        childName.toLowerCase() == 'child' ||
+        childName.toLowerCase() == 'your child') {
       final match = children.cast<ChildModel?>().firstWhere(
         (c) => c?.id == notification.childId,
         orElse: () => null,
       );
       if (match != null && match.displayName.trim().isNotEmpty) {
         childName = match.displayName.trim();
-      } else if (selectedChild != null && selectedChild.displayName.trim().isNotEmpty) {
+      } else if (selectedChild != null &&
+          selectedChild.displayName.trim().isNotEmpty) {
         childName = selectedChild.displayName.trim();
-      } else if (children.isNotEmpty && children.first.displayName.trim().isNotEmpty) {
+      } else if (children.isNotEmpty &&
+          children.first.displayName.trim().isNotEmpty) {
         childName = children.first.displayName.trim();
       } else {
         childName = 'Child';
@@ -369,13 +438,13 @@ class _ChildNotificationCard extends ConsumerWidget {
     final typeColor = isApproved
         ? const Color(0xFF10B981)
         : isDenied
-            ? const Color(0xFFEF4444)
-            : _getTypeColor(notification.type);
+        ? const Color(0xFFEF4444)
+        : _getTypeColor(notification.type);
     final typeIcon = isApproved
         ? Icons.check_circle_rounded
         : isDenied
-            ? Icons.cancel_rounded
-            : _getTypeIcon(notification.type);
+        ? Icons.cancel_rounded
+        : _getTypeIcon(notification.type);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -430,7 +499,9 @@ class _ChildNotificationCard extends ConsumerWidget {
                       ),
                       child: Center(
                         child: Text(
-                          childName.isNotEmpty ? childName[0].toUpperCase() : 'C',
+                          childName.isNotEmpty
+                              ? childName[0].toUpperCase()
+                              : 'C',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 16,
@@ -461,11 +532,16 @@ class _ChildNotificationCard extends ConsumerWidget {
                               ),
                               const SizedBox(width: 6),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 7,
+                                  vertical: 2,
+                                ),
                                 decoration: BoxDecoration(
                                   color: const Color(0xFFEEF2FF),
                                   borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(color: const Color(0xFFC7D2FE)),
+                                  border: Border.all(
+                                    color: const Color(0xFFC7D2FE),
+                                  ),
                                 ),
                                 child: const Text(
                                   'Child Device',
@@ -494,7 +570,10 @@ class _ChildNotificationCard extends ConsumerWidget {
                     // Priority Badge / Unread indicator
                     if (isUrgent)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFFEF2F2),
                           borderRadius: BorderRadius.circular(8),
@@ -521,12 +600,20 @@ class _ChildNotificationCard extends ConsumerWidget {
 
                     const SizedBox(width: 4),
                     PopupMenuButton<String>(
-                      icon: const Icon(Icons.more_horiz_rounded, size: 20, color: Color(0xFF94A3B8)),
+                      icon: const Icon(
+                        Icons.more_horiz_rounded,
+                        size: 20,
+                        color: Color(0xFF94A3B8),
+                      ),
                       padding: EdgeInsets.zero,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                       onSelected: (value) {
                         if (value == 'read') {
-                          ref.read(notificationActionsProvider).markAsRead(notification.id);
+                          ref
+                              .read(notificationActionsProvider)
+                              .markAsRead(notification.id);
                         } else if (value == 'details') {
                           _showDetailsDialog(context);
                         }
@@ -583,7 +670,9 @@ class _ChildNotificationCard extends ConsumerWidget {
                             cardTitle,
                             style: TextStyle(
                               fontSize: 14,
-                              fontWeight: isUnread ? FontWeight.w800 : FontWeight.w600,
+                              fontWeight: isUnread
+                                  ? FontWeight.w800
+                                  : FontWeight.w600,
                               color: const Color(0xFF0F172A),
                             ),
                           ),
@@ -607,7 +696,10 @@ class _ChildNotificationCard extends ConsumerWidget {
                   if (isApproved) ...[
                     const SizedBox(height: 12),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFFECFDF5),
                         borderRadius: BorderRadius.circular(10),
@@ -615,7 +707,11 @@ class _ChildNotificationCard extends ConsumerWidget {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 18),
+                          const Icon(
+                            Icons.check_circle_rounded,
+                            color: Color(0xFF10B981),
+                            size: 18,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -633,7 +729,10 @@ class _ChildNotificationCard extends ConsumerWidget {
                   ] else if (isDenied) ...[
                     const SizedBox(height: 12),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFFFEF2F2),
                         borderRadius: BorderRadius.circular(10),
@@ -641,7 +740,11 @@ class _ChildNotificationCard extends ConsumerWidget {
                       ),
                       child: const Row(
                         children: [
-                          Icon(Icons.cancel_rounded, color: Color(0xFFEF4444), size: 18),
+                          Icon(
+                            Icons.cancel_rounded,
+                            color: Color(0xFFEF4444),
+                            size: 18,
+                          ),
                           SizedBox(width: 8),
                           Text(
                             'Request Denied',
@@ -665,31 +768,49 @@ class _ChildNotificationCard extends ConsumerWidget {
                               foregroundColor: const Color(0xFFEF4444),
                               side: const BorderSide(color: Color(0xFFFCA5A5)),
                               padding: const EdgeInsets.symmetric(vertical: 9),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
                             ),
-                            child: const Text('Deny', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                            child: const Text(
+                              'Deny',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
                           ),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
                           flex: 2,
                           child: ElevatedButton.icon(
-                            onPressed: () => _quickApproveRequest(context, ref, 30),
+                            onPressed: () =>
+                                _quickApproveRequest(context, ref, 30),
                             icon: const Icon(Icons.check_rounded, size: 16),
-                            label: const Text('Approve 30m', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                            label: const Text(
+                              'Approve 30m',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF10B981),
                               foregroundColor: Colors.white,
                               elevation: 0,
                               padding: const EdgeInsets.symmetric(vertical: 9),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
                             ),
                           ),
                         ),
                       ],
                     ),
                   ],
-                ] else if (notification.type == NotificationType.newAppDetected) ...[
+                ] else if (notification.type ==
+                    NotificationType.newAppDetected) ...[
                   const SizedBox(height: 14),
                   Row(
                     children: [
@@ -697,18 +818,27 @@ class _ChildNotificationCard extends ConsumerWidget {
                         child: OutlinedButton.icon(
                           onPressed: () => _navigateToChildApps(context),
                           icon: const Icon(Icons.tune_rounded, size: 16),
-                          label: const Text('Configure App Rules', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                          label: const Text(
+                            'Configure App Rules',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: const Color(0xFF4F46E5),
                             side: const BorderSide(color: Color(0xFF4F46E5)),
                             padding: const EdgeInsets.symmetric(vertical: 9),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                           ),
                         ),
                       ),
                     ],
                   ),
-                ] else if (notification.type == NotificationType.dailyLimitReached) ...[
+                ] else if (notification.type ==
+                    NotificationType.dailyLimitReached) ...[
                   const SizedBox(height: 14),
                   Row(
                     children: [
@@ -716,12 +846,20 @@ class _ChildNotificationCard extends ConsumerWidget {
                         child: OutlinedButton.icon(
                           onPressed: () => context.push(AppRoutes.parentApps),
                           icon: const Icon(Icons.timelapse_rounded, size: 16),
-                          label: const Text('View App Limits', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                          label: const Text(
+                            'View App Limits',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: const Color(0xFFD97706),
                             side: const BorderSide(color: Color(0xFFF59E0B)),
                             padding: const EdgeInsets.symmetric(vertical: 9),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                           ),
                         ),
                       ),
@@ -771,7 +909,11 @@ class _ChildNotificationCard extends ConsumerWidget {
     }
   }
 
-  Future<void> _quickApproveRequest(BuildContext context, WidgetRef ref, int minutes) async {
+  Future<void> _quickApproveRequest(
+    BuildContext context,
+    WidgetRef ref,
+    int minutes,
+  ) async {
     final requestId = notification.data['requestId'];
     final familyId = notification.familyId;
     final childId = notification.childId;
@@ -784,7 +926,9 @@ class _ChildNotificationCard extends ConsumerWidget {
     try {
       final parentId = ref.read(authProvider).user?.uid ?? 'parent';
       final now = Timestamp.now();
-      final expires = Timestamp.fromDate(DateTime.now().add(Duration(minutes: minutes)));
+      final expires = Timestamp.fromDate(
+        DateTime.now().add(Duration(minutes: minutes)),
+      );
 
       final updateData = {
         'status': RequestStatus.approved.name,
@@ -867,7 +1011,9 @@ class _ChildNotificationCard extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Approved $minutes minutes for ${notification.childName}'),
+            content: Text(
+              'Approved $minutes minutes for ${notification.childName}',
+            ),
             backgroundColor: const Color(0xFF10B981),
             behavior: SnackBarBehavior.floating,
           ),
@@ -981,13 +1127,20 @@ class _ChildNotificationCard extends ConsumerWidget {
                 color: _getTypeColor(notification.type).withOpacity(0.12),
                 shape: BoxShape.circle,
               ),
-              child: Icon(_getTypeIcon(notification.type), color: _getTypeColor(notification.type), size: 20),
+              child: Icon(
+                _getTypeIcon(notification.type),
+                color: _getTypeColor(notification.type),
+                size: 20,
+              ),
             ),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
                 notification.title,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
               ),
             ),
           ],
@@ -996,15 +1149,24 @@ class _ChildNotificationCard extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(notification.body, style: const TextStyle(fontSize: 14, height: 1.4)),
+            Text(
+              notification.body,
+              style: const TextStyle(fontSize: 14, height: 1.4),
+            ),
             const SizedBox(height: 16),
             const Divider(height: 1),
             const SizedBox(height: 12),
             _buildDetailRow('Child Name', notification.childName),
             const SizedBox(height: 6),
-            _buildDetailRow('Time', notification.createdAt.toString().split('.')[0]),
+            _buildDetailRow(
+              'Time',
+              notification.createdAt.toString().split('.')[0],
+            ),
             const SizedBox(height: 6),
-            _buildDetailRow('Priority', notification.priority.name.toUpperCase()),
+            _buildDetailRow(
+              'Priority',
+              notification.priority.name.toUpperCase(),
+            ),
           ],
         ),
         actions: [
@@ -1021,8 +1183,18 @@ class _ChildNotificationCard extends ConsumerWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-        Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+        ),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF0F172A),
+          ),
+        ),
       ],
     );
   }
@@ -1091,7 +1263,8 @@ class _NotificationSettingsTab extends StatefulWidget {
   const _NotificationSettingsTab();
 
   @override
-  State<_NotificationSettingsTab> createState() => _NotificationSettingsTabState();
+  State<_NotificationSettingsTab> createState() =>
+      _NotificationSettingsTabState();
 }
 
 class _NotificationSettingsTabState extends State<_NotificationSettingsTab> {
@@ -1108,7 +1281,11 @@ class _NotificationSettingsTabState extends State<_NotificationSettingsTab> {
       children: [
         const Text(
           'Notification Preferences',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF0F172A),
+          ),
         ),
         const SizedBox(height: 6),
         const Text(
@@ -1146,7 +1323,8 @@ class _NotificationSettingsTabState extends State<_NotificationSettingsTab> {
         ),
         _buildSettingTile(
           title: 'Critical Security & Permissions',
-          subtitle: 'Emergency alerts if permissions or services are tampered with',
+          subtitle:
+              'Emergency alerts if permissions or services are tampered with',
           icon: Icons.security_rounded,
           value: _securityAlerts,
           onChanged: (v) => setState(() => _securityAlerts = v),
@@ -1179,8 +1357,14 @@ class _NotificationSettingsTabState extends State<_NotificationSettingsTab> {
           ),
           child: Icon(icon, color: const Color(0xFF4F46E5), size: 20),
         ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-        subtitle: Text(subtitle, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+        title: Text(
+          title,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+        ),
         value: value,
         activeColor: const Color(0xFF4F46E5),
         onChanged: onChanged,

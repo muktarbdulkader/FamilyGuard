@@ -38,7 +38,8 @@ class SendEducationalDialog extends ConsumerStatefulWidget {
   }
 
   @override
-  ConsumerState<SendEducationalDialog> createState() => _SendEducationalDialogState();
+  ConsumerState<SendEducationalDialog> createState() =>
+      _SendEducationalDialogState();
 }
 
 class _SendEducationalDialogState extends ConsumerState<SendEducationalDialog> {
@@ -56,8 +57,16 @@ class _SendEducationalDialogState extends ConsumerState<SendEducationalDialog> {
     (name: 'Science', icon: Icons.science_rounded, color: Color(0xFF059669)),
     (name: 'Reading', icon: Icons.menu_book_rounded, color: Color(0xFFD97706)),
     (name: 'Language', icon: Icons.translate_rounded, color: Color(0xFF7C3AED)),
-    (name: 'Video', icon: Icons.play_circle_fill_rounded, color: Color(0xFFDC2626)),
-    (name: 'Assignment', icon: Icons.assignment_rounded, color: Color(0xFF0891B2)),
+    (
+      name: 'Video',
+      icon: Icons.play_circle_fill_rounded,
+      color: Color(0xFFDC2626),
+    ),
+    (
+      name: 'Assignment',
+      icon: Icons.assignment_rounded,
+      color: Color(0xFF0891B2),
+    ),
   ];
 
   @override
@@ -98,7 +107,10 @@ class _SendEducationalDialogState extends ConsumerState<SendEducationalDialog> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error selecting file: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Error selecting file: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -110,17 +122,21 @@ class _SendEducationalDialogState extends ConsumerState<SendEducationalDialog> {
     setState(() => _isLoading = true);
 
     try {
-      await ref.read(educationServiceProvider).sendEducationalTask(
-        familyId: widget.familyId,
-        childId: widget.childId,
-        title: _titleController.text,
-        subject: _selectedSubject,
-        note: _noteController.text,
-        url: _urlController.text.isNotEmpty ? _urlController.text : null,
-        senderName: widget.parentName.isNotEmpty ? widget.parentName : 'Parent',
-        childName: widget.childName,
-        file: _selectedFile,
-      );
+      await ref
+          .read(educationServiceProvider)
+          .sendEducationalTask(
+            familyId: widget.familyId,
+            childId: widget.childId,
+            title: _titleController.text,
+            subject: _selectedSubject,
+            note: _noteController.text,
+            url: _urlController.text.isNotEmpty ? _urlController.text : null,
+            senderName: widget.parentName.isNotEmpty
+                ? widget.parentName
+                : 'Parent',
+            childName: widget.childName,
+            file: _selectedFile,
+          );
 
       if (mounted) {
         Navigator.pop(context);
@@ -128,13 +144,17 @@ class _SendEducationalDialogState extends ConsumerState<SendEducationalDialog> {
           SnackBar(
             backgroundColor: const Color(0xFF059669),
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             content: Row(
               children: [
                 const Icon(Icons.check_circle_rounded, color: Colors.white),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Text('Educational material sent to ${widget.childName}!'),
+                  child: Text(
+                    'Educational material sent to ${widget.childName}!',
+                  ),
                 ),
               ],
             ),
@@ -222,6 +242,8 @@ class _SendEducationalDialogState extends ConsumerState<SendEducationalDialog> {
                             fontSize: 12,
                             color: Color(0xFF64748B),
                           ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
@@ -250,7 +272,10 @@ class _SendEducationalDialogState extends ConsumerState<SendEducationalDialog> {
                     borderRadius: BorderRadius.circular(20),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
                         color: isSelected ? s.color : Colors.grey[100],
                         borderRadius: BorderRadius.circular(20),
@@ -272,7 +297,9 @@ class _SendEducationalDialogState extends ConsumerState<SendEducationalDialog> {
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: isSelected ? Colors.white : Colors.grey[800],
+                              color: isSelected
+                                  ? Colors.white
+                                  : Colors.grey[800],
                             ),
                           ),
                         ],
@@ -311,9 +338,15 @@ class _SendEducationalDialogState extends ConsumerState<SendEducationalDialog> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 1.5),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF4F46E5),
+                      width: 1.5,
+                    ),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
                 ),
                 validator: (val) {
                   if (val == null || val.trim().isEmpty) {
@@ -336,7 +369,10 @@ class _SendEducationalDialogState extends ConsumerState<SendEducationalDialog> {
               const SizedBox(height: 6),
               if (_selectedFile != null)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFF0FDF4),
                     borderRadius: BorderRadius.circular(12),
@@ -344,7 +380,11 @@ class _SendEducationalDialogState extends ConsumerState<SendEducationalDialog> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.description_rounded, color: Color(0xFF16A34A), size: 24),
+                      const Icon(
+                        Icons.description_rounded,
+                        color: Color(0xFF16A34A),
+                        size: 24,
+                      ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Column(
@@ -352,19 +392,30 @@ class _SendEducationalDialogState extends ConsumerState<SendEducationalDialog> {
                           children: [
                             Text(
                               _selectedFile!.name,
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF166534)),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: Color(0xFF166534),
+                              ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                             Text(
                               '${(_selectedFile!.size / 1024).toStringAsFixed(1)} KB • Document Attached',
-                              style: const TextStyle(fontSize: 11, color: Color(0xFF15803D)),
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFF15803D),
+                              ),
                             ),
                           ],
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.close_rounded, size: 20, color: Color(0xFFDC2626)),
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          size: 20,
+                          color: Color(0xFFDC2626),
+                        ),
                         onPressed: () => setState(() => _selectedFile = null),
                         tooltip: 'Remove attached file',
                       ),
@@ -376,15 +427,28 @@ class _SendEducationalDialogState extends ConsumerState<SendEducationalDialog> {
                   width: double.infinity,
                   child: OutlinedButton.icon(
                     onPressed: _pickFile,
-                    icon: const Icon(Icons.upload_file_rounded, size: 20, color: Color(0xFF4F46E5)),
+                    icon: const Icon(
+                      Icons.upload_file_rounded,
+                      size: 20,
+                      color: Color(0xFF4F46E5),
+                    ),
                     label: const Text(
                       'Attach PDF, Word Doc, PPT, or Image',
-                      style: TextStyle(color: Color(0xFF4F46E5), fontWeight: FontWeight.bold, fontSize: 13),
+                      style: TextStyle(
+                        color: Color(0xFF4F46E5),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
                     ),
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 12,
+                        horizontal: 14,
+                      ),
                       side: const BorderSide(color: Color(0xFFC7D2FE)),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                       backgroundColor: const Color(0xFFEEF2FF).withOpacity(0.5),
                     ),
                   ),
@@ -432,9 +496,15 @@ class _SendEducationalDialogState extends ConsumerState<SendEducationalDialog> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 1.5),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF4F46E5),
+                      width: 1.5,
+                    ),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
                 ),
               ),
               const SizedBox(height: 14),
@@ -453,7 +523,8 @@ class _SendEducationalDialogState extends ConsumerState<SendEducationalDialog> {
                 controller: _noteController,
                 maxLines: 3,
                 decoration: InputDecoration(
-                  hintText: 'e.g. Please review this 10-minute lesson and complete notes before playing games.',
+                  hintText:
+                      'e.g. Please review this 10-minute lesson and complete notes before playing games.',
                   hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
                   filled: true,
                   fillColor: Colors.grey[50],
@@ -467,9 +538,15 @@ class _SendEducationalDialogState extends ConsumerState<SendEducationalDialog> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 1.5),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF4F46E5),
+                      width: 1.5,
+                    ),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
                 ),
               ),
               const SizedBox(height: 20),
@@ -482,10 +559,18 @@ class _SendEducationalDialogState extends ConsumerState<SendEducationalDialog> {
                       onPressed: () => Navigator.pop(context),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         side: BorderSide(color: Colors.grey[300]!),
                       ),
-                      child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+                      child: const Text(
+                        'Cancel',
+                        style: TextStyle(
+                          color: Color(0xFF64748B),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -497,18 +582,25 @@ class _SendEducationalDialogState extends ConsumerState<SendEducationalDialog> {
                           ? const SizedBox(
                               width: 18,
                               height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
                             )
                           : const Icon(Icons.send_rounded, size: 18),
                       label: Text(
-                        _isLoading ? 'Sending...' : 'Send to ${widget.childName}',
+                        _isLoading
+                            ? 'Sending...'
+                            : 'Send to ${widget.childName}',
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF4F46E5),
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         elevation: 0,
                       ),
                     ),

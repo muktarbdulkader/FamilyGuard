@@ -47,7 +47,8 @@ class UploadMaterialSheet extends ConsumerStatefulWidget {
   }
 
   @override
-  ConsumerState<UploadMaterialSheet> createState() => _UploadMaterialSheetState();
+  ConsumerState<UploadMaterialSheet> createState() =>
+      _UploadMaterialSheetState();
 }
 
 class _UploadMaterialSheetState extends ConsumerState<UploadMaterialSheet> {
@@ -93,15 +94,20 @@ class _UploadMaterialSheetState extends ConsumerState<UploadMaterialSheet> {
     final mat = widget.existingMaterial;
     _titleController = TextEditingController(text: mat?.title ?? '');
     _descController = TextEditingController(text: mat?.description ?? '');
-    _urlController = TextEditingController(text: mat?.materialType == EduFileType.url ? mat?.fileUrl : '');
-    _instructionsController = TextEditingController(text: mat?.instructions ?? '');
+    _urlController = TextEditingController(
+      text: mat?.materialType == EduFileType.url ? mat?.fileUrl : '',
+    );
+    _instructionsController = TextEditingController(
+      text: mat?.instructions ?? '',
+    );
     if (mat != null) {
       _selectedSubject = mat.subject;
       _selectedGrade = mat.gradeLevel;
       _selectedDueDate = mat.dueDate;
       _selectedChildIds.addAll(mat.assignedChildIds);
       _isUrlMode = mat.materialType == EduFileType.url;
-    } else if (widget.initialChildId != null && widget.initialChildId!.isNotEmpty) {
+    } else if (widget.initialChildId != null &&
+        widget.initialChildId!.isNotEmpty) {
       _selectedChildIds.add(widget.initialChildId!);
     }
   }
@@ -147,7 +153,10 @@ class _UploadMaterialSheetState extends ConsumerState<UploadMaterialSheet> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error picking file: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Error picking file: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -187,23 +196,36 @@ class _UploadMaterialSheetState extends ConsumerState<UploadMaterialSheet> {
   Future<void> _saveMaterial(List<ChildModel> children) async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (!_isUrlMode && _selectedFile == null && widget.existingMaterial == null) {
+    if (!_isUrlMode &&
+        _selectedFile == null &&
+        widget.existingMaterial == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a file to upload or enter a link.'), backgroundColor: Colors.orange),
+        const SnackBar(
+          content: Text('Please select a file to upload or enter a link.'),
+          backgroundColor: Colors.orange,
+        ),
       );
       return;
     }
 
     if (_isUrlMode && _urlController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter an educational URL.'), backgroundColor: Colors.orange),
+        const SnackBar(
+          content: Text('Please enter an educational URL.'),
+          backgroundColor: Colors.orange,
+        ),
       );
       return;
     }
 
     if (_selectedChildIds.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select at least one child to assign this material to.'), backgroundColor: Colors.orange),
+        const SnackBar(
+          content: Text(
+            'Please select at least one child to assign this material to.',
+          ),
+          backgroundColor: Colors.orange,
+        ),
       );
       return;
     }
@@ -310,7 +332,10 @@ class _UploadMaterialSheetState extends ConsumerState<UploadMaterialSheet> {
       if (mounted) {
         setState(() => _isUploading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Upload failed: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Upload failed: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -367,7 +392,11 @@ class _UploadMaterialSheetState extends ConsumerState<UploadMaterialSheet> {
                         color: const Color(0xFF4F46E5).withOpacity(0.12),
                         borderRadius: BorderRadius.circular(14),
                       ),
-                      child: const Icon(Icons.school_rounded, color: Color(0xFF4F46E5), size: 24),
+                      child: const Icon(
+                        Icons.school_rounded,
+                        color: Color(0xFF4F46E5),
+                        size: 24,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -375,12 +404,20 @@ class _UploadMaterialSheetState extends ConsumerState<UploadMaterialSheet> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            isEditing ? 'Edit Educational Material' : 'Upload Educational Material',
-                            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+                            isEditing
+                                ? 'Edit Educational Material'
+                                : 'Upload Educational Material',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 18,
+                            ),
                           ),
                           Text(
                             'Assign study content & lessons to your children',
-                            style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 12,
+                            ),
                           ),
                         ],
                       ),
@@ -393,31 +430,52 @@ class _UploadMaterialSheetState extends ConsumerState<UploadMaterialSheet> {
                 Container(
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                    color: isDark
+                        ? const Color(0xFF0F172A)
+                        : const Color(0xFFF1F5F9),
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Row(
                     children: [
                       Expanded(
                         child: GestureDetector(
-                          onTap: _isUploading ? null : () => setState(() => _isUrlMode = false),
+                          onTap: _isUploading
+                              ? null
+                              : () => setState(() => _isUrlMode = false),
                           child: Container(
                             padding: const EdgeInsets.symmetric(vertical: 10),
                             decoration: BoxDecoration(
                               color: !_isUrlMode
-                                  ? (isDark ? const Color(0xFF334155) : Colors.white)
+                                  ? (isDark
+                                        ? const Color(0xFF334155)
+                                        : Colors.white)
                                   : Colors.transparent,
                               borderRadius: BorderRadius.circular(10),
                               boxShadow: !_isUrlMode
-                                  ? [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 4)]
+                                  ? [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.06),
+                                        blurRadius: 4,
+                                      ),
+                                    ]
                                   : null,
                             ),
                             child: const Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.upload_file_rounded, size: 16, color: Color(0xFF4F46E5)),
+                                Icon(
+                                  Icons.upload_file_rounded,
+                                  size: 16,
+                                  color: Color(0xFF4F46E5),
+                                ),
                                 SizedBox(width: 6),
-                                Text('File from Device', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                Text(
+                                  'File from Device',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -425,24 +483,43 @@ class _UploadMaterialSheetState extends ConsumerState<UploadMaterialSheet> {
                       ),
                       Expanded(
                         child: GestureDetector(
-                          onTap: _isUploading ? null : () => setState(() => _isUrlMode = true),
+                          onTap: _isUploading
+                              ? null
+                              : () => setState(() => _isUrlMode = true),
                           child: Container(
                             padding: const EdgeInsets.symmetric(vertical: 10),
                             decoration: BoxDecoration(
                               color: _isUrlMode
-                                  ? (isDark ? const Color(0xFF334155) : Colors.white)
+                                  ? (isDark
+                                        ? const Color(0xFF334155)
+                                        : Colors.white)
                                   : Colors.transparent,
                               borderRadius: BorderRadius.circular(10),
                               boxShadow: _isUrlMode
-                                  ? [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 4)]
+                                  ? [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.06),
+                                        blurRadius: 4,
+                                      ),
+                                    ]
                                   : null,
                             ),
                             child: const Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.link_rounded, size: 16, color: Color(0xFF7C3AED)),
+                                Icon(
+                                  Icons.link_rounded,
+                                  size: 16,
+                                  color: Color(0xFF7C3AED),
+                                ),
                                 SizedBox(width: 6),
-                                Text('Educational Link', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                Text(
+                                  'Educational Link',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -477,14 +554,20 @@ class _UploadMaterialSheetState extends ConsumerState<UploadMaterialSheet> {
                                 ? Icons.check_circle_rounded
                                 : Icons.cloud_upload_outlined,
                             size: 38,
-                            color: _selectedFile != null ? const Color(0xFF10B981) : const Color(0xFF4F46E5),
+                            color: _selectedFile != null
+                                ? const Color(0xFF10B981)
+                                : const Color(0xFF4F46E5),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             _selectedFile != null
                                 ? _selectedFile!.name
-                                : (widget.existingMaterial?.fileName ?? 'Tap to pick PDF, DOC, PPT, MP4, or Images'),
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                : (widget.existingMaterial?.fileName ??
+                                      'Tap to pick PDF, DOC, PPT, MP4, or Images'),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 4),
@@ -492,7 +575,10 @@ class _UploadMaterialSheetState extends ConsumerState<UploadMaterialSheet> {
                             _selectedFile != null
                                 ? '${(_selectedFile!.size / (1024 * 1024)).toStringAsFixed(2)} MB • Tap to replace'
                                 : 'Supports PDF, Word, PowerPoint, MP4 Video, and Images',
-                            style: TextStyle(color: Colors.grey[600], fontSize: 11),
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 11,
+                            ),
                             textAlign: TextAlign.center,
                           ),
                         ],
@@ -504,9 +590,15 @@ class _UploadMaterialSheetState extends ConsumerState<UploadMaterialSheet> {
                     controller: _urlController,
                     decoration: InputDecoration(
                       labelText: 'Educational URL *',
-                      hintText: 'https://youtube.com/watch?... or khanacademy.org/...',
-                      prefixIcon: const Icon(Icons.link_rounded, color: Color(0xFF7C3AED)),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                      hintText:
+                          'https://youtube.com/watch?... or khanacademy.org/...',
+                      prefixIcon: const Icon(
+                        Icons.link_rounded,
+                        color: Color(0xFF7C3AED),
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                     ),
                     validator: (v) {
                       if (_isUrlMode && (v == null || v.trim().isEmpty)) {
@@ -528,51 +620,108 @@ class _UploadMaterialSheetState extends ConsumerState<UploadMaterialSheet> {
                     labelText: 'Material Title *',
                     hintText: 'e.g. Fractions & Decimals Chapter 3',
                     prefixIcon: const Icon(Icons.title_rounded),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Please enter a title' : null,
+                  validator: (v) => (v == null || v.trim().isEmpty)
+                      ? 'Please enter a title'
+                      : null,
                 ),
                 const SizedBox(height: 14),
 
-                // Subject & Grade Row
-                Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        value: _selectedSubject,
-                        decoration: InputDecoration(
-                          labelText: 'Subject',
-                          prefixIcon: const Icon(Icons.category_rounded, size: 20),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-                        ),
-                        items: _subjects
-                            .map((s) => DropdownMenuItem(value: s, child: Text(s, style: const TextStyle(fontSize: 13))))
-                            .toList(),
-                        onChanged: (val) {
-                          if (val != null) setState(() => _selectedSubject = val);
-                        },
-                      ),
+                // Keep dropdowns full-width so the decorator always has room
+                // for its selected value, even on narrow devices.
+                DropdownButtonFormField<String>(
+                  value: _selectedSubject,
+                  isExpanded: true,
+                  decoration: InputDecoration(
+                    labelText: 'Subject',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        value: _selectedGrade,
-                        decoration: InputDecoration(
-                          labelText: 'Grade Level',
-                          prefixIcon: const Icon(Icons.stairs_rounded, size: 20),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-                        ),
-                        items: _gradeLevels
-                            .map((g) => DropdownMenuItem(value: g, child: Text(g, style: const TextStyle(fontSize: 12))))
-                            .toList(),
-                        onChanged: (val) {
-                          if (val != null) setState(() => _selectedGrade = val);
-                        },
-                      ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
                     ),
-                  ],
+                  ),
+                  selectedItemBuilder: (context) => _subjects
+                      .map(
+                        (subject) => Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            subject,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 13),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  items: _subjects
+                      .map(
+                        (subject) => DropdownMenuItem(
+                          value: subject,
+                          child: Text(
+                            subject,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 13),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() => _selectedSubject = value);
+                    }
+                  },
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: _selectedGrade,
+                  isExpanded: true,
+                  decoration: InputDecoration(
+                    labelText: 'Grade Level',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
+                  ),
+                  selectedItemBuilder: (context) => _gradeLevels
+                      .map(
+                        (grade) => Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            grade,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  items: _gradeLevels
+                      .map(
+                        (grade) => DropdownMenuItem(
+                          value: grade,
+                          child: Text(
+                            grade,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() => _selectedGrade = value);
+                    }
+                  },
                 ),
                 const SizedBox(height: 14),
 
@@ -583,7 +732,9 @@ class _UploadMaterialSheetState extends ConsumerState<UploadMaterialSheet> {
                   decoration: InputDecoration(
                     labelText: 'Description (Optional)',
                     hintText: 'Brief summary of what this material covers...',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 14),
@@ -594,9 +745,15 @@ class _UploadMaterialSheetState extends ConsumerState<UploadMaterialSheet> {
                   maxLines: 2,
                   decoration: InputDecoration(
                     labelText: 'Learning Instructions (Optional)',
-                    hintText: 'e.g. Watch video first, then complete practice sheet.',
-                    prefixIcon: const Icon(Icons.tips_and_updates_rounded, color: Color(0xFFF59E0B)),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                    hintText:
+                        'e.g. Watch video first, then complete practice sheet.',
+                    prefixIcon: const Icon(
+                      Icons.tips_and_updates_rounded,
+                      color: Color(0xFFF59E0B),
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 14),
@@ -606,25 +763,42 @@ class _UploadMaterialSheetState extends ConsumerState<UploadMaterialSheet> {
                   onTap: _selectDueDate,
                   borderRadius: BorderRadius.circular(14),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
                     decoration: BoxDecoration(
                       border: Border.all(color: Colors.grey[400]!),
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.event_rounded, color: Color(0xFF4F46E5)),
+                        const Icon(
+                          Icons.event_rounded,
+                          color: Color(0xFF4F46E5),
+                        ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text('Due Date (Optional)', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                              const Text(
+                                'Due Date (Optional)',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey,
+                                ),
+                              ),
                               Text(
                                 _selectedDueDate != null
-                                    ? DateFormat('EEE, MMM d, yyyy • h:mm a').format(_selectedDueDate!)
+                                    ? DateFormat(
+                                        'EEE, MMM d, yyyy • h:mm a',
+                                      ).format(_selectedDueDate!)
                                     : 'No deadline set (study at own pace)',
-                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
                               ),
                             ],
                           ),
@@ -632,7 +806,8 @@ class _UploadMaterialSheetState extends ConsumerState<UploadMaterialSheet> {
                         if (_selectedDueDate != null)
                           IconButton(
                             icon: const Icon(Icons.clear, size: 18),
-                            onPressed: () => setState(() => _selectedDueDate = null),
+                            onPressed: () =>
+                                setState(() => _selectedDueDate = null),
                           ),
                       ],
                     ),
@@ -644,7 +819,13 @@ class _UploadMaterialSheetState extends ConsumerState<UploadMaterialSheet> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Assign to Children *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    const Text(
+                      'Assign to Children *',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
                     childrenAsync.maybeWhen(
                       data: (children) => TextButton(
                         onPressed: () {
@@ -652,13 +833,21 @@ class _UploadMaterialSheetState extends ConsumerState<UploadMaterialSheet> {
                             if (_selectedChildIds.length == children.length) {
                               _selectedChildIds.clear();
                             } else {
-                              _selectedChildIds.addAll(children.map((c) => c.id));
+                              _selectedChildIds.addAll(
+                                children.map((c) => c.id),
+                              );
                             }
                           });
                         },
                         child: Text(
-                          _selectedChildIds.length == childrenAsync.value?.length ? 'Deselect All' : 'Select All',
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                          _selectedChildIds.length ==
+                                  childrenAsync.value?.length
+                              ? 'Deselect All'
+                              : 'Select All',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                       orElse: () => const SizedBox.shrink(),
@@ -669,8 +858,12 @@ class _UploadMaterialSheetState extends ConsumerState<UploadMaterialSheet> {
 
                 // Children Chips
                 childrenAsync.when(
-                  loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (e, _) => Text('Error loading children: $e', style: const TextStyle(color: Colors.red)),
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (e, _) => Text(
+                    'Error loading children: $e',
+                    style: const TextStyle(color: Colors.red),
+                  ),
                   data: (children) {
                     if (children.isEmpty) {
                       return Container(
@@ -681,9 +874,18 @@ class _UploadMaterialSheetState extends ConsumerState<UploadMaterialSheet> {
                         ),
                         child: const Row(
                           children: [
-                            Icon(Icons.info_outline, color: Colors.amber, size: 18),
+                            Icon(
+                              Icons.info_outline,
+                              color: Colors.amber,
+                              size: 18,
+                            ),
                             SizedBox(width: 8),
-                            Expanded(child: Text('No children linked to your family yet.', style: TextStyle(fontSize: 12))),
+                            Expanded(
+                              child: Text(
+                                'No children linked to your family yet.',
+                                style: TextStyle(fontSize: 12),
+                              ),
+                            ),
                           ],
                         ),
                       );
@@ -696,12 +898,18 @@ class _UploadMaterialSheetState extends ConsumerState<UploadMaterialSheet> {
                         return FilterChip(
                           selected: isSelected,
                           avatar: CircleAvatar(
-                            backgroundColor: isSelected ? Colors.white : const Color(0xFF4F46E5),
+                            backgroundColor: isSelected
+                                ? Colors.white
+                                : const Color(0xFF4F46E5),
                             child: Text(
-                              child.displayName.isNotEmpty ? child.displayName[0].toUpperCase() : 'C',
+                              child.displayName.isNotEmpty
+                                  ? child.displayName[0].toUpperCase()
+                                  : 'C',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: isSelected ? const Color(0xFF4F46E5) : Colors.white,
+                                color: isSelected
+                                    ? const Color(0xFF4F46E5)
+                                    : Colors.white,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -709,7 +917,9 @@ class _UploadMaterialSheetState extends ConsumerState<UploadMaterialSheet> {
                           label: Text(child.displayName),
                           selectedColor: const Color(0xFF4F46E5),
                           labelStyle: TextStyle(
-                            color: isSelected ? Colors.white : const Color(0xFF0F172A),
+                            color: isSelected
+                                ? Colors.white
+                                : const Color(0xFF0F172A),
                             fontWeight: FontWeight.w600,
                           ),
                           onSelected: (selected) {
@@ -736,7 +946,9 @@ class _UploadMaterialSheetState extends ConsumerState<UploadMaterialSheet> {
                     child: LinearProgressIndicator(
                       value: _uploadProgress,
                       backgroundColor: Colors.grey[200],
-                      valueColor: const AlwaysStoppedAnimation(Color(0xFF4F46E5)),
+                      valueColor: const AlwaysStoppedAnimation(
+                        Color(0xFF4F46E5),
+                      ),
                       minHeight: 8,
                     ),
                   ),
@@ -744,9 +956,21 @@ class _UploadMaterialSheetState extends ConsumerState<UploadMaterialSheet> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(_statusMessage, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-                      Text('${(_uploadProgress * 100).toInt()}%',
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF4F46E5))),
+                      Text(
+                        _statusMessage,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF64748B),
+                        ),
+                      ),
+                      Text(
+                        '${(_uploadProgress * 100).toInt()}%',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF4F46E5),
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -757,25 +981,41 @@ class _UploadMaterialSheetState extends ConsumerState<UploadMaterialSheet> {
                   width: double.infinity,
                   height: 52,
                   child: ElevatedButton(
-                    onPressed: _isUploading ? null : () => _saveMaterial(childrenAsync.value ?? []),
+                    onPressed: _isUploading
+                        ? null
+                        : () => _saveMaterial(childrenAsync.value ?? []),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF4F46E5),
                       foregroundColor: Colors.white,
                       elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                     ),
                     child: _isUploading
                         ? const Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)),
+                              SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              ),
                               SizedBox(width: 12),
                               Text('Saving Material...'),
                             ],
                           )
                         : Text(
-                            isEditing ? 'Save Changes' : 'Assign to ${_selectedChildIds.length} Child(ren)',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                            isEditing
+                                ? 'Save Changes'
+                                : 'Assign to ${_selectedChildIds.length} Child(ren)',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
                           ),
                   ),
                 ),

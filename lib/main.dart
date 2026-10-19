@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart' show CupertinoLocalizations;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -25,7 +26,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 void main() async {
   // Ensure Flutter bindings are initialized before Firebase
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Initialize Firebase - this must be awaited before anything else
   try {
     await Firebase.initializeApp(
@@ -42,16 +43,12 @@ void main() async {
   } catch (e) {
     debugPrint('Firebase init notice: $e');
   }
-  
+
   // Set up background message handler
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-  
+
   // Run app immediately — don't block on heavy initialization
-  runApp(
-    const ProviderScope(
-      child: ParentalControlApp(),
-    ),
-  );
+  runApp(const ProviderScope(child: ParentalControlApp()));
 
   // Heavy initialization runs in background AFTER first frame is painted
   Future.microtask(() async {
@@ -59,7 +56,6 @@ void main() async {
     await NotificationService.instance.initialize();
   });
 }
-
 
 /// Root widget of the parental control application
 /// Sets up theming and routing using GoRouter
@@ -84,14 +80,41 @@ class ParentalControlApp extends ConsumerWidget {
       ],
       localizationsDelegates: const [
         AppLocalizations.delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
+        _FallbackLocalizationDelegate<MaterialLocalizations>(
+          GlobalMaterialLocalizations.delegate,
+        ),
+        _FallbackLocalizationDelegate<WidgetsLocalizations>(
+          GlobalWidgetsLocalizations.delegate,
+        ),
+        _FallbackLocalizationDelegate<CupertinoLocalizations>(
+          GlobalCupertinoLocalizations.delegate,
+        ),
       ],
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeMode,
+      themeAnimationDuration: Duration.zero,
       routerConfig: router,
     );
   }
+}
+
+class _FallbackLocalizationDelegate<T> extends LocalizationsDelegate<T> {
+  const _FallbackLocalizationDelegate(this.delegate);
+
+  final LocalizationsDelegate<T> delegate;
+
+  @override
+  bool isSupported(Locale locale) => true;
+
+  @override
+  Future<T> load(Locale locale) {
+    final supportedLocale = delegate.isSupported(locale)
+        ? locale
+        : const Locale('en');
+    return delegate.load(supportedLocale);
+  }
+
+  @override
+  bool shouldReload(covariant _FallbackLocalizationDelegate<T> old) => false;
 }

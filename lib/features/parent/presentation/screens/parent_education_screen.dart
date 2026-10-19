@@ -15,7 +15,8 @@ class ParentEducationScreen extends ConsumerStatefulWidget {
   const ParentEducationScreen({super.key});
 
   @override
-  ConsumerState<ParentEducationScreen> createState() => _ParentEducationScreenState();
+  ConsumerState<ParentEducationScreen> createState() =>
+      _ParentEducationScreenState();
 }
 
 class _ParentEducationScreenState extends ConsumerState<ParentEducationScreen> {
@@ -76,7 +77,12 @@ class _ParentEducationScreenState extends ConsumerState<ParentEducationScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openUploadSheet(context, familyId, user?.uid ?? '', user?.displayName ?? 'Parent'),
+        onPressed: () => _openUploadSheet(
+          context,
+          familyId,
+          user?.uid ?? '',
+          user?.displayName ?? 'Parent',
+        ),
         icon: const Icon(Icons.add),
         label: Text(
           l10n.uploadMaterial,
@@ -95,17 +101,23 @@ class _ParentEducationScreenState extends ConsumerState<ParentEducationScreen> {
                 const SizedBox(height: 12),
                 Text(
                   'Failed to load materials',
-                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 Text(
                   err.toString(),
                   textAlign: TextAlign.center,
-                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 FilledButton.tonal(
-                  onPressed: () => ref.invalidate(familyEducationalMaterialsProvider(familyId)),
+                  onPressed: () => ref.invalidate(
+                    familyEducationalMaterialsProvider(familyId),
+                  ),
                   child: const Text('Try Again'),
                 ),
               ],
@@ -118,20 +130,19 @@ class _ParentEducationScreenState extends ConsumerState<ParentEducationScreen> {
           return CustomScrollView(
             slivers: [
               // Statistics Overview
-              SliverToBoxAdapter(
-                child: _buildStatsHeader(theme, allMaterials),
-              ),
+              SliverToBoxAdapter(child: _buildStatsHeader(theme, allMaterials)),
 
               // Search Bar & Filter Controls
-              SliverToBoxAdapter(
-                child: _buildFilterSection(theme, children),
-              ),
+              SliverToBoxAdapter(child: _buildFilterSection(theme, children)),
 
               // Active Filters indicator
               if (_hasActiveFilters)
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 4,
+                    ),
                     child: Row(
                       children: [
                         Text(
@@ -144,7 +155,10 @@ class _ParentEducationScreenState extends ConsumerState<ParentEducationScreen> {
                         const Spacer(),
                         TextButton(
                           onPressed: _resetFilters,
-                          child: const Text('Clear Filters', style: TextStyle(fontSize: 12)),
+                          child: const Text(
+                            'Clear Filters',
+                            style: TextStyle(fontSize: 12),
+                          ),
                         ),
                       ],
                     ),
@@ -155,19 +169,27 @@ class _ParentEducationScreenState extends ConsumerState<ParentEducationScreen> {
               if (filtered.isEmpty)
                 SliverFillRemaining(
                   hasScrollBody: false,
-                  child: _buildEmptyState(theme, allMaterials.isEmpty, familyId, user?.uid ?? '', user?.displayName ?? 'Parent'),
+                  child: _buildEmptyState(
+                    theme,
+                    allMaterials.isEmpty,
+                    familyId,
+                    user?.uid ?? '',
+                    user?.displayName ?? 'Parent',
+                  ),
                 )
               else
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
                   sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final material = filtered[index];
-                        return _buildMaterialCard(theme, material, familyId, children);
-                      },
-                      childCount: filtered.length,
-                    ),
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final material = filtered[index];
+                      return _buildMaterialCard(
+                        theme,
+                        material,
+                        familyId,
+                        children,
+                      );
+                    }, childCount: filtered.length),
                   ),
                 ),
             ],
@@ -195,7 +217,12 @@ class _ParentEducationScreenState extends ConsumerState<ParentEducationScreen> {
     });
   }
 
-  void _openUploadSheet(BuildContext context, String familyId, String parentId, String parentName) {
+  void _openUploadSheet(
+    BuildContext context,
+    String familyId,
+    String parentId,
+    String parentName,
+  ) {
     if (familyId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select or create a family first')),
@@ -235,29 +262,49 @@ class _ParentEducationScreenState extends ConsumerState<ParentEducationScreen> {
       }
 
       // Child filter
-      if (_selectedChildId != 'All' && !m.assignedChildIds.contains(_selectedChildId)) {
+      if (_selectedChildId != 'All' &&
+          !m.assignedChildIds.contains(_selectedChildId)) {
         return false;
       }
 
       // Status filter
       if (_selectedStatus != 'All') {
-        if (_selectedStatus == 'Completed' && m.completionRate < 1.0) return false;
-        if (_selectedStatus == 'In Progress' && (m.completionRate == 0 || m.completionRate >= 1.0)) return false;
-        if (_selectedStatus == 'Pending' && m.completionRate > 0) return false;
+        if (_selectedStatus == 'Completed' && m.completionRate < 1.0) {
+          return false;
+        }
+        if (_selectedStatus == 'In Progress' &&
+            (m.completionRate == 0 || m.completionRate >= 1.0)) {
+          return false;
+        }
+        if (_selectedStatus == 'Pending' && m.completionRate > 0) {
+          return false;
+        }
       }
 
       return true;
     }).toList();
   }
 
-  Widget _buildStatsHeader(ThemeData theme, List<EducationalMaterial> materials) {
+  Widget _buildStatsHeader(
+    ThemeData theme,
+    List<EducationalMaterial> materials,
+  ) {
     final total = materials.length;
-    final totalAssignments = materials.fold<int>(0, (sum, m) => sum + m.assignedChildIds.length);
+    final totalAssignments = materials.fold<int>(
+      0,
+      (sum, m) => sum + m.assignedChildIds.length,
+    );
     final completedAssignments = materials.fold<int>(
       0,
-      (sum, m) => sum + m.childProgress.values.where((p) => p.status == LearningStatus.completed).length,
+      (sum, m) =>
+          sum +
+          m.childProgress.values
+              .where((p) => p.status == LearningStatus.completed)
+              .length,
     );
-    final overallRate = totalAssignments > 0 ? (completedAssignments / totalAssignments * 100).round() : 0;
+    final overallRate = totalAssignments > 0
+        ? (completedAssignments / totalAssignments * 100).round()
+        : 0;
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
@@ -272,7 +319,9 @@ class _ParentEducationScreenState extends ConsumerState<ParentEducationScreen> {
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: theme.colorScheme.outlineVariant.withOpacity(0.5)),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withOpacity(0.5),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -301,7 +350,11 @@ class _ParentEducationScreenState extends ConsumerState<ParentEducationScreen> {
                   icon: Icons.library_books_outlined,
                 ),
               ),
-              Container(width: 1, height: 36, color: theme.colorScheme.outlineVariant),
+              Container(
+                width: 1,
+                height: 36,
+                color: theme.colorScheme.outlineVariant,
+              ),
               Expanded(
                 child: _buildStatItem(
                   theme,
@@ -310,7 +363,11 @@ class _ParentEducationScreenState extends ConsumerState<ParentEducationScreen> {
                   icon: Icons.people_outline,
                 ),
               ),
-              Container(width: 1, height: 36, color: theme.colorScheme.outlineVariant),
+              Container(
+                width: 1,
+                height: 36,
+                color: theme.colorScheme.outlineVariant,
+              ),
               Expanded(
                 child: _buildStatItem(
                   theme,
@@ -326,7 +383,12 @@ class _ParentEducationScreenState extends ConsumerState<ParentEducationScreen> {
     );
   }
 
-  Widget _buildStatItem(ThemeData theme, {required String label, required String value, required IconData icon}) {
+  Widget _buildStatItem(
+    ThemeData theme, {
+    required String label,
+    required String value,
+    required IconData icon,
+  }) {
     return Column(
       children: [
         Row(
@@ -355,8 +417,25 @@ class _ParentEducationScreenState extends ConsumerState<ParentEducationScreen> {
   }
 
   Widget _buildFilterSection(ThemeData theme, List<ChildModel> children) {
-    const subjects = ['All', 'Mathematics', 'Science', 'English & Language Arts', 'Social Studies & History', 'Computer Science & Tech', 'Art & Music', 'General & Other'];
-    const types = ['All', 'PDF', 'Document', 'Presentation', 'Video', 'Image', 'URL'];
+    const subjects = [
+      'All',
+      'Mathematics',
+      'Science',
+      'English & Language Arts',
+      'Social Studies & History',
+      'Computer Science & Tech',
+      'Art & Music',
+      'General & Other',
+    ];
+    const types = [
+      'All',
+      'PDF',
+      'Document',
+      'Presentation',
+      'Video',
+      'Image',
+      'URL',
+    ];
     const statuses = ['All', 'Pending', 'In Progress', 'Completed'];
 
     return Padding(
@@ -382,8 +461,13 @@ class _ParentEducationScreenState extends ConsumerState<ParentEducationScreen> {
                     )
                   : null,
               filled: true,
-              fillColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              fillColor: theme.colorScheme.surfaceContainerHighest.withOpacity(
+                0.4,
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
                 borderSide: BorderSide.none,
@@ -431,7 +515,9 @@ class _ParentEducationScreenState extends ConsumerState<ParentEducationScreen> {
                   return Padding(
                     padding: const EdgeInsets.only(right: 6),
                     child: FilterChip(
-                      avatar: type == 'All' ? null : Icon(_typeIconForLabel(type), size: 14),
+                      avatar: type == 'All'
+                          ? null
+                          : Icon(_typeIconForLabel(type), size: 14),
                       label: Text(type),
                       selected: isSelected,
                       onSelected: (val) {
@@ -458,9 +544,16 @@ class _ParentEducationScreenState extends ConsumerState<ParentEducationScreen> {
                       label: Text(
                         _selectedChildId == 'All'
                             ? 'All Children'
-                            : (children.firstWhere((c) => c.id == _selectedChildId, orElse: () => children.first).displayName),
+                            : (children
+                                  .firstWhere(
+                                    (c) => c.id == _selectedChildId,
+                                    orElse: () => children.first,
+                                  )
+                                  .displayName),
                       ),
-                      deleteIcon: _selectedChildId != 'All' ? const Icon(Icons.close, size: 14) : null,
+                      deleteIcon: _selectedChildId != 'All'
+                          ? const Icon(Icons.close, size: 14)
+                          : null,
                       onDeleted: _selectedChildId != 'All'
                           ? () => setState(() => _selectedChildId = 'All')
                           : null,
@@ -491,8 +584,14 @@ class _ParentEducationScreenState extends ConsumerState<ParentEducationScreen> {
                   },
                   child: Chip(
                     avatar: const Icon(Icons.check_circle_outline, size: 16),
-                    label: Text(_selectedStatus == 'All' ? 'Status: All' : _selectedStatus),
-                    deleteIcon: _selectedStatus != 'All' ? const Icon(Icons.close, size: 14) : null,
+                    label: Text(
+                      _selectedStatus == 'All'
+                          ? 'Status: All'
+                          : _selectedStatus,
+                    ),
+                    deleteIcon: _selectedStatus != 'All'
+                        ? const Icon(Icons.close, size: 14)
+                        : null,
                     onDeleted: _selectedStatus != 'All'
                         ? () => setState(() => _selectedStatus = 'All')
                         : null,
@@ -546,7 +645,10 @@ class _ParentEducationScreenState extends ConsumerState<ParentEducationScreen> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: _colorForType(theme, material.type).withOpacity(0.15),
+                      color: _colorForType(
+                        theme,
+                        material.type,
+                      ).withOpacity(0.15),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
@@ -574,7 +676,10 @@ class _ParentEducationScreenState extends ConsumerState<ParentEducationScreen> {
                           runSpacing: 4,
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: theme.colorScheme.secondaryContainer,
                                 borderRadius: BorderRadius.circular(6),
@@ -588,9 +693,13 @@ class _ParentEducationScreenState extends ConsumerState<ParentEducationScreen> {
                               ),
                             ),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
-                                color: theme.colorScheme.surfaceContainerHighest,
+                                color:
+                                    theme.colorScheme.surfaceContainerHighest,
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
@@ -601,7 +710,10 @@ class _ParentEducationScreenState extends ConsumerState<ParentEducationScreen> {
                               ),
                             ),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: theme.colorScheme.tertiaryContainer,
                                 borderRadius: BorderRadius.circular(6),
@@ -646,7 +758,7 @@ class _ParentEducationScreenState extends ConsumerState<ParentEducationScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
+                        Wrap(
                           children: [
                             Text(
                               '${material.assignedChildIds.length} assigned',
@@ -660,7 +772,9 @@ class _ParentEducationScreenState extends ConsumerState<ParentEducationScreen> {
                               style: theme.textTheme.labelSmall?.copyWith(
                                 color: completionPercent == 100
                                     ? Colors.green
-                                    : (completionPercent > 0 ? Colors.blue : Colors.orange),
+                                    : (completionPercent > 0
+                                          ? Colors.blue
+                                          : Colors.orange),
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -672,11 +786,14 @@ class _ParentEducationScreenState extends ConsumerState<ParentEducationScreen> {
                           child: LinearProgressIndicator(
                             value: material.completionRate,
                             minHeight: 5,
-                            backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                            backgroundColor:
+                                theme.colorScheme.surfaceContainerHighest,
                             valueColor: AlwaysStoppedAnimation<Color>(
                               completionPercent == 100
                                   ? Colors.green
-                                  : (completionPercent > 0 ? Colors.blue : Colors.orange),
+                                  : (completionPercent > 0
+                                        ? Colors.blue
+                                        : Colors.orange),
                             ),
                           ),
                         ),
@@ -690,13 +807,17 @@ class _ParentEducationScreenState extends ConsumerState<ParentEducationScreen> {
                         Icon(
                           Icons.access_time,
                           size: 14,
-                          color: material.isOverdue ? Colors.red : theme.colorScheme.onSurfaceVariant,
+                          color: material.isOverdue
+                              ? Colors.red
+                              : theme.colorScheme.onSurfaceVariant,
                         ),
                         const SizedBox(width: 4),
                         Text(
                           DateFormat('MMM d').format(material.dueDate!),
                           style: theme.textTheme.labelSmall?.copyWith(
-                            color: material.isOverdue ? Colors.red : theme.colorScheme.onSurfaceVariant,
+                            color: material.isOverdue
+                                ? Colors.red
+                                : theme.colorScheme.onSurfaceVariant,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -731,14 +852,18 @@ class _ParentEducationScreenState extends ConsumerState<ParentEducationScreen> {
                 shape: BoxShape.circle,
               ),
               child: Icon(
-                isTotalEmpty ? Icons.school_outlined : Icons.search_off_outlined,
+                isTotalEmpty
+                    ? Icons.school_outlined
+                    : Icons.search_off_outlined,
                 size: 56,
                 color: theme.colorScheme.primary,
               ),
             ),
             const SizedBox(height: 20),
             Text(
-              isTotalEmpty ? 'No Educational Materials Yet' : 'No Matching Materials',
+              isTotalEmpty
+                  ? 'No Educational Materials Yet'
+                  : 'No Matching Materials',
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -756,7 +881,8 @@ class _ParentEducationScreenState extends ConsumerState<ParentEducationScreen> {
             const SizedBox(height: 24),
             if (isTotalEmpty)
               FilledButton.icon(
-                onPressed: () => _openUploadSheet(context, familyId, parentId, parentName),
+                onPressed: () =>
+                    _openUploadSheet(context, familyId, parentId, parentName),
                 icon: const Icon(Icons.add),
                 label: const Text('Upload First Material'),
               )

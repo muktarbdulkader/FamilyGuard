@@ -38,7 +38,9 @@ class _AppRequestsScreenState extends ConsumerState<AppRequestsScreen>
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF0C1829) : const Color(0xFFF8FAFC),
+      backgroundColor: isDark
+          ? const Color(0xFF0C1829)
+          : const Color(0xFFF8FAFC),
       appBar: AppBar(
         elevation: 0,
         backgroundColor: isDark ? const Color(0xFF0C1829) : Colors.white,
@@ -46,17 +48,36 @@ class _AppRequestsScreenState extends ConsumerState<AppRequestsScreen>
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(l10n.appRequests,
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: isDark ? Colors.white : const Color(0xFF0F172A))),
-            Text(l10n.approveOrDenyRequests,
-                style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF8BA0B8) : const Color(0xFF64748B))),
+            Text(
+              l10n.appRequests,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+              ),
+            ),
+            Text(
+              l10n.approveOrDenyRequests,
+              style: TextStyle(
+                fontSize: 12,
+                color: isDark
+                    ? const Color(0xFF8BA0B8)
+                    : const Color(0xFF64748B),
+              ),
+            ),
           ],
         ),
         bottom: TabBar(
           controller: _tabController,
-          labelColor: isDark ? const Color(0xFF2DD4BF) : const Color(0xFF4F46E5),
-          unselectedLabelColor: isDark ? const Color(0xFF8BA0B8) : const Color(0xFF94A3B8),
-          indicatorColor: isDark ? const Color(0xFF2DD4BF) : const Color(0xFF4F46E5),
+          labelColor: isDark
+              ? const Color(0xFF2DD4BF)
+              : const Color(0xFF4F46E5),
+          unselectedLabelColor: isDark
+              ? const Color(0xFF8BA0B8)
+              : const Color(0xFF94A3B8),
+          indicatorColor: isDark
+              ? const Color(0xFF2DD4BF)
+              : const Color(0xFF4F46E5),
           indicatorWeight: 3,
           tabs: [
             Tab(text: l10n.pending),
@@ -66,10 +87,13 @@ class _AppRequestsScreenState extends ConsumerState<AppRequestsScreen>
         ),
       ),
       body: userAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF4F46E5))),
+        loading: () => const Center(
+          child: CircularProgressIndicator(color: Color(0xFF4F46E5)),
+        ),
         error: (e, _) => _buildError(e.toString()),
         data: (user) {
-          final familyId = user?.familyId ??
+          final familyId =
+              user?.familyId ??
               ref.watch(selectedFamilyProvider)?.id ??
               ref.watch(userFamiliesProvider).value?.firstOrNull?.id;
           if (familyId == null) {
@@ -91,11 +115,22 @@ class _AppRequestsScreenState extends ConsumerState<AppRequestsScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline_rounded, size: 56, color: Color(0xFFEF4444)),
+            const Icon(
+              Icons.error_outline_rounded,
+              size: 56,
+              color: Color(0xFFEF4444),
+            ),
             const SizedBox(height: 16),
-            const Text('Error loading requests', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const Text(
+              'Error loading requests',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
             const SizedBox(height: 8),
-            Text(error, style: const TextStyle(color: Color(0xFF64748B), fontSize: 13), textAlign: TextAlign.center),
+            Text(
+              error,
+              style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),
@@ -115,15 +150,26 @@ class _AppRequestsScreenState extends ConsumerState<AppRequestsScreen>
                 color: const Color(0xFF7C3AED).withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.pending_actions_rounded, size: 52, color: Color(0xFF7C3AED)),
+              child: const Icon(
+                Icons.pending_actions_rounded,
+                size: 52,
+                color: Color(0xFF7C3AED),
+              ),
             ),
             const SizedBox(height: 20),
-            const Text('No Family Linked', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text(
+              'No Family Linked',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 8),
             const Text(
               'Link a family first to see app access requests from your children.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Color(0xFF64748B), fontSize: 13, height: 1.5),
+              style: TextStyle(
+                color: Color(0xFF64748B),
+                fontSize: 13,
+                height: 1.5,
+              ),
             ),
           ],
         ),
@@ -173,7 +219,9 @@ class _RequestList extends StatelessWidget {
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: Color(0xFF4F46E5)));
+          return const Center(
+            child: CircularProgressIndicator(color: Color(0xFF4F46E5)),
+          );
         }
         if (snapshot.hasError) {
           return Center(
@@ -189,25 +237,67 @@ class _RequestList extends StatelessWidget {
           return _buildEmpty();
         }
 
-        final requests = docs
-            .map((doc) {
-              try {
-                return AppRequest.fromFirestore(doc);
-              } catch (_) {
-                return null;
-              }
-            })
-            .whereType<AppRequest>()
-            .toList()
-          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        final requests =
+            docs
+                .map((doc) {
+                  try {
+                    return AppRequest.fromFirestore(doc);
+                  } catch (_) {
+                    return null;
+                  }
+                })
+                .whereType<AppRequest>()
+                .toList()
+              ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: requests.length,
-          itemBuilder: (context, index) => _RequestCard(
-            request: requests[index],
-            familyId: familyId,
-          ),
+        return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: FirebaseFirestore.instance
+              .collection('users')
+              .where('familyId', isEqualTo: familyId)
+              .where('role', isEqualTo: 'child')
+              .snapshots(),
+          builder: (context, childrenSnapshot) {
+            final childNames = <String, String>{};
+            for (final childDoc in childrenSnapshot.data?.docs ?? []) {
+              final data = childDoc.data();
+              final name = (data['displayName'] ?? data['name'] ?? '')
+                  .toString()
+                  .trim();
+              if (name.isNotEmpty) {
+                childNames[childDoc.id] = name;
+              }
+            }
+
+            return ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: requests.length + (childrenSnapshot.hasError ? 1 : 0),
+              itemBuilder: (context, index) {
+                if (childrenSnapshot.hasError && index == 0) {
+                  return const Padding(
+                    padding: EdgeInsets.only(bottom: 12),
+                    child: Text(
+                      'Could not load child names. Showing saved request names where available.',
+                      style: TextStyle(color: Color(0xFFEF4444), fontSize: 12),
+                    ),
+                  );
+                }
+
+                final requestIndex =
+                    index - (childrenSnapshot.hasError ? 1 : 0);
+                final request = requests[requestIndex];
+                final savedName = request.childName?.trim();
+                final childName = savedName != null && savedName.isNotEmpty
+                    ? savedName
+                    : childNames[request.childId] ?? 'Child';
+
+                return _RequestCard(
+                  request: request,
+                  familyId: familyId,
+                  childName: childName,
+                );
+              },
+            );
+          },
         );
       },
     );
@@ -215,9 +305,21 @@ class _RequestList extends StatelessWidget {
 
   Widget _buildEmpty() {
     final (icon, label, color) = switch (filter) {
-      RequestStatus.pending => (Icons.hourglass_empty_rounded, 'No Pending Requests', const Color(0xFFF59E0B)),
-      RequestStatus.approved => (Icons.check_circle_outline_rounded, 'No Approved Requests', const Color(0xFF10B981)),
-      RequestStatus.denied => (Icons.cancel_outlined, 'No Denied Requests', const Color(0xFFEF4444)),
+      RequestStatus.pending => (
+        Icons.hourglass_empty_rounded,
+        'No Pending Requests',
+        const Color(0xFFF59E0B),
+      ),
+      RequestStatus.approved => (
+        Icons.check_circle_outline_rounded,
+        'No Approved Requests',
+        const Color(0xFF10B981),
+      ),
+      RequestStatus.denied => (
+        Icons.cancel_outlined,
+        'No Denied Requests',
+        const Color(0xFFEF4444),
+      ),
       _ => (Icons.inbox_rounded, 'No Requests', const Color(0xFF94A3B8)),
     };
 
@@ -236,14 +338,21 @@ class _RequestList extends StatelessWidget {
               child: Icon(icon, size: 52, color: color),
             ),
             const SizedBox(height: 20),
-            Text(label, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+            Text(
+              label,
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 8),
             Text(
               filter == RequestStatus.pending
                   ? 'When your children request access to blocked apps, they\'ll appear here.'
-                  : 'No ${ filter.name} requests yet.',
+                  : 'No ${filter.name} requests yet.',
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Color(0xFF64748B), fontSize: 13, height: 1.5),
+              style: const TextStyle(
+                color: Color(0xFF64748B),
+                fontSize: 13,
+                height: 1.5,
+              ),
             ),
           ],
         ),
@@ -257,12 +366,18 @@ class _RequestList extends StatelessWidget {
 class _RequestCard extends ConsumerWidget {
   final AppRequest request;
   final String familyId;
+  final String childName;
 
-  const _RequestCard({required this.request, required this.familyId});
+  const _RequestCard({
+    required this.request,
+    required this.familyId,
+    required this.childName,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isPending = request.status == RequestStatus.pending && !request.isExpired;
+    final isPending =
+        request.status == RequestStatus.pending && !request.isExpired;
     final statusColor = switch (request.status) {
       RequestStatus.pending => const Color(0xFFF59E0B),
       RequestStatus.approved => const Color(0xFF10B981),
@@ -270,9 +385,11 @@ class _RequestCard extends ConsumerWidget {
       _ => const Color(0xFF94A3B8),
     };
 
-    final statusLabel = request.isExpired && request.status == RequestStatus.pending
+    final statusLabel =
+        request.isExpired && request.status == RequestStatus.pending
         ? 'Expired'
-        : request.status.name[0].toUpperCase() + request.status.name.substring(1);
+        : request.status.name[0].toUpperCase() +
+              request.status.name.substring(1);
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -282,11 +399,17 @@ class _RequestCard extends ConsumerWidget {
         color: isDark ? const Color(0xFF132238) : Colors.white,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: isDark ? const Color(0xFF1E3554) : statusColor.withOpacity(0.25),
+          color: isDark
+              ? const Color(0xFF1E3554)
+              : statusColor.withOpacity(0.25),
           width: 1.5,
         ),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 3)),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
         ],
       ),
       child: Padding(
@@ -320,7 +443,9 @@ class _RequestCard extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        request.appName.isNotEmpty ? request.appName : request.packageName,
+                        request.appName.isNotEmpty
+                            ? request.appName
+                            : request.packageName,
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 15,
@@ -329,20 +454,24 @@ class _RequestCard extends ConsumerWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      if (request.childName != null && request.childName!.isNotEmpty)
-                        Text(
-                          'Requested by: ${request.childName}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: isDark ? const Color(0xFF2DD4BF) : const Color(0xFF4F46E5),
-                            fontWeight: FontWeight.w600,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                      Text(
+                        'Requested by: $childName',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDark
+                              ? const Color(0xFF2DD4BF)
+                              : const Color(0xFF4F46E5),
+                          fontWeight: FontWeight.w600,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       Text(
                         request.packageName,
-                        style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF94A3B8),
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -350,7 +479,10 @@ class _RequestCard extends ConsumerWidget {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: statusColor.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(20),
@@ -372,21 +504,21 @@ class _RequestCard extends ConsumerWidget {
             const SizedBox(height: 10),
 
             // Info row
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
               children: [
                 _InfoChip(
                   icon: Icons.access_time_rounded,
                   label: _timeAgo(request.createdAt),
                   color: const Color(0xFF94A3B8),
                 ),
-                const SizedBox(width: 8),
                 _InfoChip(
                   icon: Icons.person_outline_rounded,
-                  label: 'Child: ${request.childId.substring(0, 6)}…',
+                  label: 'Child: $childName',
                   color: const Color(0xFF64748B),
                 ),
                 if (request.isApproved && request.grantedMinutes != null) ...[
-                  const SizedBox(width: 8),
                   _InfoChip(
                     icon: Icons.timer_outlined,
                     label: '${request.grantedMinutes}m granted',
@@ -410,7 +542,9 @@ class _RequestCard extends ConsumerWidget {
                         foregroundColor: const Color(0xFFEF4444),
                         side: const BorderSide(color: Color(0xFFEF4444)),
                         padding: const EdgeInsets.symmetric(vertical: 10),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
                     ),
                   ),
@@ -426,7 +560,9 @@ class _RequestCard extends ConsumerWidget {
                         foregroundColor: Colors.white,
                         elevation: 0,
                         padding: const EdgeInsets.symmetric(vertical: 10),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
                     ),
                   ),
@@ -438,18 +574,29 @@ class _RequestCard extends ConsumerWidget {
             if (request.isApproved && request.accessExpiresAt != null) ...[
               const SizedBox(height: 10),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFF10B981).withOpacity(0.08),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.access_time_filled_rounded, size: 14, color: Color(0xFF10B981)),
+                    const Icon(
+                      Icons.access_time_filled_rounded,
+                      size: 14,
+                      color: Color(0xFF10B981),
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       request.timeRemainingText,
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF10B981)),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF10B981),
+                      ),
                     ),
                   ],
                 ),
@@ -496,7 +643,8 @@ class _RequestCard extends ConsumerWidget {
             'type': 'appDenied',
             'priority': 'normal',
             'title': '❌ Access Denied: ${request.appName}',
-            'body': 'Your request for access to ${request.appName} was denied by your parent.',
+            'body':
+                'Your request for access to ${request.appName} was denied by your parent.',
             'data': {
               'type': 'app_denied',
               'packageName': request.packageName,
@@ -548,7 +696,10 @@ class _RequestCard extends ConsumerWidget {
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), behavior: SnackBarBehavior.floating),
+          SnackBar(
+            content: Text('Error: $e'),
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     }
@@ -584,7 +735,11 @@ class _InfoChip extends StatelessWidget {
   final String label;
   final Color color;
 
-  const _InfoChip({required this.icon, required this.label, required this.color});
+  const _InfoChip({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -593,7 +748,18 @@ class _InfoChip extends StatelessWidget {
       children: [
         Icon(icon, size: 13, color: color),
         const SizedBox(width: 4),
-        Text(label, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w500)),
+        Flexible(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 11,
+              color: color,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -606,7 +772,11 @@ class _ApproveSheet extends StatefulWidget {
   final String familyId;
   final String parentId;
 
-  const _ApproveSheet({required this.request, required this.familyId, required this.parentId});
+  const _ApproveSheet({
+    required this.request,
+    required this.familyId,
+    required this.parentId,
+  });
 
   @override
   State<_ApproveSheet> createState() => _ApproveSheetState();
@@ -625,7 +795,9 @@ class _ApproveSheetState extends State<_ApproveSheet> {
         'grantedMinutes': _selected.minutes,
         'decidedAt': Timestamp.fromDate(now),
         'decidedBy': widget.parentId,
-        'accessExpiresAt': Timestamp.fromDate(now.add(Duration(minutes: _selected.minutes))),
+        'accessExpiresAt': Timestamp.fromDate(
+          now.add(Duration(minutes: _selected.minutes)),
+        ),
       };
 
       await FirebaseFirestore.instance
@@ -663,7 +835,9 @@ class _ApproveSheetState extends State<_ApproveSheet> {
                   'approvedAt': Timestamp.fromDate(now),
                   'durationMinutes': _selected.minutes,
                   'approvedBy': widget.parentId,
-                  'accessExpiresAt': Timestamp.fromDate(now.add(Duration(minutes: _selected.minutes))),
+                  'accessExpiresAt': Timestamp.fromDate(
+                    now.add(Duration(minutes: _selected.minutes)),
+                  ),
                 }, SetOptions(merge: true));
           } catch (e) {
             debugPrint('Error writing temporaryApproval doc: $e');
@@ -678,7 +852,8 @@ class _ApproveSheetState extends State<_ApproveSheet> {
             'type': 'appApproved',
             'priority': 'normal',
             'title': '🎉 Access Approved: ${widget.request.appName}',
-            'body': 'Your parent approved ${_selected.displayText} of access to ${widget.request.appName}.',
+            'body':
+                'Your parent approved ${_selected.displayText} of access to ${widget.request.appName}.',
             'data': {
               'type': 'app_approved',
               'packageName': widget.request.packageName,
@@ -724,7 +899,9 @@ class _ApproveSheetState extends State<_ApproveSheet> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Approved ${widget.request.appName} for ${_selected.displayText}'),
+            content: Text(
+              'Approved ${widget.request.appName} for ${_selected.displayText}',
+            ),
             behavior: SnackBarBehavior.floating,
             backgroundColor: const Color(0xFF10B981),
           ),
@@ -733,7 +910,10 @@ class _ApproveSheetState extends State<_ApproveSheet> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), behavior: SnackBarBehavior.floating),
+          SnackBar(
+            content: Text('Error: $e'),
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     } finally {
@@ -758,17 +938,29 @@ class _ApproveSheetState extends State<_ApproveSheet> {
                     color: const Color(0xFF10B981).withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981)),
+                  child: const Icon(
+                    Icons.check_circle_rounded,
+                    color: Color(0xFF10B981),
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Approve Access', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                      const Text(
+                        'Approve Access',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
+                      ),
                       Text(
                         widget.request.appName,
-                        style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                        style: const TextStyle(
+                          color: Color(0xFF64748B),
+                          fontSize: 13,
+                        ),
                       ),
                     ],
                   ),
@@ -776,7 +968,10 @@ class _ApproveSheetState extends State<_ApproveSheet> {
               ],
             ),
             const SizedBox(height: 20),
-            const Text('Grant access for:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+            const Text(
+              'Grant access for:',
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+            ),
             const SizedBox(height: 12),
             Wrap(
               spacing: 8,
@@ -794,7 +989,9 @@ class _ApproveSheetState extends State<_ApproveSheet> {
                   ),
                   backgroundColor: const Color(0xFFF1F5F9),
                   side: BorderSide.none,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 );
               }).toList(),
             ),
@@ -808,13 +1005,25 @@ class _ApproveSheetState extends State<_ApproveSheet> {
                   foregroundColor: Colors.white,
                   elevation: 0,
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                 ),
                 child: _loading
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
                     : Text(
                         'Approve for ${_selected.displayText}',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
                       ),
               ),
             ),

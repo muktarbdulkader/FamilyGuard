@@ -8,6 +8,7 @@ import '../../../../core/providers/family_provider.dart';
 import '../../../../core/providers/user_provider.dart';
 import '../../../parent/presentation/widgets/app_rule_editor_sheet.dart';
 import '../../../parent/presentation/widgets/app_usage_indicator.dart';
+import '../../../../l10n/app_localizations.dart';
 
 /// Parent app management screen allowing real-time monitoring and control
 /// of child's applications: blocking, allowing, notifying (ask parent),
@@ -79,7 +80,9 @@ class _ParentAppManagementScreenState
     }
 
     try {
-      await ref.read(appRuleServiceProvider).updateAppRule(
+      await ref
+          .read(appRuleServiceProvider)
+          .updateAppRule(
             familyId: familyId,
             childId: childId,
             packageName: app.packageName,
@@ -120,10 +123,7 @@ class _ParentAppManagementScreenState
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => AppRuleEditorSheet(
-        appWithUsage: AppWithUsage(
-          app: app,
-          usage: usageMap[app.packageName],
-        ),
+        appWithUsage: AppWithUsage(app: app, usage: usageMap[app.packageName]),
         familyId: familyId,
         childId: childId,
       ),
@@ -134,7 +134,9 @@ class _ParentAppManagementScreenState
   /// FIX 3: system apps (dialer, settings, launcher...) are never touched,
   /// so a parent can't accidentally lock the child's phone.
   Future<void> _batchApplyRule(
-      List<AppInfo> apps, AppControlRule targetRule) async {
+    List<AppInfo> apps,
+    AppControlRule targetRule,
+  ) async {
     final familyId = _resolveFamilyId();
     final childId = _resolveChildId();
 
@@ -162,7 +164,7 @@ class _ParentAppManagementScreenState
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context).cancel),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -170,7 +172,7 @@ class _ParentAppManagementScreenState
               foregroundColor: Colors.white,
             ),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Confirm'),
+            child: Text(AppLocalizations.of(context).confirm),
           ),
         ],
       ),
@@ -180,13 +182,17 @@ class _ParentAppManagementScreenState
 
     try {
       final updates = targetApps
-          .map((a) => BatchAppRuleUpdate(
-                packageName: a.packageName,
-                rule: targetRule,
-              ))
+          .map(
+            (a) => BatchAppRuleUpdate(
+              packageName: a.packageName,
+              rule: targetRule,
+            ),
+          )
           .toList();
 
-      await ref.read(appRuleServiceProvider).batchUpdateAppRules(
+      await ref
+          .read(appRuleServiceProvider)
+          .batchUpdateAppRules(
             familyId: familyId,
             childId: childId,
             updates: updates,
@@ -196,7 +202,8 @@ class _ParentAppManagementScreenState
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-                'Updated ${targetApps.length} apps to ${_getRuleLabel(targetRule)}'),
+              'Updated ${targetApps.length} apps to ${_getRuleLabel(targetRule)}',
+            ),
             backgroundColor: _getRuleColor(targetRule),
             behavior: SnackBarBehavior.floating,
           ),
@@ -220,15 +227,23 @@ class _ParentAppManagementScreenState
     final usageAsync = ref.watch(childAppUsageProvider(childId));
     final usageMap = usageAsync.value ?? <String, AppUsageModel>{};
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF0C1829) : const Color(0xFFF8FAFC),
+      backgroundColor: isDark
+          ? const Color(0xFF0C1829)
+          : const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text(
-          'App Management',
-          style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.2),
+        title: Text(
+          l10n.control,
+          style: const TextStyle(
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.2,
+          ),
         ),
-        backgroundColor: isDark ? const Color(0xFF0C1829) : const Color(0xFF4F46E5),
+        backgroundColor: isDark
+            ? const Color(0xFF0C1829)
+            : const Color(0xFF4F46E5),
         flexibleSpace: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -271,9 +286,9 @@ class _ParentAppManagementScreenState
                       color: Colors.blueGrey,
                     ),
                     const SizedBox(width: 12),
-                    Text(_hideSystemApps
-                        ? 'Show System Apps'
-                        : 'Hide System Apps'),
+                    Text(
+                      _hideSystemApps ? 'Show System Apps' : 'Hide System Apps',
+                    ),
                   ],
                 ),
               ),
@@ -292,8 +307,11 @@ class _ParentAppManagementScreenState
                 value: 'ask_all',
                 child: Row(
                   children: [
-                    Icon(Icons.notifications_active_rounded,
-                        size: 20, color: Colors.amber),
+                    Icon(
+                      Icons.notifications_active_rounded,
+                      size: 20,
+                      color: Colors.amber,
+                    ),
                     SizedBox(width: 12),
                     Text('Set All User Apps to Ask/Notify'),
                   ],
@@ -303,8 +321,11 @@ class _ParentAppManagementScreenState
                 value: 'allow_all',
                 child: Row(
                   children: [
-                    Icon(Icons.check_circle_rounded,
-                        size: 20, color: Colors.green),
+                    Icon(
+                      Icons.check_circle_rounded,
+                      size: 20,
+                      color: Colors.green,
+                    ),
                     SizedBox(width: 12),
                     Text('Allow All User Apps'),
                   ],
@@ -334,8 +355,11 @@ class _ParentAppManagementScreenState
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.error_outline_rounded,
-                    size: 56, color: Colors.red),
+                const Icon(
+                  Icons.error_outline_rounded,
+                  size: 56,
+                  color: Colors.red,
+                ),
                 const SizedBox(height: 16),
                 const Text(
                   'Failed to load applications',
@@ -387,16 +411,21 @@ class _ParentAppManagementScreenState
           }).toList();
 
           final totalCount = allApps.length;
-          final blockedCount =
-              allApps.where((a) => a.rule == AppControlRule.block).length;
-          final askCount =
-              allApps.where((a) => a.rule == AppControlRule.ask).length;
-          final allowedCount =
-              allApps.where((a) => a.rule == AppControlRule.allow).length;
+          final blockedCount = allApps
+              .where((a) => a.rule == AppControlRule.block)
+              .length;
+          final askCount = allApps
+              .where((a) => a.rule == AppControlRule.ask)
+              .length;
+          final allowedCount = allApps
+              .where((a) => a.rule == AppControlRule.allow)
+              .length;
           final timedCount = allApps
-              .where((a) =>
-                  a.rule == AppControlRule.timeLimited ||
-                  a.rule == AppControlRule.timeRestricted)
+              .where(
+                (a) =>
+                    a.rule == AppControlRule.timeLimited ||
+                    a.rule == AppControlRule.timeRestricted,
+              )
               .length;
 
           return Column(
@@ -415,7 +444,9 @@ class _ParentAppManagementScreenState
                           _buildMetricChip(
                             label: 'Total',
                             count: totalCount,
-                            color: isDark ? const Color(0xFF2DD4BF) : const Color(0xFF4F46E5),
+                            color: isDark
+                                ? const Color(0xFF2DD4BF)
+                                : const Color(0xFF4F46E5),
                             isSelected: _activeFilter == _AppFilter.all,
                             onTap: () =>
                                 setState(() => _activeFilter = _AppFilter.all),
@@ -427,7 +458,8 @@ class _ParentAppManagementScreenState
                             color: const Color(0xFFEF4444),
                             isSelected: _activeFilter == _AppFilter.blocked,
                             onTap: () => setState(
-                                () => _activeFilter = _AppFilter.blocked),
+                              () => _activeFilter = _AppFilter.blocked,
+                            ),
                           ),
                           const SizedBox(width: 8),
                           _buildMetricChip(
@@ -445,16 +477,20 @@ class _ParentAppManagementScreenState
                             color: const Color(0xFF10B981),
                             isSelected: _activeFilter == _AppFilter.allowed,
                             onTap: () => setState(
-                                () => _activeFilter = _AppFilter.allowed),
+                              () => _activeFilter = _AppFilter.allowed,
+                            ),
                           ),
                           const SizedBox(width: 8),
                           _buildMetricChip(
                             label: 'Timed',
                             count: timedCount,
-                            color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF7C3AED),
+                            color: isDark
+                                ? const Color(0xFF38BDF8)
+                                : const Color(0xFF7C3AED),
                             isSelected: _activeFilter == _AppFilter.timeLimited,
                             onTap: () => setState(
-                                () => _activeFilter = _AppFilter.timeLimited),
+                              () => _activeFilter = _AppFilter.timeLimited,
+                            ),
                           ),
                         ],
                       ),
@@ -463,15 +499,28 @@ class _ParentAppManagementScreenState
                     // Search Bar
                     TextField(
                       controller: _searchController,
-                      style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                      style: TextStyle(
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
                       decoration: InputDecoration(
                         hintText: 'Search apps or package name...',
-                        hintStyle: TextStyle(color: isDark ? const Color(0xFF8BA0B8) : Colors.grey),
-                        prefixIcon:
-                            Icon(Icons.search_rounded, size: 20, color: isDark ? const Color(0xFF8BA0B8) : Colors.grey),
+                        hintStyle: TextStyle(
+                          color: isDark ? const Color(0xFF8BA0B8) : Colors.grey,
+                        ),
+                        prefixIcon: Icon(
+                          Icons.search_rounded,
+                          size: 20,
+                          color: isDark ? const Color(0xFF8BA0B8) : Colors.grey,
+                        ),
                         suffixIcon: _searchQuery.isNotEmpty
                             ? IconButton(
-                                icon: Icon(Icons.clear_rounded, size: 18, color: isDark ? const Color(0xFF8BA0B8) : Colors.grey),
+                                icon: Icon(
+                                  Icons.clear_rounded,
+                                  size: 18,
+                                  color: isDark
+                                      ? const Color(0xFF8BA0B8)
+                                      : Colors.grey,
+                                ),
                                 onPressed: () {
                                   _searchController.clear();
                                   setState(() => _searchQuery = '');
@@ -479,20 +528,37 @@ class _ParentAppManagementScreenState
                               )
                             : null,
                         contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 0),
+                          horizontal: 16,
+                          vertical: 0,
+                        ),
                         filled: true,
-                        fillColor: isDark ? const Color(0xFF132238) : const Color(0xFFF1F5F9),
+                        fillColor: isDark
+                            ? const Color(0xFF132238)
+                            : const Color(0xFFF1F5F9),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: isDark ? const Color(0xFF1E3554) : Colors.transparent),
+                          borderSide: BorderSide(
+                            color: isDark
+                                ? const Color(0xFF1E3554)
+                                : Colors.transparent,
+                          ),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: isDark ? const Color(0xFF1E3554) : Colors.transparent),
+                          borderSide: BorderSide(
+                            color: isDark
+                                ? const Color(0xFF1E3554)
+                                : Colors.transparent,
+                          ),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: isDark ? const Color(0xFF2DD4BF) : const Color(0xFF4F46E5), width: 1.5),
+                          borderSide: BorderSide(
+                            color: isDark
+                                ? const Color(0xFF2DD4BF)
+                                : const Color(0xFF4F46E5),
+                            width: 1.5,
+                          ),
                         ),
                       ),
                       onChanged: (query) {
@@ -557,7 +623,9 @@ class _ParentAppManagementScreenState
                 : (isDark ? const Color(0xFF132238) : Colors.transparent),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: isSelected ? color : (isDark ? const Color(0xFF1E3554) : Colors.grey[300]!),
+              color: isSelected
+                  ? color
+                  : (isDark ? const Color(0xFF1E3554) : Colors.grey[300]!),
               width: isSelected ? 1.5 : 1.0,
             ),
           ),
@@ -569,7 +637,9 @@ class _ParentAppManagementScreenState
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: isSelected ? color : (isDark ? Colors.white : Colors.grey[800]),
+                  color: isSelected
+                      ? color
+                      : (isDark ? Colors.white : Colors.grey[800]),
                 ),
               ),
               const SizedBox(height: 2),
@@ -578,7 +648,9 @@ class _ParentAppManagementScreenState
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w600,
-                  color: isSelected ? color : (isDark ? const Color(0xFF8BA0B8) : Colors.grey[600]),
+                  color: isSelected
+                      ? color
+                      : (isDark ? const Color(0xFF8BA0B8) : Colors.grey[600]),
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -719,7 +791,9 @@ class _ParentAppManagementScreenState
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
-                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                  color: isDark
+                                      ? Colors.white
+                                      : const Color(0xFF0F172A),
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -729,16 +803,22 @@ class _ParentAppManagementScreenState
                               const SizedBox(width: 6),
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 2),
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: isDark ? const Color(0xFF0C2744) : Colors.blue[50],
+                                  color: isDark
+                                      ? const Color(0xFF0C2744)
+                                      : Colors.blue[50],
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
                                   'System',
                                   style: TextStyle(
                                     fontSize: 10,
-                                    color: isDark ? const Color(0xFF38BDF8) : Colors.blue[800],
+                                    color: isDark
+                                        ? const Color(0xFF38BDF8)
+                                        : Colors.blue[800],
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -751,7 +831,9 @@ class _ParentAppManagementScreenState
                           app.packageName,
                           style: TextStyle(
                             fontSize: 12,
-                            color: isDark ? const Color(0xFF8BA0B8) : Colors.grey[600],
+                            color: isDark
+                                ? const Color(0xFF8BA0B8)
+                                : Colors.grey[600],
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -760,7 +842,9 @@ class _ParentAppManagementScreenState
                         // Rule Status Tag
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 3),
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
                           decoration: BoxDecoration(
                             color: ruleColor.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(6),
@@ -768,8 +852,11 @@ class _ParentAppManagementScreenState
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(_getRuleIcon(app.rule),
-                                  size: 13, color: ruleColor),
+                              Icon(
+                                _getRuleIcon(app.rule),
+                                size: 13,
+                                color: ruleColor,
+                              ),
                               const SizedBox(width: 4),
                               Text(
                                 ruleLabel,
@@ -785,7 +872,9 @@ class _ParentAppManagementScreenState
                                 Text(
                                   '(${app.dailyLimitMinutes}m/day)',
                                   style: TextStyle(
-                                      fontSize: 10, color: ruleColor),
+                                    fontSize: 10,
+                                    color: ruleColor,
+                                  ),
                                 ),
                               ],
                             ],
@@ -801,7 +890,8 @@ class _ParentAppManagementScreenState
               Builder(
                 builder: (context) {
                   final appUsage = usageMap[app.packageName];
-                  final hasUsage = appUsage != null && appUsage.todayMinutes > 0;
+                  final hasUsage =
+                      appUsage != null && appUsage.todayMinutes > 0;
                   final isTimed = app.rule == AppControlRule.timeLimited;
 
                   if (!hasUsage && !isTimed) return const SizedBox.shrink();
@@ -813,16 +903,25 @@ class _ParentAppManagementScreenState
                       children: [
                         if (hasUsage)
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 5,
+                            ),
                             decoration: BoxDecoration(
                               color: const Color(0xFFEEF2FF),
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: const Color(0xFFC7D2FE)),
+                              border: Border.all(
+                                color: const Color(0xFFC7D2FE),
+                              ),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.timer_outlined, size: 14, color: Color(0xFF4F46E5)),
+                                const Icon(
+                                  Icons.timer_outlined,
+                                  size: 14,
+                                  color: Color(0xFF4F46E5),
+                                ),
                                 const SizedBox(width: 6),
                                 Text(
                                   'Used today: ${appUsage.usageStatusText}',
@@ -836,7 +935,10 @@ class _ParentAppManagementScreenState
                                   const SizedBox(width: 8),
                                   Text(
                                     '• ${appUsage.openCount} opens',
-                                    style: const TextStyle(fontSize: 11, color: Color(0xFF6366F1)),
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: Color(0xFF6366F1),
+                                    ),
                                   ),
                                 ],
                               ],
@@ -924,11 +1026,18 @@ class _ParentAppManagementScreenState
       child: OutlinedButton.icon(
         style: OutlinedButton.styleFrom(
           padding: const EdgeInsets.symmetric(vertical: 8),
-          foregroundColor: isActive ? Colors.white : (isDark ? const Color(0xFFCBD5E1) : textColor),
-          backgroundColor: isActive ? activeColor : (isDark ? const Color(0xFF14243B) : Colors.transparent),
-          side: BorderSide(color: isActive ? activeColor : (isDark ? const Color(0xFF1E3554) : borderColor)),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          foregroundColor: isActive
+              ? Colors.white
+              : (isDark ? const Color(0xFFCBD5E1) : textColor),
+          backgroundColor: isActive
+              ? activeColor
+              : (isDark ? const Color(0xFF14243B) : Colors.transparent),
+          side: BorderSide(
+            color: isActive
+                ? activeColor
+                : (isDark ? const Color(0xFF1E3554) : borderColor),
+          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
         onPressed: onPressed,
         icon: Icon(icon, size: 16),
@@ -953,7 +1062,9 @@ class _ParentAppManagementScreenState
                   ? Icons.phonelink_setup_rounded
                   : Icons.search_off_rounded,
               size: 64,
-              color: isDark ? const Color(0xFF2DD4BF).withOpacity(0.5) : Colors.blueGrey[300],
+              color: isDark
+                  ? const Color(0xFF2DD4BF).withOpacity(0.5)
+                  : Colors.blueGrey[300],
             ),
             const SizedBox(height: 16),
             Text(

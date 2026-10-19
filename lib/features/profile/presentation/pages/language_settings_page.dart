@@ -27,7 +27,9 @@ class LanguageSettingsPage extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               child: IconButton(
                 icon: Icon(
-                  isRtl ? Icons.arrow_forward_ios_rounded : Icons.arrow_back_ios_new_rounded,
+                  isRtl
+                      ? Icons.arrow_forward_ios_rounded
+                      : Icons.arrow_back_ios_new_rounded,
                   color: Colors.white,
                   size: 20,
                 ),
@@ -70,7 +72,13 @@ class LanguageSettingsPage extends ConsumerWidget {
                 itemBuilder: (context, index) {
                   final lang = AppLanguages.supported[index];
                   final isSelected = currentLocale.languageCode == lang.code;
-                  return _buildLanguageCard(context, ref, lang, isSelected, l10n);
+                  return _buildLanguageCard(
+                    context,
+                    ref,
+                    lang,
+                    isSelected,
+                    l10n,
+                  );
                 },
               ),
             ),
@@ -95,14 +103,20 @@ class LanguageSettingsPage extends ConsumerWidget {
           borderRadius: BorderRadius.circular(16),
           onTap: () async {
             if (lang.code == ref.read(localeProvider).languageCode) return;
-            await ref.read(localeProvider.notifier).setLocale(Locale(lang.code));
+            await ref
+                .read(localeProvider.notifier)
+                .setLocale(Locale(lang.code));
             if (context.mounted) {
               ScaffoldMessenger.of(context).hideCurrentSnackBar();
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Row(
                     children: [
-                      const Icon(Icons.check_circle_rounded, color: AppColors.tealAccent, size: 20),
+                      const Icon(
+                        Icons.check_circle_rounded,
+                        color: AppColors.tealAccent,
+                        size: 20,
+                      ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
@@ -136,7 +150,9 @@ class LanguageSettingsPage extends ConsumerWidget {
                   : AppColors.darkNavyCard,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: isSelected ? AppColors.tealAccent : AppColors.darkNavyBorder,
+                color: isSelected
+                    ? AppColors.tealAccent
+                    : AppColors.darkNavyBorder,
                 width: isSelected ? 1.8 : 1.0,
               ),
               boxShadow: isSelected
@@ -151,7 +167,7 @@ class LanguageSettingsPage extends ConsumerWidget {
             ),
             child: Row(
               children: [
-                // Flag / Code Badge
+                // Flag Badge
                 Container(
                   width: 48,
                   height: 48,
@@ -167,38 +183,54 @@ class LanguageSettingsPage extends ConsumerWidget {
                     ),
                   ),
                   alignment: Alignment.center,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        lang.flag,
-                        style: const TextStyle(fontSize: 16),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        lang.code.toUpperCase(),
-                        style: TextStyle(
-                          color: isSelected ? AppColors.tealAccent : const Color(0xFF94A3B8),
-                          fontWeight: FontWeight.w800,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ],
-                  ),
+                  child: Text(lang.flag, style: const TextStyle(fontSize: 24)),
                 ),
                 const SizedBox(width: 16),
-                // Native Name + English Name
+                // Native Name + Code Tag + English Name
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        lang.nativeName,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16.5,
-                          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                        ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              lang.nativeName,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16.5,
+                                fontWeight: isSelected
+                                    ? FontWeight.w800
+                                    : FontWeight.w600,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? AppColors.tealAccent.withValues(alpha: 0.15)
+                                  : Colors.white.withValues(alpha: 0.05),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              lang.code.toUpperCase(),
+                              style: TextStyle(
+                                color: isSelected
+                                    ? AppColors.tealAccent
+                                    : const Color(0xFF94A3B8),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 3),
                       Text(
@@ -212,6 +244,7 @@ class LanguageSettingsPage extends ConsumerWidget {
                     ],
                   ),
                 ),
+
                 // Radio / Checkbox Indicator
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
@@ -219,9 +252,13 @@ class LanguageSettingsPage extends ConsumerWidget {
                   height: 26,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: isSelected ? AppColors.tealAccent : Colors.transparent,
+                    color: isSelected
+                        ? AppColors.tealAccent
+                        : Colors.transparent,
                     border: Border.all(
-                      color: isSelected ? AppColors.tealAccent : const Color(0xFF475569),
+                      color: isSelected
+                          ? AppColors.tealAccent
+                          : const Color(0xFF475569),
                       width: 2,
                     ),
                   ),

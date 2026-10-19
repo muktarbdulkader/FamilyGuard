@@ -72,7 +72,8 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
 
     final familyId = user.familyId as String?;
     final childId = user.uid as String?;
-    final childName = (user.displayName as String?) ?? (user.name as String?) ?? 'Child';
+    final childName =
+        (user.displayName as String?) ?? (user.name as String?) ?? 'Child';
     if (familyId == null || childId == null) return;
 
     NotificationService.instance.startChildNotificationListener(childId);
@@ -115,7 +116,10 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
       body: SafeArea(
         child: userData.when(
           loading: () => const Center(
-            child: CircularProgressIndicator(color: _tealAccent, strokeWidth: 3),
+            child: CircularProgressIndicator(
+              color: _tealAccent,
+              strokeWidth: 3,
+            ),
           ),
           error: (error, _) => Center(
             child: Padding(
@@ -123,9 +127,19 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.error_outline_rounded, size: 48, color: Color(0xFFEF4444)),
+                  const Icon(
+                    Icons.error_outline_rounded,
+                    size: 48,
+                    color: Color(0xFFEF4444),
+                  ),
                   const SizedBox(height: 12),
-                  Text(l10n.errorLoadingDashboard, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  Text(
+                    l10n.errorLoadingDashboard,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: () => ref.refresh(currentUserDataProvider),
@@ -173,7 +187,8 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                                 const SizedBox(width: 14),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         l10n.appName,
@@ -204,7 +219,8 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                           const SizedBox(width: 8),
                           // Settings & Sign Out button
                           InkWell(
-                            onTap: () => _showSettingsSheet(context, ref, user, l10n),
+                            onTap: () =>
+                                _showSettingsSheet(context, ref, user, l10n),
                             borderRadius: BorderRadius.circular(14),
                             child: Container(
                               width: 44,
@@ -227,7 +243,9 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                   ),
 
                   // 2. Missing Permission Alert Banner (if any)
-                  if (!_hasUsageStats || !_hasOverlay || !_hasLocationPermission)
+                  if (!_hasUsageStats ||
+                      !_hasOverlay ||
+                      !_hasLocationPermission)
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
@@ -237,20 +255,27 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                             borderRadius: BorderRadius.circular(18),
                             onTap: () async {
                               if (!_hasUsageStats) {
-                                await _permissionService.openUsageStatsSettings();
+                                await _permissionService
+                                    .openUsageStatsSettings();
                               } else if (!_hasOverlay) {
                                 await _permissionService.openOverlaySettings();
                               } else if (!_hasLocationPermission) {
-                                await LocationService().requestLocationPermission();
+                                await LocationService()
+                                    .requestLocationPermission();
                               }
-                              await Future.delayed(const Duration(milliseconds: 800));
+                              await Future.delayed(
+                                const Duration(milliseconds: 800),
+                              );
                               await _checkPermissions();
                             },
                             child: Container(
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
                                 gradient: const LinearGradient(
-                                  colors: [Color(0xFFB45309), Color(0xFFD97706)],
+                                  colors: [
+                                    Color(0xFFB45309),
+                                    Color(0xFFD97706),
+                                  ],
                                 ),
                                 borderRadius: BorderRadius.circular(18),
                               ),
@@ -262,30 +287,48 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                                       color: Colors.white.withOpacity(0.2),
                                       borderRadius: BorderRadius.circular(10),
                                     ),
-                                    child: const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 22),
+                                    child: const Icon(
+                                      Icons.warning_amber_rounded,
+                                      color: Colors.white,
+                                      size: 22,
+                                    ),
                                   ),
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         const Text(
                                           'Protection Setup Needed',
-                                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 13),
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 13,
+                                          ),
                                         ),
                                         const SizedBox(height: 2),
                                         Text(
                                           !_hasUsageStats
                                               ? 'Tap to grant Usage Access for screen limits.'
                                               : !_hasOverlay
-                                                  ? 'Tap to enable "Display over other apps".'
-                                                  : 'Tap to enable Location sharing for parents.',
-                                          style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 11.5),
+                                              ? 'Tap to enable "Display over other apps".'
+                                              : 'Tap to enable Location sharing for parents.',
+                                          style: TextStyle(
+                                            color: Colors.white.withOpacity(
+                                              0.9,
+                                            ),
+                                            fontSize: 11.5,
+                                          ),
                                         ),
                                       ],
                                     ),
                                   ),
-                                  const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white70, size: 14),
+                                  const Icon(
+                                    Icons.arrow_forward_ios_rounded,
+                                    color: Colors.white70,
+                                    size: 14,
+                                  ),
                                 ],
                               ),
                             ),
@@ -336,7 +379,12 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                                 const SizedBox(width: 10),
                                 _buildMetricBox(l10n.lessons, 'Active'),
                                 const SizedBox(width: 10),
-                                _buildMetricBox(l10n.role, user?.hasFamily == true ? 'Linked' : 'Pair Code'),
+                                _buildMetricBox(
+                                  l10n.role,
+                                  user?.hasFamily == true
+                                      ? 'Linked'
+                                      : 'Pair Code',
+                                ),
                               ],
                             ),
                           ],
@@ -363,7 +411,12 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                               ),
                             ),
                             const SizedBox(height: 12),
-                            _buildEducationCard(context, user!.familyId!, user.uid, user.displayName),
+                            _buildEducationCard(
+                              context,
+                              user!.familyId!,
+                              user.uid,
+                              user.displayName,
+                            ),
                           ],
                         ),
                       ),
@@ -374,29 +427,41 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            l10n.myProtection,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: -0.3,
+                          Expanded(
+                            child: Text(
+                              l10n.myProtection,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: -0.3,
+                              ),
                             ),
                           ),
                           if (user?.hasFamily != true)
-                            InkWell(
-                              onTap: () => context.push(AppRoutes.familyJoin),
-                              borderRadius: BorderRadius.circular(8),
-                              child: const Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                                child: Text(
-                                  '+ Join family',
-                                  style: TextStyle(
-                                    color: _tealAccent,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700,
+                            Flexible(
+                              child: InkWell(
+                                onTap: () =>
+                                    context.push(AppRoutes.familyJoin),
+                                borderRadius: BorderRadius.circular(8),
+                                child: const Padding(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 4,
+                                  ),
+                                  child: Text(
+                                    '+ Join family',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    textAlign: TextAlign.end,
+                                    style: TextStyle(
+                                      color: _tealAccent,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -415,9 +480,7 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                   ),
 
                   // Bottom padding for the floating navigation bar
-                  const SliverToBoxAdapter(
-                    child: SizedBox(height: 100),
-                  ),
+                  const SliverToBoxAdapter(child: SizedBox(height: 100)),
                 ],
               ),
 
@@ -439,7 +502,7 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
   Widget _buildMetricBox(String label, String value) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
         decoration: BoxDecoration(
           color: _metricBg,
           borderRadius: BorderRadius.circular(14),
@@ -450,6 +513,8 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
           children: [
             Text(
               label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: Color(0xFF86A5A1),
                 fontSize: 11,
@@ -459,6 +524,8 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
             const SizedBox(height: 4),
             Text(
               value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 14,
@@ -472,13 +539,19 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
   }
 
   // ── Education Card ─────────────────────────────────────────────────
-  Widget _buildEducationCard(BuildContext context, String familyId, String childId, String childName) {
+  Widget _buildEducationCard(
+    BuildContext context,
+    String familyId,
+    String childId,
+    String childName,
+  ) {
     final materialsAsync = ref.watch(
       childEducationalMaterialsProvider((familyId: familyId, childId: childId)),
     );
 
     final pendingCount = materialsAsync.when(
-      data: (materials) => materials.where((m) => !m.isCompletedBy(childId)).length,
+      data: (materials) =>
+          materials.where((m) => !m.isCompletedBy(childId)).length,
       loading: () => 0,
       error: (_, __) => 0,
     );
@@ -502,7 +575,11 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: const Center(
-                  child: Icon(Icons.school_rounded, color: Color(0xFF042421), size: 28),
+                  child: Icon(
+                    Icons.school_rounded,
+                    color: Color(0xFF042421),
+                    size: 28,
+                  ),
                 ),
               ),
               const SizedBox(width: 14),
@@ -523,7 +600,10 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                         if (pendingCount > 0) ...[
                           const SizedBox(width: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 7,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: const Color(0xFFEF4444),
                               borderRadius: BorderRadius.circular(8),
@@ -547,7 +627,10 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                           : 'Explore study videos, notes, and lessons.',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Color(0xFF8BA0B8), fontSize: 13),
+                      style: const TextStyle(
+                        color: Color(0xFF8BA0B8),
+                        fontSize: 13,
+                      ),
                     ),
                   ],
                 ),
@@ -569,7 +652,11 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                   ),
                 ),
               ),
-              icon: const Icon(Icons.school_outlined, size: 18, color: Color(0xFF042421)),
+              icon: const Icon(
+                Icons.school_outlined,
+                size: 18,
+                color: Color(0xFF042421),
+              ),
               label: const Text(
                 'Open Lessons',
                 style: TextStyle(
@@ -582,7 +669,9 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                 backgroundColor: _tealAccent,
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
             ),
           ),
@@ -658,7 +747,9 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      user?.email != null && user.email.isNotEmpty ? user.email : 'This Device',
+                      user?.email != null && user.email.isNotEmpty
+                          ? user.email
+                          : 'This Device',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -736,49 +827,61 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
     required bool isSolid,
     required VoidCallback onTap,
   }) {
-    if (isSolid) {
-      return ElevatedButton.icon(
-        onPressed: onTap,
-        icon: Icon(icon, size: 16, color: const Color(0xFF042421)),
-        label: Text(
+    final foregroundColor = isSolid ? const Color(0xFF042421) : Colors.white;
+    final content = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16, color: foregroundColor),
+        const SizedBox(height: 4),
+        Text(
           label,
-          style: const TextStyle(
-            color: Color(0xFF042421),
-            fontSize: 13,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: _tealAccent,
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        ),
-      );
-    } else {
-      return OutlinedButton.icon(
-        onPressed: onTap,
-        icon: Icon(icon, size: 16, color: Colors.white),
-        label: Text(
-          label,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 13,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: foregroundColor,
+            fontSize: 12,
             fontWeight: FontWeight.w700,
           ),
         ),
+      ],
+    );
+
+    if (isSolid) {
+      return ElevatedButton(
+        onPressed: onTap,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: _tealAccent,
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+        child: content,
+      );
+    } else {
+      return OutlinedButton(
+        onPressed: onTap,
         style: OutlinedButton.styleFrom(
           backgroundColor: const Color(0xFF0E1A2C),
           side: const BorderSide(color: Color(0xFF223A5B)),
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
         ),
+        child: content,
       );
     }
   }
 
   // ── Floating Bottom Navigation Bar for Child ────────────────────────
-  Widget _buildChildFloatingBottomBar(BuildContext context, dynamic user, AppLocalizations l10n) {
+  Widget _buildChildFloatingBottomBar(
+    BuildContext context,
+    dynamic user,
+    AppLocalizations l10n,
+  ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
@@ -797,52 +900,62 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           // Home (Selected)
-          _buildNavPill(
-            icon: Icons.home_outlined,
-            label: l10n.home,
-            isSelected: true,
-            onTap: () {},
+          Expanded(
+            child: _buildNavPill(
+              icon: Icons.home_outlined,
+              label: l10n.home,
+              isSelected: true,
+              onTap: () {},
+            ),
           ),
           // Apps
-          _buildNavPill(
-            icon: Icons.grid_view_rounded,
-            label: l10n.apps,
-            isSelected: false,
-            onTap: () => context.push(AppRoutes.childApps),
+          Expanded(
+            child: _buildNavPill(
+              icon: Icons.grid_view_rounded,
+              label: l10n.apps,
+              isSelected: false,
+              onTap: () => context.push(AppRoutes.childApps),
+            ),
           ),
           // Lessons
-          _buildNavPill(
-            icon: Icons.school_outlined,
-            label: l10n.lessons,
-            isSelected: false,
-            onTap: () {
-              if (user?.familyId != null) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => ChildEducationScreen(
-                      familyId: user!.familyId!,
-                      childId: user.uid,
-                      childName: user.displayName ?? 'Me',
+          Expanded(
+            child: _buildNavPill(
+              icon: Icons.school_outlined,
+              label: l10n.lessons,
+              isSelected: false,
+              onTap: () {
+                if (user?.familyId != null) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ChildEducationScreen(
+                        familyId: user!.familyId!,
+                        childId: user.uid,
+                        childName: user.displayName ?? 'Me',
+                      ),
                     ),
-                  ),
-                );
-              }
-            },
+                  );
+                }
+              },
+            ),
           ),
           // Health
-          _buildNavPill(
-            icon: Icons.health_and_safety_outlined,
-            label: l10n.health,
-            isSelected: false,
-            onTap: () => context.push(AppRoutes.childStatus),
+          Expanded(
+            child: _buildNavPill(
+              icon: Icons.health_and_safety_outlined,
+              label: l10n.health,
+              isSelected: false,
+              onTap: () => context.push(AppRoutes.childStatus),
+            ),
           ),
           // Permissions / Setup
-          _buildNavPill(
-            icon: Icons.shield_outlined,
-            label: l10n.setup,
-            isSelected: false,
-            onTap: () => context.push(AppRoutes.childPermissions),
+          Expanded(
+            child: _buildNavPill(
+              icon: Icons.shield_outlined,
+              label: l10n.setup,
+              isSelected: false,
+              onTap: () => context.push(AppRoutes.childPermissions),
+            ),
           ),
         ],
       ),
@@ -860,7 +973,7 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
         onTap: onTap,
         borderRadius: BorderRadius.circular(22),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
           decoration: BoxDecoration(
             color: const Color(0xFF0E3835),
             borderRadius: BorderRadius.circular(22),
@@ -872,6 +985,9 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
               const SizedBox(height: 2),
               Text(
                 label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: _tealAccent,
                   fontSize: 10,
@@ -887,7 +1003,7 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
         onTap: onTap,
         borderRadius: BorderRadius.circular(22),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
           decoration: BoxDecoration(
             color: const Color(0xFFF1F5F9),
             borderRadius: BorderRadius.circular(22),
@@ -899,6 +1015,9 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
               const SizedBox(height: 2),
               Text(
                 label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: Color(0xFF475569),
                   fontSize: 10,
@@ -925,7 +1044,14 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
           children: const [
             Icon(Icons.shield_rounded, color: _tealAccent),
             SizedBox(width: 10),
-            Text('About Smart Guard', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+            Text(
+              'About Smart Guard',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
+            ),
           ],
         ),
         content: Column(
@@ -934,14 +1060,27 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
           children: const [
             Text(
               'FamilyGuard keeps your device balanced and safe:',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
             ),
             SizedBox(height: 12),
-            Text('• Helps balance study, apps, and rest time', style: TextStyle(color: Color(0xFF94A3B8))),
+            Text(
+              '• Helps balance study, apps, and rest time',
+              style: TextStyle(color: Color(0xFF94A3B8)),
+            ),
             SizedBox(height: 6),
-            Text('• Allows you to request extra time or unlock apps from parents', style: TextStyle(color: Color(0xFF94A3B8))),
+            Text(
+              '• Allows you to request extra time or unlock apps from parents',
+              style: TextStyle(color: Color(0xFF94A3B8)),
+            ),
             SizedBox(height: 6),
-            Text('• Connects with parents for safety and emergency protection', style: TextStyle(color: Color(0xFF94A3B8))),
+            Text(
+              '• Connects with parents for safety and emergency protection',
+              style: TextStyle(color: Color(0xFF94A3B8)),
+            ),
           ],
         ),
         actions: [
@@ -950,7 +1089,9 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: _tealAccent,
               foregroundColor: const Color(0xFF042421),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
             child: const Text('Got it!'),
           ),
@@ -960,7 +1101,12 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
   }
 
   // ── Unified Settings & Sign Out Modal Sheet for Child ──────────────
-  void _showSettingsSheet(BuildContext context, WidgetRef ref, dynamic user, AppLocalizations l10n) {
+  void _showSettingsSheet(
+    BuildContext context,
+    WidgetRef ref,
+    dynamic user,
+    AppLocalizations l10n,
+  ) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -1000,7 +1146,8 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                   ),
                   child: Center(
                     child: Text(
-                      (user?.displayName != null && user!.displayName.isNotEmpty)
+                      (user?.displayName != null &&
+                              user!.displayName.isNotEmpty)
                           ? user.displayName[0].toUpperCase()
                           : 'C',
                       style: const TextStyle(
@@ -1017,7 +1164,8 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        user?.displayName != null && user!.displayName.isNotEmpty
+                        user?.displayName != null &&
+                                user!.displayName.isNotEmpty
                             ? user.displayName
                             : 'Child Companion',
                         style: const TextStyle(
@@ -1040,7 +1188,10 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: _tealAccent.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(8),
@@ -1074,7 +1225,9 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
             _buildSettingsTile(
               icon: Icons.qr_code_scanner_rounded,
               title: l10n.familyGroup,
-              subtitle: user?.hasFamily == true ? l10n.familyGroupConnected : l10n.familyGroupScanPrompt,
+              subtitle: user?.hasFamily == true
+                  ? l10n.familyGroupConnected
+                  : l10n.familyGroupScanPrompt,
               onTap: () {
                 Navigator.pop(context);
                 context.push(AppRoutes.familyJoin);
@@ -1098,15 +1251,6 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                 _showMonitoringInfo(context);
               },
             ),
-            _buildSettingsTile(
-              icon: Icons.swap_horiz_rounded,
-              title: l10n.switchRole,
-              subtitle: l10n.settingsSwitchRoleSubtitle,
-              onTap: () {
-                Navigator.pop(context);
-                context.push(AppRoutes.roleSelection);
-              },
-            ),
             Consumer(
               builder: (context, ref, _) {
                 final currentLang = ref.watch(currentLanguageProvider);
@@ -1128,7 +1272,10 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                 final isDark = currentMode == ThemeMode.dark;
                 return Container(
                   margin: const EdgeInsets.symmetric(vertical: 6),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFF14243B),
                     borderRadius: BorderRadius.circular(14),
@@ -1143,7 +1290,9 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Icon(
-                          isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+                          isDark
+                              ? Icons.dark_mode_rounded
+                              : Icons.light_mode_rounded,
                           color: _tealAccent,
                           size: 20,
                         ),
@@ -1162,7 +1311,9 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                               ),
                             ),
                             Text(
-                              isDark ? 'Unified Dark Navy across all pages' : 'Light theme enabled',
+                              isDark
+                                  ? 'Unified Dark Navy across all pages'
+                                  : 'Light theme enabled',
                               style: const TextStyle(
                                 color: Color(0xFF8BA0B8),
                                 fontSize: 11.5,
@@ -1198,7 +1349,11 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                     context.go(AppRoutes.login);
                   }
                 },
-                icon: const Icon(Icons.logout_rounded, size: 18, color: Colors.white),
+                icon: const Icon(
+                  Icons.logout_rounded,
+                  size: 18,
+                  color: Colors.white,
+                ),
                 label: const Text(
                   'Sign Out',
                   style: TextStyle(
@@ -1211,7 +1366,9 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                   backgroundColor: const Color(0xFFDC2626),
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                   elevation: 0,
                 ),
               ),

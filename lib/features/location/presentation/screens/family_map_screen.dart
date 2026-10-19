@@ -26,34 +26,43 @@ class _FamilyMapScreenState extends ConsumerState<FamilyMapScreen> {
   String? _error;
   String? _activeFamilyId;
   StreamSubscription<List<FamilyLocation>>? _locationSubscription;
+  Timer? _statusRefreshTimer;
 
   @override
   void initState() {
     super.initState();
+    _statusRefreshTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted && _locations.isNotEmpty) setState(() {});
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) => _initSubscription());
   }
 
   @override
   void dispose() {
     _locationSubscription?.cancel();
+    _statusRefreshTimer?.cancel();
     super.dispose();
   }
 
   void _initSubscription() {
-    final effectiveFamilyId = widget.familyId ??
+    final effectiveFamilyId =
+        widget.familyId ??
         ref.read(selectedFamilyProvider)?.id ??
-        ref.read(currentUserDataProvider).value?.familyId ?? '';
+        ref.read(currentUserDataProvider).value?.familyId ??
+        '';
     if (effectiveFamilyId.isNotEmpty) {
       _subscribeToLocations(effectiveFamilyId);
     }
   }
 
   void _subscribeToLocations([String? familyId]) {
-    final effectiveId = familyId ??
+    final effectiveId =
+        familyId ??
         _activeFamilyId ??
         widget.familyId ??
         ref.read(selectedFamilyProvider)?.id ??
-        ref.read(currentUserDataProvider).value?.familyId ?? '';
+        ref.read(currentUserDataProvider).value?.familyId ??
+        '';
 
     if (effectiveId.isEmpty) {
       setState(() {
@@ -68,29 +77,30 @@ class _FamilyMapScreenState extends ConsumerState<FamilyMapScreen> {
     _locationSubscription = LocationService()
         .getFamilyLocations(effectiveId)
         .listen(
-      (locations) {
-        if (mounted) {
-          setState(() {
-            _locations = locations;
-            _isLoading = false;
-            _error = null;
-          });
-        }
-      },
-      onError: (e) {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-            _error = 'Unable to load locations: $e';
-          });
-        }
-      },
-    );
+          (locations) {
+            if (mounted) {
+              setState(() {
+                _locations = locations;
+                _isLoading = false;
+                _error = null;
+              });
+            }
+          },
+          onError: (e) {
+            if (mounted) {
+              setState(() {
+                _isLoading = false;
+                _error = 'Unable to load locations: $e';
+              });
+            }
+          },
+        );
   }
 
   /// Open the device's built-in maps app via a geo: URI (no API key needed)
   Future<void> _openInMaps(FamilyLocation loc) async {
-    final uri = 'geo:${loc.latitude},${loc.longitude}?q=${loc.latitude},${loc.longitude}';
+    final uri =
+        'geo:${loc.latitude},${loc.longitude}?q=${loc.latitude},${loc.longitude}';
     const channel = MethodChannel('family_guardian/permissions');
     try {
       // Use an Intent via Android — fallback to clipboard copy if unavailable
@@ -103,7 +113,9 @@ class _FamilyMapScreenState extends ConsumerState<FamilyMapScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Coordinates copied to clipboard. Paste in Google Maps.'),
+            content: Text(
+              'Coordinates copied to clipboard. Paste in Google Maps.',
+            ),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -129,10 +141,13 @@ class _FamilyMapScreenState extends ConsumerState<FamilyMapScreen> {
     });
 
     // Auto-subscribe if data becomes available
-    final currentFid = widget.familyId ??
+    final currentFid =
+        widget.familyId ??
         ref.watch(currentUserDataProvider).value?.familyId ??
         ref.watch(selectedFamilyProvider)?.id;
-    if (_activeFamilyId == null && currentFid != null && currentFid.isNotEmpty) {
+    if (_activeFamilyId == null &&
+        currentFid != null &&
+        currentFid.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && _activeFamilyId != currentFid) {
           _subscribeToLocations(currentFid);
@@ -168,10 +183,12 @@ class _FamilyMapScreenState extends ConsumerState<FamilyMapScreen> {
                 _isLoading = true;
                 _error = null;
               });
-              final fid = _activeFamilyId ??
+              final fid =
+                  _activeFamilyId ??
                   widget.familyId ??
                   ref.read(selectedFamilyProvider)?.id ??
-                  ref.read(currentUserDataProvider).value?.familyId ?? '';
+                  ref.read(currentUserDataProvider).value?.familyId ??
+                  '';
               if (fid.isNotEmpty) {
                 _subscribeToLocations(fid);
               } else {
@@ -196,7 +213,10 @@ class _FamilyMapScreenState extends ConsumerState<FamilyMapScreen> {
           children: [
             CircularProgressIndicator(color: Color(0xFF4F46E5)),
             SizedBox(height: 16),
-            Text('Loading family locations…', style: TextStyle(color: Color(0xFF64748B))),
+            Text(
+              'Loading family locations…',
+              style: TextStyle(color: Color(0xFF64748B)),
+            ),
           ],
         ),
       );
@@ -209,7 +229,11 @@ class _FamilyMapScreenState extends ConsumerState<FamilyMapScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.location_off_rounded, size: 64, color: Color(0xFFCBD5E1)),
+              const Icon(
+                Icons.location_off_rounded,
+                size: 64,
+                color: Color(0xFFCBD5E1),
+              ),
               const SizedBox(height: 16),
               const Text(
                 'Location Unavailable',
@@ -224,7 +248,10 @@ class _FamilyMapScreenState extends ConsumerState<FamilyMapScreen> {
               const SizedBox(height: 20),
               ElevatedButton.icon(
                 onPressed: () {
-                  setState(() { _isLoading = true; _error = null; });
+                  setState(() {
+                    _isLoading = true;
+                    _error = null;
+                  });
                   _locationSubscription?.cancel();
                   _subscribeToLocations();
                 },
@@ -259,7 +286,11 @@ class _FamilyMapScreenState extends ConsumerState<FamilyMapScreen> {
           ),
           child: Row(
             children: [
-              const Icon(Icons.info_outline_rounded, color: Color(0xFF4F46E5), size: 20),
+              const Icon(
+                Icons.info_outline_rounded,
+                color: Color(0xFF4F46E5),
+                size: 20,
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -275,10 +306,9 @@ class _FamilyMapScreenState extends ConsumerState<FamilyMapScreen> {
         ),
 
         // Location cards
-        ..._locations.map((loc) => _LocationCard(
-          location: loc,
-          onTap: () => _openInMaps(loc),
-        )),
+        ..._locations.map(
+          (loc) => _LocationCard(location: loc, onTap: () => _openInMaps(loc)),
+        ),
       ],
     );
   }
@@ -312,7 +342,11 @@ class _FamilyMapScreenState extends ConsumerState<FamilyMapScreen> {
               'Family members need to enable location sharing in the companion app. '
               'Locations will appear here automatically once shared.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Color(0xFF64748B), fontSize: 13, height: 1.5),
+              style: TextStyle(
+                color: Color(0xFF64748B),
+                fontSize: 13,
+                height: 1.5,
+              ),
             ),
           ],
         ),
@@ -333,7 +367,8 @@ class _LocationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final timeAgo = _timeAgo(location.timestamp);
     final isStale = location.isStale;
-    final displayName = (location.childName != null && location.childName!.trim().isNotEmpty)
+    final displayName =
+        (location.childName != null && location.childName!.trim().isNotEmpty)
         ? location.childName!.trim()
         : 'Child (${location.childId.length > 6 ? location.childId.substring(0, 6) : location.childId})';
 
@@ -416,7 +451,7 @@ class _LocationCard extends StatelessWidget {
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            isStale ? 'Stale ($timeAgo)' : 'Updated $timeAgo',
+                                'GPS updated $timeAgo',
                             style: TextStyle(
                               fontSize: 12,
                               color: isStale
@@ -473,10 +508,15 @@ class _LocationCard extends StatelessWidget {
             FutureBuilder<String?>(
               future: (location.address != null && location.address!.isNotEmpty)
                   ? Future.value(location.address)
-                  : GeocodingService.instance.getPlaceName(location.latitude, location.longitude),
+                  : GeocodingService.instance.getPlaceName(
+                      location.latitude,
+                      location.longitude,
+                    ),
               builder: (context, snapshot) {
                 final place = snapshot.data ?? location.address;
-                if (place == null || place.isEmpty) return const SizedBox.shrink();
+                if (place == null || place.isEmpty) {
+                  return const SizedBox.shrink();
+                }
                 return Padding(
                   padding: const EdgeInsets.only(top: 6),
                   child: _InfoRow(
@@ -487,6 +527,41 @@ class _LocationCard extends StatelessWidget {
                 );
               },
             ),
+
+            if (!location.isDeviceOnline) ...[
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 9,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFFECACA)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(
+                      Icons.wifi_off_rounded,
+                      size: 16,
+                      color: Color(0xFFB91C1C),
+                    ),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Child device is offline. This is the last reported location.',
+                        style: TextStyle(
+                          color: Color(0xFF991B1B),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
 
             const SizedBox(height: 12),
 
@@ -533,7 +608,11 @@ class _InfoRow extends StatelessWidget {
   final String label;
   final String value;
 
-  const _InfoRow({required this.icon, required this.label, required this.value});
+  const _InfoRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
 
   @override
   Widget build(BuildContext context) {

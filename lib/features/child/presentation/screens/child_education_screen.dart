@@ -21,16 +21,23 @@ class ChildEducationScreen extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<ChildEducationScreen> createState() => _ChildEducationScreenState();
+  ConsumerState<ChildEducationScreen> createState() =>
+      _ChildEducationScreenState();
 }
 
-class _ChildEducationScreenState extends ConsumerState<ChildEducationScreen> with SingleTickerProviderStateMixin {
+class _ChildEducationScreenState extends ConsumerState<ChildEducationScreen>
+    with SingleTickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
   late TabController _tabController;
   String _searchQuery = '';
   String _selectedSubject = 'All';
 
-  final List<String> _statusTabs = ['All', 'Pending', 'In Progress', 'Completed'];
+  final List<String> _statusTabs = [
+    'All',
+    'Pending',
+    'In Progress',
+    'Completed',
+  ];
 
   @override
   void initState() {
@@ -131,7 +138,10 @@ class _ChildEducationScreenState extends ConsumerState<ChildEducationScreen> wit
                 const SizedBox(height: 16),
                 FilledButton.tonal(
                   onPressed: () => ref.invalidate(
-                    childEducationalMaterialsProvider((familyId: familyId, childId: childId)),
+                    childEducationalMaterialsProvider((
+                      familyId: familyId,
+                      childId: childId,
+                    )),
                   ),
                   child: const Text('Retry'),
                 ),
@@ -143,7 +153,9 @@ class _ChildEducationScreenState extends ConsumerState<ChildEducationScreen> wit
           final subjects = _extractSubjects(materials);
           final filtered = _filterMaterials(materials, childId);
 
-          final completedCount = materials.where((m) => m.isCompletedBy(childId)).length;
+          final completedCount = materials
+              .where((m) => m.isCompletedBy(childId))
+              .length;
           final totalCount = materials.length;
 
           return CustomScrollView(
@@ -168,13 +180,16 @@ class _ChildEducationScreenState extends ConsumerState<ChildEducationScreen> wit
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                   sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final material = filtered[index];
-                        return _buildMaterialCard(theme, material, familyId, childId, childName);
-                      },
-                      childCount: filtered.length,
-                    ),
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final material = filtered[index];
+                      return _buildMaterialCard(
+                        theme,
+                        material,
+                        familyId,
+                        childId,
+                        childName,
+                      );
+                    }, childCount: filtered.length),
                   ),
                 ),
             ],
@@ -194,8 +209,12 @@ class _ChildEducationScreenState extends ConsumerState<ChildEducationScreen> wit
     return set.toList();
   }
 
-  List<EducationalMaterial> _filterMaterials(List<EducationalMaterial> list, String childId) {
-    final currentTab = _tabController.index; // 0: All, 1: Pending, 2: In Progress, 3: Completed
+  List<EducationalMaterial> _filterMaterials(
+    List<EducationalMaterial> list,
+    String childId,
+  ) {
+    final currentTab = _tabController
+        .index; // 0: All, 1: Pending, 2: In Progress, 3: Completed
 
     return list.where((m) {
       final status = m.statusFor(childId);
@@ -206,7 +225,9 @@ class _ChildEducationScreenState extends ConsumerState<ChildEducationScreen> wit
       if (currentTab == 3 && status != LearningStatus.completed) return false;
 
       // Subject filter
-      if (_selectedSubject != 'All' && m.subject != _selectedSubject) return false;
+      if (_selectedSubject != 'All' && m.subject != _selectedSubject) {
+        return false;
+      }
 
       // Search Query
       if (_searchQuery.isNotEmpty) {
@@ -250,7 +271,11 @@ class _ChildEducationScreenState extends ConsumerState<ChildEducationScreen> wit
                   color: theme.colorScheme.surface.withOpacity(0.6),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(Icons.school, color: theme.colorScheme.primary, size: 22),
+                child: Icon(
+                  Icons.school,
+                  color: theme.colorScheme.primary,
+                  size: 22,
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -273,7 +298,10 @@ class _ChildEducationScreenState extends ConsumerState<ChildEducationScreen> wit
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surface,
                   borderRadius: BorderRadius.circular(16),
@@ -295,7 +323,9 @@ class _ChildEducationScreenState extends ConsumerState<ChildEducationScreen> wit
               value: progress,
               minHeight: 8,
               backgroundColor: theme.colorScheme.surface.withOpacity(0.5),
-              valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                theme.colorScheme.primary,
+              ),
             ),
           ),
         ],
@@ -326,8 +356,13 @@ class _ChildEducationScreenState extends ConsumerState<ChildEducationScreen> wit
                     )
                   : null,
               filled: true,
-              fillColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              fillColor: theme.colorScheme.surfaceContainerHighest.withOpacity(
+                0.4,
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 10,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
                 borderSide: BorderSide.none,
@@ -415,7 +450,10 @@ class _ChildEducationScreenState extends ConsumerState<ChildEducationScreen> wit
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: _colorForType(theme, material.type).withOpacity(0.12),
+                      color: _colorForType(
+                        theme,
+                        material.type,
+                      ).withOpacity(0.12),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
@@ -433,8 +471,12 @@ class _ChildEducationScreenState extends ConsumerState<ChildEducationScreen> wit
                           material.title,
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
-                            decoration: isCompleted ? TextDecoration.lineThrough : null,
-                            color: isCompleted ? theme.colorScheme.onSurfaceVariant : null,
+                            decoration: isCompleted
+                                ? TextDecoration.lineThrough
+                                : null,
+                            color: isCompleted
+                                ? theme.colorScheme.onSurfaceVariant
+                                : null,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -445,7 +487,10 @@ class _ChildEducationScreenState extends ConsumerState<ChildEducationScreen> wit
                           runSpacing: 4,
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: theme.colorScheme.secondaryContainer,
                                 borderRadius: BorderRadius.circular(6),
@@ -459,7 +504,10 @@ class _ChildEducationScreenState extends ConsumerState<ChildEducationScreen> wit
                               ),
                             ),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: theme.colorScheme.tertiaryContainer,
                                 borderRadius: BorderRadius.circular(6),
@@ -479,12 +527,21 @@ class _ChildEducationScreenState extends ConsumerState<ChildEducationScreen> wit
                   ),
                   IconButton(
                     icon: Icon(
-                      isCompleted ? Icons.check_circle : Icons.radio_button_unchecked,
-                      color: isCompleted ? Colors.green : theme.colorScheme.outline,
+                      isCompleted
+                          ? Icons.check_circle
+                          : Icons.radio_button_unchecked,
+                      color: isCompleted
+                          ? Colors.green
+                          : theme.colorScheme.outline,
                       size: 26,
                     ),
                     tooltip: isCompleted ? 'Completed' : 'Mark as completed',
-                    onPressed: () => _toggleQuickComplete(material, familyId, childId, childName),
+                    onPressed: () => _toggleQuickComplete(
+                      material,
+                      familyId,
+                      childId,
+                      childName,
+                    ),
                   ),
                 ],
               ),
@@ -501,17 +558,25 @@ class _ChildEducationScreenState extends ConsumerState<ChildEducationScreen> wit
                 ),
               ],
 
-              if (material.instructions != null && material.instructions!.isNotEmpty) ...[
+              if (material.instructions != null &&
+                  material.instructions!.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.primaryContainer.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.lightbulb_outline, size: 14, color: theme.colorScheme.primary),
+                      Icon(
+                        Icons.lightbulb_outline,
+                        size: 14,
+                        color: theme.colorScheme.primary,
+                      ),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
@@ -537,7 +602,10 @@ class _ChildEducationScreenState extends ConsumerState<ChildEducationScreen> wit
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: _statusColor(status).withOpacity(0.12),
                       borderRadius: BorderRadius.circular(6),
@@ -556,13 +624,17 @@ class _ChildEducationScreenState extends ConsumerState<ChildEducationScreen> wit
                     Icon(
                       Icons.timer_outlined,
                       size: 14,
-                      color: material.isOverdue && !isCompleted ? Colors.red : theme.colorScheme.onSurfaceVariant,
+                      color: material.isOverdue && !isCompleted
+                          ? Colors.red
+                          : theme.colorScheme.onSurfaceVariant,
                     ),
                     const SizedBox(width: 4),
                     Text(
                       DateFormat('MMM d').format(material.dueDate!),
                       style: theme.textTheme.labelSmall?.copyWith(
-                        color: material.isOverdue && !isCompleted ? Colors.red : theme.colorScheme.onSurfaceVariant,
+                        color: material.isOverdue && !isCompleted
+                            ? Colors.red
+                            : theme.colorScheme.onSurfaceVariant,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -592,10 +664,14 @@ class _ChildEducationScreenState extends ConsumerState<ChildEducationScreen> wit
     String childName,
   ) async {
     final isCompleted = material.isCompletedBy(childId);
-    final nextStatus = isCompleted ? LearningStatus.inProgress : LearningStatus.completed;
+    final nextStatus = isCompleted
+        ? LearningStatus.inProgress
+        : LearningStatus.completed;
 
     try {
-      await ref.read(educationServiceProvider).updateChildProgress(
+      await ref
+          .read(educationServiceProvider)
+          .updateChildProgress(
             familyId: familyId,
             materialId: material.id,
             childId: childId,
@@ -605,7 +681,9 @@ class _ChildEducationScreenState extends ConsumerState<ChildEducationScreen> wit
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            backgroundColor: nextStatus == LearningStatus.completed ? Colors.green : Colors.blue,
+            backgroundColor: nextStatus == LearningStatus.completed
+                ? Colors.green
+                : Colors.blue,
             content: Text(
               nextStatus == LearningStatus.completed
                   ? '🎉 Nice work! Lesson completed.'
@@ -616,9 +694,9 @@ class _ChildEducationScreenState extends ConsumerState<ChildEducationScreen> wit
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update status: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to update status: $e')));
       }
     }
   }
@@ -644,7 +722,9 @@ class _ChildEducationScreenState extends ConsumerState<ChildEducationScreen> wit
             ),
             const SizedBox(height: 18),
             Text(
-              isTotalEmpty ? 'No Lessons Assigned Yet' : 'No Matching Lessons Found',
+              isTotalEmpty
+                  ? 'No Lessons Assigned Yet'
+                  : 'No Matching Lessons Found',
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),

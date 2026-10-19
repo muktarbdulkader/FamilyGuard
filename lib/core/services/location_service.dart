@@ -508,6 +508,7 @@ class LocationService {
               {
                 ...lastLocation,
                 'childId': doc.id,
+                'lastSeen': data['lastSeen'],
                 'childName': ?childName,
               },
               id: doc.id,

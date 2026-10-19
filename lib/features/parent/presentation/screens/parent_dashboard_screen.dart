@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -29,23 +30,29 @@ class ParentDashboardScreen extends ConsumerStatefulWidget {
   const ParentDashboardScreen({super.key});
 
   @override
-  ConsumerState<ParentDashboardScreen> createState() => _ParentDashboardScreenState();
+  ConsumerState<ParentDashboardScreen> createState() =>
+      _ParentDashboardScreenState();
 }
 
 class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   bool _autoSelectDone = false;
+  Timer? _presenceRefreshTimer;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _presenceRefreshTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _presenceRefreshTimer?.cancel();
     super.dispose();
   }
 
@@ -86,7 +93,8 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
 
     final effectiveFamilyId = selectedFamily?.id ?? '';
     final effectiveChildId = selectedChild?.id ?? '';
-    final hasSelection = effectiveFamilyId.isNotEmpty && effectiveChildId.isNotEmpty;
+    final hasSelection =
+        effectiveFamilyId.isNotEmpty && effectiveChildId.isNotEmpty;
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isRtl = Directionality.of(context) == TextDirection.rtl;
@@ -114,9 +122,13 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                     children: [
                       IconButton(
                         icon: Icon(
-                          isRtl ? Icons.arrow_forward_ios_rounded : Icons.arrow_back_ios_new_rounded,
+                          isRtl
+                              ? Icons.arrow_forward_ios_rounded
+                              : Icons.arrow_back_ios_new_rounded,
                           size: 20,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          color: isDark
+                              ? Colors.white
+                              : const Color(0xFF0F172A),
                         ),
                         onPressed: () => Navigator.of(context).maybePop(),
                       ),
@@ -125,8 +137,14 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: isDark
-                                ? [const Color(0xFF063D39), const Color(0xFF0D5E57)]
-                                : [const Color(0xFF4F46E5), const Color(0xFF7C3AED)],
+                                ? [
+                                    const Color(0xFF063D39),
+                                    const Color(0xFF0D5E57),
+                                  ]
+                                : [
+                                    const Color(0xFF4F46E5),
+                                    const Color(0xFF7C3AED),
+                                  ],
                           ),
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
@@ -142,7 +160,9 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                         child: Icon(
                           Icons.family_restroom_rounded,
                           size: 22,
-                          color: isDark ? const Color(0xFF2DD4BF) : Colors.white,
+                          color: isDark
+                              ? const Color(0xFF2DD4BF)
+                              : Colors.white,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -155,14 +175,18 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                               style: TextStyle(
                                 fontWeight: FontWeight.w800,
                                 fontSize: 18,
-                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                color: isDark
+                                    ? Colors.white
+                                    : const Color(0xFF0F172A),
                                 letterSpacing: -0.3,
                               ),
                             ),
                             Text(
                               l10n.parentDashboard,
                               style: TextStyle(
-                                color: isDark ? const Color(0xFF8BA0B8) : const Color(0xFF64748B),
+                                color: isDark
+                                    ? const Color(0xFF8BA0B8)
+                                    : const Color(0xFF64748B),
                                 fontSize: 12,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -174,7 +198,9 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                         onPressed: () => _showSettings(),
                         icon: Icon(
                           Icons.settings_outlined,
-                          color: isDark ? const Color(0xFF8BA0B8) : const Color(0xFF64748B),
+                          color: isDark
+                              ? const Color(0xFF8BA0B8)
+                              : const Color(0xFF64748B),
                         ),
                         tooltip: l10n.settings,
                       ),
@@ -184,7 +210,8 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
 
                   // Family Selector
                   familiesAsync.when(
-                    loading: () => const _LoadingSelector(title: 'Loading families...'),
+                    loading: () =>
+                        const _LoadingSelector(title: 'Loading families...'),
                     error: (error, stack) => _ErrorSelector(
                       title: 'Error loading families',
                       error: error.toString(),
@@ -193,7 +220,8 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                       if (families.isEmpty) {
                         return _EmptyStateSelector(
                           title: 'No families found',
-                          subtitle: 'Create a family to start managing parental controls',
+                          subtitle:
+                              'Create a family to start managing parental controls',
                           onAction: () => _showCreateFamilyDialog(),
                           actionLabel: 'Create Family',
                         );
@@ -202,7 +230,8 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                         families: families,
                         selectedFamily: selectedFamily ?? families.first,
                         onFamilySelected: (family) {
-                          ref.read(selectedFamilyProvider.notifier).state = family;
+                          ref.read(selectedFamilyProvider.notifier).state =
+                              family;
                           ref.read(selectedChildProvider.notifier).state = null;
                         },
                       );
@@ -214,7 +243,8 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                   // Child Selector (always show when family available)
                   if (selectedFamily != null)
                     childrenAsync.when(
-                      loading: () => const _LoadingSelector(title: 'Loading children...'),
+                      loading: () =>
+                          const _LoadingSelector(title: 'Loading children...'),
                       error: (error, stack) => _ErrorSelector(
                         title: 'Error loading children',
                         error: error.toString(),
@@ -232,7 +262,8 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                           children: children,
                           selectedChild: selectedChild ?? children.first,
                           onChildSelected: (child) {
-                            ref.read(selectedChildProvider.notifier).state = child;
+                            ref.read(selectedChildProvider.notifier).state =
+                                child;
                           },
                         );
                       },
@@ -253,16 +284,37 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
               ),
               child: TabBar(
                 controller: _tabController,
-                labelColor: isDark ? const Color(0xFF2DD4BF) : const Color(0xFF4F46E5),
-                unselectedLabelColor: isDark ? const Color(0xFF8BA0B8) : const Color(0xFF64748B),
-                indicatorColor: isDark ? const Color(0xFF2DD4BF) : const Color(0xFF4F46E5),
+                labelColor: isDark
+                    ? const Color(0xFF2DD4BF)
+                    : const Color(0xFF4F46E5),
+                unselectedLabelColor: isDark
+                    ? const Color(0xFF8BA0B8)
+                    : const Color(0xFF64748B),
+                indicatorColor: isDark
+                    ? const Color(0xFF2DD4BF)
+                    : const Color(0xFF4F46E5),
                 indicatorWeight: 3,
-                labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+                labelStyle: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+                unselectedLabelStyle: const TextStyle(
+                  fontWeight: FontWeight.w500,
+                  fontSize: 13,
+                ),
                 tabs: [
-                  Tab(text: l10n.apps, icon: const Icon(Icons.apps_rounded, size: 20)),
-                  const Tab(text: 'Usage', icon: Icon(Icons.bar_chart_rounded, size: 20)),
-                  Tab(text: l10n.location, icon: const Icon(Icons.location_on_rounded, size: 20)),
+                  Tab(
+                    text: l10n.apps,
+                    icon: const Icon(Icons.apps_rounded, size: 20),
+                  ),
+                  const Tab(
+                    text: 'Usage',
+                    icon: Icon(Icons.bar_chart_rounded, size: 20),
+                  ),
+                  Tab(
+                    text: l10n.location,
+                    icon: const Icon(Icons.location_on_rounded, size: 20),
+                  ),
                 ],
               ),
             ),
@@ -328,7 +380,9 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
         return SingleChildScrollView(
           padding: const EdgeInsets.all(32.0),
           child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: constraints.maxHeight - 64.0),
+            constraints: BoxConstraints(
+              minHeight: constraints.maxHeight - 64.0,
+            ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -343,7 +397,10 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                 const SizedBox(height: 18),
                 Text(
                   title,
-                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                  ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
@@ -360,7 +417,10 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                   style: OutlinedButton.styleFrom(
                     foregroundColor: color,
                     side: BorderSide(color: color),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
                   ),
                 ),
               ],
@@ -370,8 +430,6 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
       },
     );
   }
-
-
 
   // ──────────────────────────────────────────────────────────────────────────
   // USAGE TAB (REAL DATA & INTERACTION)
@@ -384,16 +442,28 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
   }) {
     final childName = child?.displayName ?? 'Child';
     final appsAsync = ref.watch(
-      familyChildAppsProvider(FamilyChildParams(familyId: familyId, childId: childId)),
+      familyChildAppsProvider(
+        FamilyChildParams(familyId: familyId, childId: childId),
+      ),
     );
     final usageAsync = ref.watch(
-      familyChildAppUsageProvider(FamilyChildParams(familyId: familyId, childId: childId)),
+      familyChildAppUsageProvider(
+        FamilyChildParams(familyId: familyId, childId: childId),
+      ),
     );
 
     return RefreshIndicator(
       onRefresh: () async {
-        ref.invalidate(familyChildAppsProvider(FamilyChildParams(familyId: familyId, childId: childId)));
-        ref.invalidate(familyChildAppUsageProvider(FamilyChildParams(familyId: familyId, childId: childId)));
+        ref.invalidate(
+          familyChildAppsProvider(
+            FamilyChildParams(familyId: familyId, childId: childId),
+          ),
+        );
+        ref.invalidate(
+          familyChildAppUsageProvider(
+            FamilyChildParams(familyId: familyId, childId: childId),
+          ),
+        );
       },
       child: ListView(
         padding: const EdgeInsets.all(16.0),
@@ -406,9 +476,7 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: const Center(
-                child: CircularProgressIndicator(),
-              ),
+              child: const Center(child: CircularProgressIndicator()),
             ),
             error: (err, _) => Container(
               padding: const EdgeInsets.all(16),
@@ -427,7 +495,9 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                 0,
                 (sum, u) => sum + u.todayMinutes,
               );
-              final activeAppsCount = usageMap.values.where((u) => u.todayMinutes > 0).length;
+              final activeAppsCount = usageMap.values
+                  .where((u) => u.todayMinutes > 0)
+                  .length;
               final totalOpens = usageMap.values.fold<int>(
                 0,
                 (sum, u) => sum + u.openCount,
@@ -435,11 +505,14 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
 
               final hours = totalMinutesToday ~/ 60;
               final minutes = totalMinutesToday % 60;
-              final timeString = hours > 0 ? '${hours}h ${minutes}m' : '${minutes}m';
+              final timeString = hours > 0
+                  ? '${hours}h ${minutes}m'
+                  : '${minutes}m';
 
               // Standard guideline allowance: 120 minutes daily
               const targetAllowanceMinutes = 120;
-              final allowanceRatio = (totalMinutesToday / targetAllowanceMinutes).clamp(0.0, 1.0);
+              final allowanceRatio =
+                  (totalMinutesToday / targetAllowanceMinutes).clamp(0.0, 1.0);
 
               final Color progressColor;
               final String statusChipText;
@@ -493,7 +566,9 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                                 radius: 18,
                                 backgroundColor: const Color(0xFF3B82F6),
                                 child: Text(
-                                  childName.isNotEmpty ? childName[0].toUpperCase() : 'C',
+                                  childName.isNotEmpty
+                                      ? childName[0].toUpperCase()
+                                      : 'C',
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,
@@ -532,18 +607,25 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                           ),
                         ),
                         const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: chipBg,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            statusChipText,
-                            style: TextStyle(
-                              color: chipText,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
+                        Flexible(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: chipBg,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              statusChipText,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: chipText,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
@@ -581,7 +663,9 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                         value: allowanceRatio,
                         minHeight: 8,
                         backgroundColor: const Color(0xFF334155),
-                        valueColor: AlwaysStoppedAnimation<Color>(progressColor),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          progressColor,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 18),
@@ -625,10 +709,7 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
           const SizedBox(height: 16),
 
           // ── Education Tasks Sent ───────────────────────────────────
-          _buildEducationTasksSection(
-            familyId: familyId,
-            childId: childId,
-          ),
+          _buildEducationTasksSection(familyId: familyId, childId: childId),
 
           const SizedBox(height: 24),
 
@@ -653,7 +734,10 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                 label: const Text('Manage Rules'),
                 style: TextButton.styleFrom(
                   foregroundColor: const Color(0xFF4F46E5),
-                  textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                  textStyle: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
@@ -669,9 +753,7 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                 child: CircularProgressIndicator(),
               ),
             ),
-            error: (err, _) => Center(
-              child: Text('Error loading apps: $err'),
-            ),
+            error: (err, _) => Center(child: Text('Error loading apps: $err')),
             data: (apps) {
               return usageAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
@@ -687,17 +769,27 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                       ),
                       child: Column(
                         children: [
-                          Icon(Icons.devices_other_rounded, size: 48, color: Colors.blue[300]),
+                          Icon(
+                            Icons.devices_other_rounded,
+                            size: 48,
+                            color: Colors.blue[300],
+                          ),
                           const SizedBox(height: 12),
                           Text(
                             "Waiting for $childName's Device",
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
                           ),
                           const SizedBox(height: 6),
                           Text(
                             "Once the companion app runs on $childName's phone, installed apps and usage reports will sync here in real time.",
                             textAlign: TextAlign.center,
-                            style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 13,
+                            ),
                           ),
                         ],
                       ),
@@ -753,7 +845,8 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
     required String childId,
     required String childName,
   }) {
-    final parentName = ref.watch(authNotifierProvider).user?.displayName ?? 'Parent';
+    final parentName =
+        ref.watch(authNotifierProvider).user?.displayName ?? 'Parent';
 
     return InkWell(
       onTap: () => SendEducationalDialog.show(
@@ -789,7 +882,11 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                 color: Colors.white.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: const Icon(Icons.school_rounded, color: Colors.white, size: 26),
+              child: const Icon(
+                Icons.school_rounded,
+                color: Colors.white,
+                size: 26,
+              ),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -864,17 +961,20 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
 
     // Unified list: prioritizing EducationalMaterial
     final seenIds = <String>{};
-    final unifiedItems = <({
-      String id,
-      String title,
-      String subject,
-      String note,
-      String? url,
-      String? fileName,
-      String typeBadge,
-      bool isCompleted,
-      bool isDoc,
-    })>[];
+    final unifiedItems =
+        <
+          ({
+            String id,
+            String title,
+            String subject,
+            String note,
+            String? url,
+            String? fileName,
+            String typeBadge,
+            bool isCompleted,
+            bool isDoc,
+          })
+        >[];
 
     for (final mat in materials) {
       seenIds.add(mat.id);
@@ -935,11 +1035,15 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
           ],
         ),
         const SizedBox(height: 10),
-        ...unifiedItems.take(4).map((item) => _buildUnifiedEducationCard(
-          item: item,
-          familyId: familyId,
-          childId: childId,
-        )),
+        ...unifiedItems
+            .take(4)
+            .map(
+              (item) => _buildUnifiedEducationCard(
+                item: item,
+                familyId: familyId,
+                childId: childId,
+              ),
+            ),
         if (unifiedItems.length > 4)
           TextButton.icon(
             onPressed: () => context.push(AppRoutes.parentEducation),
@@ -964,7 +1068,8 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
       String typeBadge,
       bool isCompleted,
       bool isDoc,
-    }) item,
+    })
+    item,
     required String familyId,
     required String childId,
   }) {
@@ -1024,15 +1129,22 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                           style: TextStyle(
                             fontWeight: FontWeight.w700,
                             fontSize: 13,
-                            color: item.isCompleted ? Colors.grey[500] : const Color(0xFF0F172A),
-                            decoration: item.isCompleted ? TextDecoration.lineThrough : null,
+                            color: item.isCompleted
+                                ? Colors.grey[500]
+                                : const Color(0xFF0F172A),
+                            decoration: item.isCompleted
+                                ? TextDecoration.lineThrough
+                                : null,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       const SizedBox(width: 6),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: color.withOpacity(0.12),
                           borderRadius: BorderRadius.circular(5),
@@ -1052,12 +1164,20 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                     const SizedBox(height: 2),
                     Row(
                       children: [
-                        const Icon(Icons.attachment_rounded, size: 12, color: Color(0xFF64748B)),
+                        const Icon(
+                          Icons.attachment_rounded,
+                          size: 12,
+                          color: Color(0xFF64748B),
+                        ),
                         const SizedBox(width: 3),
                         Flexible(
                           child: Text(
                             item.fileName!,
-                            style: const TextStyle(fontSize: 11, color: Color(0xFF4F46E5), fontWeight: FontWeight.w600),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Color(0xFF4F46E5),
+                              fontWeight: FontWeight.w600,
+                            ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -1082,21 +1202,35 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (item.isCompleted)
-                  const Icon(Icons.check_circle_rounded, color: Colors.green, size: 20)
+                  const Icon(
+                    Icons.check_circle_rounded,
+                    color: Colors.green,
+                    size: 20,
+                  )
                 else
-                  Icon(Icons.schedule_rounded, color: Colors.orange[400], size: 18),
+                  Icon(
+                    Icons.schedule_rounded,
+                    color: Colors.orange[400],
+                    size: 18,
+                  ),
                 const SizedBox(width: 6),
                 InkWell(
                   onTap: () async {
-                    await ref.read(educationServiceProvider).deleteTask(
-                      familyId: familyId,
-                      childId: childId,
-                      taskId: item.id,
-                    );
+                    await ref
+                        .read(educationServiceProvider)
+                        .deleteTask(
+                          familyId: familyId,
+                          childId: childId,
+                          taskId: item.id,
+                        );
                   },
                   child: Padding(
                     padding: const EdgeInsets.all(4),
-                    child: Icon(Icons.delete_outline_rounded, size: 18, color: Colors.red[300]),
+                    child: Icon(
+                      Icons.delete_outline_rounded,
+                      size: 18,
+                      color: Colors.red[300],
+                    ),
                   ),
                 ),
               ],
@@ -1130,12 +1264,18 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
 
   IconData _subjectIcon(String subject) {
     switch (subject) {
-      case 'Math': return Icons.calculate_rounded;
-      case 'Reading': return Icons.menu_book_rounded;
-      case 'Language': return Icons.translate_rounded;
-      case 'Video': return Icons.play_circle_fill_rounded;
-      case 'Assignment': return Icons.assignment_rounded;
-      default: return Icons.science_rounded;
+      case 'Math':
+        return Icons.calculate_rounded;
+      case 'Reading':
+        return Icons.menu_book_rounded;
+      case 'Language':
+        return Icons.translate_rounded;
+      case 'Video':
+        return Icons.play_circle_fill_rounded;
+      case 'Assignment':
+        return Icons.assignment_rounded;
+      default:
+        return Icons.science_rounded;
     }
   }
 
@@ -1163,7 +1303,10 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                     label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 10),
+                    style: const TextStyle(
+                      color: Color(0xFF94A3B8),
+                      fontSize: 10,
+                    ),
                   ),
                 ),
               ],
@@ -1203,7 +1346,9 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: isBlocked ? Colors.red.withOpacity(0.3) : const Color(0xFFE2E8F0),
+          color: isBlocked
+              ? Colors.red.withOpacity(0.3)
+              : const Color(0xFFE2E8F0),
         ),
         boxShadow: [
           BoxShadow(
@@ -1254,17 +1399,24 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                         Row(
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFEEF2FF),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
-                                usedMinutes > 0 ? '${usedMinutes}m used today' : 'No usage today',
+                                usedMinutes > 0
+                                    ? '${usedMinutes}m used today'
+                                    : 'No usage today',
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
-                                  color: usedMinutes > 0 ? const Color(0xFF4338CA) : Colors.grey[600],
+                                  color: usedMinutes > 0
+                                      ? const Color(0xFF4338CA)
+                                      : Colors.grey[600],
                                 ),
                               ),
                             ),
@@ -1272,7 +1424,10 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                               const SizedBox(width: 6),
                               Text(
                                 '• $opens opens',
-                                style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey[600],
+                                ),
                               ),
                             ],
                           ],
@@ -1282,7 +1437,11 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                   ),
                   _buildRuleStatusBadge(app.rule, app.dailyLimitMinutes),
                   IconButton(
-                    icon: const Icon(Icons.tune_rounded, size: 18, color: Color(0xFF64748B)),
+                    icon: const Icon(
+                      Icons.tune_rounded,
+                      size: 18,
+                      color: Color(0xFF64748B),
+                    ),
                     tooltip: 'Edit Rule',
                     onPressed: () {
                       showModalBottomSheet(
@@ -1355,11 +1514,7 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
       ),
       child: Text(
         label,
-        style: TextStyle(
-          color: fg,
-          fontSize: 11,
-          fontWeight: FontWeight.bold,
-        ),
+        style: TextStyle(color: fg, fontSize: 11, fontWeight: FontWeight.bold),
       ),
     );
   }
@@ -1428,7 +1583,8 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
         icon: Icons.location_on_rounded,
         color: Colors.orange,
         title: 'Select a Family',
-        subtitle: 'Choose a family from above to access live GPS location monitoring.',
+        subtitle:
+            'Choose a family from above to access live GPS location monitoring.',
       );
     }
 
@@ -1437,15 +1593,16 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
     return StreamBuilder<List<FamilyLocation>>(
       stream: LocationService().getFamilyLocations(familyId),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
 
         final locations = snapshot.data ?? [];
         final childLoc = locations.cast<FamilyLocation?>().firstWhere(
-              (loc) => loc?.childId == childId,
-              orElse: () => null,
-            );
+          (loc) => loc?.childId == childId,
+          orElse: () => null,
+        );
 
         return ListView(
           padding: const EdgeInsets.all(16.0),
@@ -1454,7 +1611,11 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
             if (childLoc != null)
               _buildChildLiveGpsCard(childLoc, childName)
             else
-              _buildChildAwaitingGpsCard(childName),
+              _buildChildAwaitingGpsCard(
+                childName,
+                child?.isOnline ?? false,
+                child?.lastSeen,
+              ),
 
             const SizedBox(height: 20),
 
@@ -1484,7 +1645,11 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                       color: Colors.white.withOpacity(0.2),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.map_rounded, color: Colors.white, size: 26),
+                    child: const Icon(
+                      Icons.map_rounded,
+                      color: Colors.white,
+                      size: 26,
+                    ),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -1502,7 +1667,10 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                         SizedBox(height: 2),
                         Text(
                           'Track all children, geofences, and safe zones on full screen.',
-                          style: TextStyle(color: Color(0xFFE0E7FF), fontSize: 12),
+                          style: TextStyle(
+                            color: Color(0xFFE0E7FF),
+                            fontSize: 12,
+                          ),
                         ),
                       ],
                     ),
@@ -1513,13 +1681,19 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,
                       foregroundColor: const Color(0xFF4F46E5),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
                       elevation: 0,
                     ),
-                    child: const Text('Open Map', style: TextStyle(fontWeight: FontWeight.bold)),
+                    child: const Text(
+                      'Open Map',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ],
               ),
@@ -1528,7 +1702,8 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
             const SizedBox(height: 24),
 
             // ── Other Family Members' Locations ──────────────────────
-            if (locations.length > 1 || (locations.isNotEmpty && childLoc == null)) ...[
+            if (locations.length > 1 ||
+                (locations.isNotEmpty && childLoc == null)) ...[
               Text(
                 'All Family Devices',
                 style: TextStyle(
@@ -1540,7 +1715,9 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
               const SizedBox(height: 10),
               ...locations.map((loc) {
                 final isCurrentChild = loc.childId == childId;
-                final name = loc.childName ?? (isCurrentChild ? childName : 'Child Device');
+                final name =
+                    loc.childName ??
+                    (isCurrentChild ? childName : 'Child Device');
                 return Container(
                   margin: const EdgeInsets.only(bottom: 10),
                   padding: const EdgeInsets.all(14),
@@ -1548,7 +1725,9 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
-                      color: isCurrentChild ? const Color(0xFF4F46E5) : const Color(0xFFE2E8F0),
+                      color: isCurrentChild
+                          ? const Color(0xFF4F46E5)
+                          : const Color(0xFFE2E8F0),
                       width: isCurrentChild ? 1.5 : 1.0,
                     ),
                   ),
@@ -1582,7 +1761,10 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                                 if (isCurrentChild) ...[
                                   const SizedBox(width: 6),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: const Color(0xFFEEF2FF),
                                       borderRadius: BorderRadius.circular(4),
@@ -1601,15 +1783,26 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                             ),
                             const SizedBox(height: 2),
                             FutureBuilder<String?>(
-                              future: (loc.address != null && loc.address!.trim().isNotEmpty)
+                              future:
+                                  (loc.address != null &&
+                                      loc.address!.trim().isNotEmpty)
                                   ? Future.value(loc.address)
-                                  : GeocodingService.instance.getPlaceName(loc.latitude, loc.longitude),
+                                  : GeocodingService.instance.getPlaceName(
+                                      loc.latitude,
+                                      loc.longitude,
+                                    ),
                               builder: (context, snapshot) {
                                 final place = snapshot.data ?? loc.address;
-                                final placePrefix = (place != null && place.trim().isNotEmpty) ? '$place • ' : '';
+                                final placePrefix =
+                                    (place != null && place.trim().isNotEmpty)
+                                    ? '$place • '
+                                    : '';
                                 return Text(
                                   '$placePrefix${loc.latitude.toStringAsFixed(4)}, ${loc.longitude.toStringAsFixed(4)} • ${_formatTimestampAgo(loc.timestamp)}',
-                                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 12,
+                                  ),
                                 );
                               },
                             ),
@@ -1617,7 +1810,11 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.navigation_rounded, color: Color(0xFF4F46E5), size: 20),
+                        icon: const Icon(
+                          Icons.navigation_rounded,
+                          color: Color(0xFF4F46E5),
+                          size: 20,
+                        ),
                         tooltip: 'Navigate',
                         onPressed: () => _openLocationInMaps(loc),
                       ),
@@ -1670,19 +1867,23 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                       width: 10,
                       height: 10,
                       decoration: BoxDecoration(
-                        color: isStale ? const Color(0xFFF59E0B) : const Color(0xFF10B981),
+                        color: isStale
+                            ? const Color(0xFFF59E0B)
+                            : const Color(0xFF10B981),
                         shape: BoxShape.circle,
                       ),
                     ),
                     const SizedBox(width: 8),
                     Flexible(
                       child: Text(
-                        isStale ? 'LAST KNOWN GPS' : 'LIVE GPS LOCATION',
+                        'GPS LOCATION',
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w900,
                           letterSpacing: 0.8,
-                          color: isStale ? const Color(0xFFD97706) : const Color(0xFF059669),
+                          color: isStale
+                              ? const Color(0xFFD97706)
+                              : const Color(0xFF059669),
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -1691,16 +1892,57 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                 ),
               ),
               const SizedBox(width: 8),
-              Text(
-                _formatTimestampAgo(loc.timestamp),
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.grey[600],
+              Flexible(
+                child: Text(
+                  'GPS: updated ${_formatTimestampAgo(loc.timestamp)}',
+                  textAlign: TextAlign.end,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: isStale
+                        ? const Color(0xFFD97706)
+                        : Colors.grey[600],
+                  ),
                 ),
               ),
             ],
           ),
+
+          if (!loc.isDeviceOnline) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF2F2),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFFECACA)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.wifi_off_rounded,
+                    size: 17,
+                    color: Color(0xFFB91C1C),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      loc.lastSeen == null
+                          ? '$childName is offline. Device heartbeat has not been received yet.'
+                          : '$childName is offline. Last seen ${_formatTimestampAgo(loc.lastSeen!)}.',
+                      style: const TextStyle(
+                        color: Color(0xFF991B1B),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
 
           const SizedBox(height: 14),
 
@@ -1719,7 +1961,10 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
           FutureBuilder<String?>(
             future: (loc.address != null && loc.address!.trim().isNotEmpty)
                 ? Future.value(loc.address)
-                : GeocodingService.instance.getPlaceName(loc.latitude, loc.longitude),
+                : GeocodingService.instance.getPlaceName(
+                    loc.latitude,
+                    loc.longitude,
+                  ),
             builder: (context, snapshot) {
               final place = snapshot.data ?? loc.address;
               if (place == null || place.trim().isEmpty) {
@@ -1727,7 +1972,10 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
               }
               return Container(
                 margin: const EdgeInsets.only(bottom: 10),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFFEFF6FF),
                   borderRadius: BorderRadius.circular(10),
@@ -1735,7 +1983,11 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.location_city_rounded, size: 18, color: Color(0xFF2563EB)),
+                    const Icon(
+                      Icons.location_city_rounded,
+                      size: 18,
+                      color: Color(0xFF2563EB),
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -1758,7 +2010,11 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
           // Lat/Lng Coordinates
           Row(
             children: [
-              const Icon(Icons.place_rounded, size: 16, color: Color(0xFFEF4444)),
+              const Icon(
+                Icons.place_rounded,
+                size: 16,
+                color: Color(0xFFEF4444),
+              ),
               const SizedBox(width: 4),
               Text(
                 '${loc.latitude.toStringAsFixed(5)}, ${loc.longitude.toStringAsFixed(5)}',
@@ -1774,10 +2030,17 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                 onTap: () => _copyLocationCoordinates(loc),
                 borderRadius: BorderRadius.circular(4),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 2,
+                  ),
                   child: Row(
                     children: const [
-                      Icon(Icons.copy_rounded, size: 13, color: Color(0xFF4F46E5)),
+                      Icon(
+                        Icons.copy_rounded,
+                        size: 13,
+                        color: Color(0xFF4F46E5),
+                      ),
                       SizedBox(width: 2),
                       Text(
                         'Copy',
@@ -1832,11 +2095,15 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.info_outline_rounded, size: 16, color: Color(0xFFD97706)),
+                  const Icon(
+                    Icons.info_outline_rounded,
+                    size: 16,
+                    color: Color(0xFFD97706),
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Reported over 30 mins ago. The child device may be sleeping or offline.',
+                      'GPS is stale. The device may be sleeping or offline.',
                       style: TextStyle(color: Colors.amber[900], fontSize: 11),
                     ),
                   ),
@@ -1876,7 +2143,10 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFF334155),
                   side: const BorderSide(color: Color(0xFFCBD5E1)),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
@@ -1911,7 +2181,11 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                 const SizedBox(width: 4),
                 Text(
                   label,
-                  style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: color,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
             ),
@@ -1930,7 +2204,11 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
     );
   }
 
-  Widget _buildChildAwaitingGpsCard(String childName) {
+  Widget _buildChildAwaitingGpsCard(
+    String childName,
+    bool isOnline,
+    DateTime? lastSeen,
+  ) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -1946,7 +2224,11 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
               color: Colors.orange[50],
               shape: BoxShape.circle,
             ),
-            child: Icon(Icons.satellite_alt_rounded, size: 40, color: Colors.orange[600]),
+            child: Icon(
+              Icons.satellite_alt_rounded,
+              size: 40,
+              color: Colors.orange[600],
+            ),
           ),
           const SizedBox(height: 16),
           Text(
@@ -1959,6 +2241,20 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.grey[600], fontSize: 13),
           ),
+          if (!isOnline) ...[
+            const SizedBox(height: 12),
+            Text(
+              lastSeen == null
+                  ? '$childName is offline. No device heartbeat has been received.'
+                  : '$childName is offline. Last seen ${_formatTimestampAgo(lastSeen)}.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Color(0xFFB91C1C),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -1969,12 +2265,19 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
             ),
             child: Row(
               children: [
-                const Icon(Icons.check_circle_outline_rounded, size: 16, color: Color(0xFF10B981)),
+                const Icon(
+                  Icons.check_circle_outline_rounded,
+                  size: 16,
+                  color: Color(0xFF10B981),
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     "Check that Location permission is 'Allow all the time' on $childName's device.",
-                    style: const TextStyle(fontSize: 11, color: Color(0xFF475569)),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF475569),
+                    ),
                   ),
                 ),
               ],
@@ -1988,7 +2291,9 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFF59E0B),
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
           ),
         ],
@@ -1997,16 +2302,21 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
   }
 
   Future<void> _openLocationInMaps(FamilyLocation loc) async {
-    final uri = 'geo:${loc.latitude},${loc.longitude}?q=${loc.latitude},${loc.longitude}';
+    final uri =
+        'geo:${loc.latitude},${loc.longitude}?q=${loc.latitude},${loc.longitude}';
     const channel = MethodChannel('family_guardian/permissions');
     try {
       await channel.invokeMethod('openUrl', {'url': uri});
     } catch (_) {
-      await Clipboard.setData(ClipboardData(text: '${loc.latitude}, ${loc.longitude}'));
+      await Clipboard.setData(
+        ClipboardData(text: '${loc.latitude}, ${loc.longitude}'),
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Coordinates copied to clipboard. Paste into Google Maps.'),
+            content: Text(
+              'Coordinates copied to clipboard. Paste into Google Maps.',
+            ),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -2016,7 +2326,10 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
 
   Future<void> _copyLocationCoordinates(FamilyLocation loc) async {
     await Clipboard.setData(
-      ClipboardData(text: '${loc.latitude.toStringAsFixed(6)}, ${loc.longitude.toStringAsFixed(6)}'),
+      ClipboardData(
+        text:
+            '${loc.latitude.toStringAsFixed(6)}, ${loc.longitude.toStringAsFixed(6)}',
+      ),
     );
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -2067,7 +2380,10 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                     ),
                   ),
                   IconButton(
-                    icon: Icon(Icons.close_rounded, color: isDark ? Colors.white70 : Colors.grey),
+                    icon: Icon(
+                      Icons.close_rounded,
+                      color: isDark ? Colors.white70 : Colors.grey,
+                    ),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
@@ -2081,12 +2397,19 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                   final isCurrentDark = currentMode == ThemeMode.dark;
                   return Container(
                     margin: const EdgeInsets.symmetric(vertical: 6),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF14243B) : Colors.grey[100],
+                      color: isDark
+                          ? const Color(0xFF14243B)
+                          : Colors.grey[100],
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(
-                        color: isDark ? const Color(0xFF1E3554) : Colors.grey[300]!,
+                        color: isDark
+                            ? const Color(0xFF1E3554)
+                            : Colors.grey[300]!,
                       ),
                     ),
                     child: Row(
@@ -2098,7 +2421,9 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Icon(
-                            isCurrentDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+                            isCurrentDark
+                                ? Icons.dark_mode_rounded
+                                : Icons.light_mode_rounded,
                             color: const Color(0xFF2DD4BF),
                             size: 20,
                           ),
@@ -2117,9 +2442,13 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                                 ),
                               ),
                               Text(
-                                isCurrentDark ? 'Dark theme enabled across all pages' : 'Light theme active',
+                                isCurrentDark
+                                    ? 'Dark theme enabled across all pages'
+                                    : 'Light theme active',
                                 style: TextStyle(
-                                  color: isDark ? const Color(0xFF8BA0B8) : Colors.grey[600],
+                                  color: isDark
+                                      ? const Color(0xFF8BA0B8)
+                                      : Colors.grey[600],
                                   fontSize: 11.5,
                                 ),
                               ),
@@ -2142,48 +2471,84 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
               const SizedBox(height: 6),
 
               ListTile(
-                leading: const Icon(Icons.notifications_active_rounded, color: Color(0xFF2DD4BF)),
+                leading: const Icon(
+                  Icons.notifications_active_rounded,
+                  color: Color(0xFF2DD4BF),
+                ),
                 title: Text(
                   'Notification Preferences',
-                  style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    color: isDark ? Colors.white : Colors.black87,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 subtitle: Text(
                   'Alerts for requests, new apps, and limits',
-                  style: TextStyle(color: isDark ? const Color(0xFF8BA0B8) : Colors.grey[600], fontSize: 12),
+                  style: TextStyle(
+                    color: isDark ? const Color(0xFF8BA0B8) : Colors.grey[600],
+                    fontSize: 12,
+                  ),
                 ),
-                trailing: Icon(Icons.chevron_right_rounded, color: isDark ? Colors.white38 : Colors.grey),
+                trailing: Icon(
+                  Icons.chevron_right_rounded,
+                  color: isDark ? Colors.white38 : Colors.grey,
+                ),
                 onTap: () {
                   Navigator.pop(context);
                   context.push('/notifications');
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.qr_code_rounded, color: Color(0xFF38BDF8)),
+                leading: const Icon(
+                  Icons.qr_code_rounded,
+                  color: Color(0xFF38BDF8),
+                ),
                 title: Text(
                   'Pair New Device',
-                  style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    color: isDark ? Colors.white : Colors.black87,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 subtitle: Text(
                   'Generate 6-digit code or QR for child',
-                  style: TextStyle(color: isDark ? const Color(0xFF8BA0B8) : Colors.grey[600], fontSize: 12),
+                  style: TextStyle(
+                    color: isDark ? const Color(0xFF8BA0B8) : Colors.grey[600],
+                    fontSize: 12,
+                  ),
                 ),
-                trailing: Icon(Icons.chevron_right_rounded, color: isDark ? Colors.white38 : Colors.grey),
+                trailing: Icon(
+                  Icons.chevron_right_rounded,
+                  color: isDark ? Colors.white38 : Colors.grey,
+                ),
                 onTap: () {
                   Navigator.pop(context);
                   context.push(AppRoutes.familySetup);
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.swap_horiz_rounded, color: Color(0xFFF59E0B)),
+                leading: const Icon(
+                  Icons.swap_horiz_rounded,
+                  color: Color(0xFFF59E0B),
+                ),
                 title: Text(
                   'Switch Role',
-                  style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    color: isDark ? Colors.white : Colors.black87,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 subtitle: Text(
                   'Change account mode to child companion',
-                  style: TextStyle(color: isDark ? const Color(0xFF8BA0B8) : Colors.grey[600], fontSize: 12),
+                  style: TextStyle(
+                    color: isDark ? const Color(0xFF8BA0B8) : Colors.grey[600],
+                    fontSize: 12,
+                  ),
                 ),
-                trailing: Icon(Icons.chevron_right_rounded, color: isDark ? Colors.white38 : Colors.grey),
+                trailing: Icon(
+                  Icons.chevron_right_rounded,
+                  color: isDark ? Colors.white38 : Colors.grey,
+                ),
                 onTap: () {
                   Navigator.pop(context);
                   context.push(AppRoutes.roleSelection);
@@ -2203,9 +2568,7 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
   void _showInviteChildDialog() {
     context.push(AppRoutes.familySetup);
   }
-
 }
-
 
 // Helper widgets
 class _LoadingSelector extends StatelessWidget {
@@ -2221,14 +2584,19 @@ class _LoadingSelector extends StatelessWidget {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF132238) : Colors.grey[100],
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: isDark ? const Color(0xFF1E3554) : Colors.grey[300]!),
+        border: Border.all(
+          color: isDark ? const Color(0xFF1E3554) : Colors.grey[300]!,
+        ),
       ),
       child: Row(
         children: [
           const SizedBox(
             width: 20,
             height: 20,
-            child: CircularProgressIndicator(color: Color(0xFF2DD4BF), strokeWidth: 2),
+            child: CircularProgressIndicator(
+              color: Color(0xFF2DD4BF),
+              strokeWidth: 2,
+            ),
           ),
           const SizedBox(width: 12),
           Text(
@@ -2245,10 +2613,7 @@ class _ErrorSelector extends StatelessWidget {
   final String title;
   final String error;
 
-  const _ErrorSelector({
-    required this.title,
-    required this.error,
-  });
+  const _ErrorSelector({required this.title, required this.error});
 
   @override
   Widget build(BuildContext context) {
@@ -2258,11 +2623,17 @@ class _ErrorSelector extends StatelessWidget {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF2B1118) : Colors.red[50],
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: isDark ? Colors.red.withOpacity(0.4) : Colors.red[200]!),
+        border: Border.all(
+          color: isDark ? Colors.red.withOpacity(0.4) : Colors.red[200]!,
+        ),
       ),
       child: Row(
         children: [
-          Icon(Icons.error_outline, color: isDark ? const Color(0xFFEF4444) : Colors.red[600], size: 20),
+          Icon(
+            Icons.error_outline,
+            color: isDark ? const Color(0xFFEF4444) : Colors.red[600],
+            size: 20,
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -2312,11 +2683,17 @@ class _EmptyStateSelector extends StatelessWidget {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF132238) : Colors.blue[50],
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: isDark ? const Color(0xFF1E3554) : Colors.blue[200]!),
+        border: Border.all(
+          color: isDark ? const Color(0xFF1E3554) : Colors.blue[200]!,
+        ),
       ),
       child: Column(
         children: [
-          Icon(Icons.info_outline, color: isDark ? const Color(0xFF2DD4BF) : Colors.blue[600], size: 24),
+          Icon(
+            Icons.info_outline,
+            color: isDark ? const Color(0xFF2DD4BF) : Colors.blue[600],
+            size: 24,
+          ),
           const SizedBox(height: 12),
           Text(
             title,
@@ -2338,12 +2715,19 @@ class _EmptyStateSelector extends StatelessWidget {
           ElevatedButton(
             onPressed: onAction,
             style: ElevatedButton.styleFrom(
-              backgroundColor: isDark ? const Color(0xFF2DD4BF) : Colors.blue[600],
+              backgroundColor: isDark
+                  ? const Color(0xFF2DD4BF)
+                  : Colors.blue[600],
               foregroundColor: isDark ? const Color(0xFF0C1829) : Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
-            child: Text(actionLabel, style: const TextStyle(fontWeight: FontWeight.w700)),
+            child: Text(
+              actionLabel,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
           ),
         ],
       ),

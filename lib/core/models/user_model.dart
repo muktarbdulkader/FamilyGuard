@@ -169,6 +169,10 @@ enum UserRole {
     }
   }
 
+  /// Roles may only be selected while a profile is being initialized.
+  bool canTransitionTo(UserRole requestedRole) =>
+      this == UserRole.none && requestedRole != UserRole.none;
+
   String get displayName {
     switch (this) {
       case UserRole.parent:

@@ -74,8 +74,11 @@ class LocaleNotifier extends StateNotifier<Locale> {
   Future<void> _loadLocale() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final code = prefs.getString(_kLocalePreferenceKey) ?? prefs.getString(_kLegacyLocaleKey);
-      if (code != null && AppLanguages.supported.any((lang) => lang.code == code)) {
+      final code =
+          prefs.getString(_kLocalePreferenceKey) ??
+          prefs.getString(_kLegacyLocaleKey);
+      if (code != null &&
+          AppLanguages.supported.any((lang) => lang.code == code)) {
         state = Locale(code);
       }
     } catch (e) {

@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'family_model.dart';
 
 class FamilyLocation {
   final String id;
@@ -13,8 +14,8 @@ class FamilyLocation {
   final double? speed;
   final double? heading;
   final DateTime timestamp;
+  final DateTime? lastSeen;
   final String? address;
-  final bool isStale;
 
   const FamilyLocation({
     required this.id,
@@ -28,9 +29,18 @@ class FamilyLocation {
     this.speed,
     this.heading,
     required this.timestamp,
+    this.lastSeen,
     this.address,
-    this.isStale = false,
   });
+
+  static const staleAfter = Duration(minutes: 5);
+
+  bool get isStale {
+    final age = DateTime.now().difference(timestamp);
+    return age.isNegative || age > staleAfter;
+  }
+
+  bool get isDeviceOnline => ChildPresence.isOnlineAt(lastSeen);
 
   factory FamilyLocation.fromMap(Map<String, dynamic> data, {String id = ''}) {
     final rawTimestamp = data['timestamp'];
@@ -57,9 +67,17 @@ class FamilyLocation {
       speed: data['speed']?.toDouble(),
       heading: data['heading']?.toDouble(),
       timestamp: timestamp,
+      lastSeen: _parseOptionalTimestamp(data['lastSeen']),
       address: data['address'],
-      isStale: _isLocationStale(timestamp),
     );
+  }
+
+  static DateTime? _parseOptionalTimestamp(dynamic value) {
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
+    if (value is String) return DateTime.tryParse(value);
+    return null;
   }
 
   factory FamilyLocation.fromFirestore(DocumentSnapshot doc) {
@@ -81,14 +99,9 @@ class FamilyLocation {
       'speed': speed,
       'heading': heading,
       'timestamp': Timestamp.fromDate(timestamp),
+      if (lastSeen != null) 'lastSeen': Timestamp.fromDate(lastSeen!),
       'address': address,
     };
-  }
-
-  static bool _isLocationStale(DateTime timestamp) {
-    final now = DateTime.now();
-    final difference = now.difference(timestamp);
-    return difference.inMinutes > 30; // Consider stale after 30 minutes
   }
 
   double distanceTo(FamilyLocation other) {
@@ -121,8 +134,8 @@ class FamilyLocation {
     double? speed,
     double? heading,
     DateTime? timestamp,
+    DateTime? lastSeen,
     String? address,
-    bool? isStale,
   }) {
     return FamilyLocation(
       id: id ?? this.id,
@@ -136,8 +149,8 @@ class FamilyLocation {
       speed: speed ?? this.speed,
       heading: heading ?? this.heading,
       timestamp: timestamp ?? this.timestamp,
+      lastSeen: lastSeen ?? this.lastSeen,
       address: address ?? this.address,
-      isStale: isStale ?? this.isStale,
     );
   }
 }

@@ -9,7 +9,20 @@ service cloud.firestore {
 
     // USERS COLLECTION
     match /users/{userId} {
-      allow read, write: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated()
+        && request.auth.uid == userId
+        && request.resource.data.get('role', '') in ['', 'parent', 'child'];
+      allow update: if isAuthenticated()
+        && request.auth.uid == userId
+        && (
+          request.resource.data.get('role', '') == resource.data.get('role', '')
+          || (
+            resource.data.get('role', '') == ''
+            && request.resource.data.get('role', '') in ['parent', 'child']
+          )
+        );
+      allow delete: if isAuthenticated() && request.auth.uid == userId;
     }
     
     // FAMILIES COLLECTION & ALL NESTED SUBCOLLECTIONS
@@ -28,6 +41,11 @@ service cloud.firestore {
 
       // Explicit match for study & education tasks
       match /education_tasks/{taskId} {
+        allow read, write: if isAuthenticated();
+      }
+
+      // Educational materials are also stored in this top-level collection.
+      match /educational_materials/{materialId} {
         allow read, write: if isAuthenticated();
       }
 
@@ -68,11 +86,6 @@ service cloud.firestore {
     }
 
     match /rule_enforcement_logs/{logId} {
-      allow read, write: if isAuthenticated();
-    }
-    
-    // CATCH-ALL FOR ALL OTHER AUTHENTICATED ACCESS
-    match /{document=**} {
       allow read, write: if isAuthenticated();
     }
   }

@@ -110,6 +110,16 @@ class FamilyModel {
 }
 
 /// Model representing a child within a family
+class ChildPresence {
+  static const onlineThreshold = Duration(minutes: 7);
+
+  static bool isOnlineAt(DateTime? lastSeen, {DateTime? now}) {
+    if (lastSeen == null) return false;
+    final age = (now ?? DateTime.now()).difference(lastSeen);
+    return !age.isNegative && age <= onlineThreshold;
+  }
+}
+
 class ChildModel {
   final String id;
   final String displayName;
@@ -117,7 +127,8 @@ class ChildModel {
   final String familyId;
   final DateTime joinedAt;
   final DateTime lastActiveAt;
-  final bool isOnline;
+  final bool _reportedOnline;
+  final DateTime? lastSeen;
   final String? deviceInfo;
   final Map<String, dynamic> preferences;
 
@@ -128,10 +139,20 @@ class ChildModel {
     required this.familyId,
     required this.joinedAt,
     required this.lastActiveAt,
-    this.isOnline = false,
+    bool isOnline = false,
+    this.lastSeen,
     this.deviceInfo,
     this.preferences = const {},
-  });
+  }) : _reportedOnline = isOnline;
+
+  static const onlineThreshold = ChildPresence.onlineThreshold;
+
+  static bool isOnlineAt(DateTime? lastSeen, {DateTime? now}) {
+    return ChildPresence.isOnlineAt(lastSeen, now: now);
+  }
+
+  bool get isOnline =>
+      lastSeen == null ? _reportedOnline : isOnlineAt(lastSeen);
 
   /// Create from Firestore document
   factory ChildModel.fromFirestore(DocumentSnapshot doc) {
@@ -146,14 +167,27 @@ class ChildModel {
       return fallback;
     }
 
+    DateTime? parseOptionalTimestamp(dynamic value) {
+      if (value is Timestamp) return value.toDate();
+      if (value is DateTime) return value;
+      if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
+      if (value is String) return DateTime.tryParse(value);
+      return null;
+    }
+
+    final lastSeen = parseOptionalTimestamp(data['lastSeen']);
+
     return ChildModel(
       id: doc.id,
       displayName: data['displayName'] ?? data['name'] ?? data['email']?.toString().split('@').first ?? 'Child',
       email: data['email'] ?? '',
       familyId: data['familyId'] ?? '',
-      joinedAt: parseTimestamp(data['joinedAt'] ?? data['createdAt'], DateTime.now()),
-      lastActiveAt: parseTimestamp(data['lastActiveAt'] ?? data['lastSeen'] ?? data['updatedAt'], DateTime.now()),
-      isOnline: data['isOnline'] ?? data['online'] ?? false,
+      joinedAt: parseTimestamp(data['joinedAt'] ?? data['createdAt'], DateTime.fromMillisecondsSinceEpoch(0)),
+      lastActiveAt: parseTimestamp(data['lastActiveAt'] ?? lastSeen ?? data['updatedAt'], DateTime.fromMillisecondsSinceEpoch(0)),
+      isOnline: lastSeen == null
+          ? false
+          : isOnlineAt(lastSeen),
+      lastSeen: lastSeen,
       deviceInfo: data['deviceInfo'],
       preferences: Map<String, dynamic>.from(data['preferences'] ?? {}),
     );
@@ -167,7 +201,8 @@ class ChildModel {
       'familyId': familyId,
       'joinedAt': Timestamp.fromDate(joinedAt),
       'lastActiveAt': Timestamp.fromDate(lastActiveAt),
-      'isOnline': isOnline,
+      'isOnline': _reportedOnline,
+      if (lastSeen != null) 'lastSeen': Timestamp.fromDate(lastSeen!),
       'deviceInfo': deviceInfo,
       'preferences': preferences,
     };
@@ -182,6 +217,7 @@ class ChildModel {
     DateTime? joinedAt,
     DateTime? lastActiveAt,
     bool? isOnline,
+    DateTime? lastSeen,
     String? deviceInfo,
     Map<String, dynamic>? preferences,
   }) {
@@ -192,7 +228,8 @@ class ChildModel {
       familyId: familyId ?? this.familyId,
       joinedAt: joinedAt ?? this.joinedAt,
       lastActiveAt: lastActiveAt ?? this.lastActiveAt,
-      isOnline: isOnline ?? this.isOnline,
+      isOnline: isOnline ?? _reportedOnline,
+      lastSeen: lastSeen ?? this.lastSeen,
       deviceInfo: deviceInfo ?? this.deviceInfo,
       preferences: preferences ?? this.preferences,
     );
@@ -204,7 +241,7 @@ class ChildModel {
       return 'Online';
     } else {
       final now = DateTime.now();
-      final difference = now.difference(lastActiveAt);
+      final difference = now.difference(lastSeen ?? lastActiveAt);
       
       if (difference.inMinutes < 5) {
         return 'Just now';

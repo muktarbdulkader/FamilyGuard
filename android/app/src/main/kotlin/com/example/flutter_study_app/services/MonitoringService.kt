@@ -48,6 +48,7 @@ class MonitoringService : Service() {
     
     private var serviceJob = SupervisorJob()
     private val serviceScope = CoroutineScope(Dispatchers.Default + serviceJob)
+    private var heartbeatJob: Job? = null
     
     private var lastForegroundApp: String? = null
     private var lastCheckTime: Long = 0
@@ -259,6 +260,47 @@ class MonitoringService : Service() {
                     android.util.Log.e("MonitoringService", "Error in usage sync coroutine", e)
                 }
             }
+        }
+
+        // Keep presence fresh independently of GPS movement or app usage.
+        if (heartbeatJob?.isActive != true) {
+            heartbeatJob = serviceScope.launch {
+                while (isActive) {
+                    writeHeartbeat()
+                    delay(TimeUnit.MINUTES.toMillis(3))
+                }
+            }
+        }
+    }
+
+    private fun writeHeartbeat() {
+        val familyId = currentFamilyId ?: return
+        val childId = currentChildId ?: return
+        val authenticatedUserId = FirebaseAuth.getInstance().currentUser?.uid
+        if (authenticatedUserId != childId) {
+            android.util.Log.w(
+                "MonitoringService",
+                "Skipping heartbeat because the signed-in user does not match the monitored child"
+            )
+            return
+        }
+
+        val firestore = FirebaseFirestore.getInstance()
+        val heartbeat = mapOf("lastSeen" to com.google.firebase.firestore.FieldValue.serverTimestamp())
+        val batch = firestore.batch()
+        batch.set(
+            firestore.collection("users").document(childId),
+            heartbeat,
+            com.google.firebase.firestore.SetOptions.merge()
+        )
+        batch.set(
+            firestore.collection("families").document(familyId)
+                .collection("children").document(childId),
+            heartbeat,
+            com.google.firebase.firestore.SetOptions.merge()
+        )
+        batch.commit().addOnFailureListener { error ->
+            android.util.Log.w("MonitoringService", "Heartbeat write failed", error)
         }
     }
     

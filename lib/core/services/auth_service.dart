@@ -192,10 +192,28 @@ class AuthService {
         return AuthResult.failure('Please select a valid role');
       }
 
-      // Update user document with role
-      await _firestore.collection('users').doc(uid).update({
-        'role': role.value,
-        'updatedAt': Timestamp.now(),
+      if (_auth.currentUser?.uid != uid) {
+        return AuthResult.failure('You can only set the role for your own account');
+      }
+
+      final userRef = _firestore.collection('users').doc(uid);
+      await _firestore.runTransaction((transaction) async {
+        final userSnapshot = await transaction.get(userRef);
+        if (!userSnapshot.exists) {
+          throw StateError('User profile not found');
+        }
+
+        final currentRole = UserRole.fromString(
+          userSnapshot.data()?['role']?.toString() ?? '',
+        );
+        if (!currentRole.canTransitionTo(role)) {
+          throw StateError('An assigned account role cannot be changed');
+        }
+
+        transaction.update(userRef, {
+          'role': role.value,
+          'updatedAt': Timestamp.now(),
+        });
       });
 
       // Get updated user data

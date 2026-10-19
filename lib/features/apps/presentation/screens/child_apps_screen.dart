@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/services/app_scanner_service.dart';
 import '../../../../core/providers/user_provider.dart';
+import '../../../../l10n/app_localizations.dart';
 
 /// Child apps screen showing installed apps and their rules
 /// This screen scans REAL installed apps and syncs with Firestore
@@ -15,7 +16,7 @@ class ChildAppsScreen extends ConsumerStatefulWidget {
 
 class _ChildAppsScreenState extends ConsumerState<ChildAppsScreen> {
   final AppScannerService _appScannerService = AppScannerService();
-  
+
   List<InstalledAppInfo> _installedApps = [];
   bool _isScanning = false;
   bool _isUploading = false;
@@ -74,13 +75,17 @@ class _ChildAppsScreenState extends ConsumerState<ChildAppsScreen> {
         );
       }
 
-      unawaited(_appScannerService.uploadAppsToFirestore(
-        familyId: userData.familyId!,
-        childId: userData.uid,
-        apps: installedApps,
-      ).catchError((e) {
-        debugPrint('Failed to upload apps to Firestore: $e');
-      }));
+      unawaited(
+        _appScannerService
+            .uploadAppsToFirestore(
+              familyId: userData.familyId!,
+              childId: userData.uid,
+              apps: installedApps,
+            )
+            .catchError((e) {
+              debugPrint('Failed to upload apps to Firestore: $e');
+            }),
+      );
     } catch (e) {
       setState(() {
         _isScanning = false;
@@ -175,11 +180,15 @@ class _ChildAppsScreenState extends ConsumerState<ChildAppsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Installed Apps',
-          style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.2),
+        title: Text(
+          l10n.apps,
+          style: const TextStyle(
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.2,
+          ),
         ),
         backgroundColor: const Color(0xFF4F46E5),
         flexibleSpace: Container(
@@ -196,7 +205,7 @@ class _ChildAppsScreenState extends ConsumerState<ChildAppsScreen> {
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _isScanning || _isUploading ? null : _scanAndUploadApps,
-            tooltip: 'Rescan Apps',
+            tooltip: l10n.refresh,
           ),
         ],
       ),
@@ -209,12 +218,18 @@ class _ChildAppsScreenState extends ConsumerState<ChildAppsScreen> {
             decoration: BoxDecoration(
               color: const Color(0xFFEEF2FF),
               border: Border(
-                bottom: BorderSide(color: const Color(0xFFC7D2FE).withOpacity(0.5)),
+                bottom: BorderSide(
+                  color: const Color(0xFFC7D2FE).withOpacity(0.5),
+                ),
               ),
             ),
             child: Row(
               children: [
-                const Icon(Icons.shield_outlined, color: Color(0xFF4F46E5), size: 20),
+                const Icon(
+                  Icons.shield_outlined,
+                  color: Color(0xFF4F46E5),
+                  size: 20,
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -236,7 +251,9 @@ class _ChildAppsScreenState extends ConsumerState<ChildAppsScreen> {
             const CircularProgressIndicator(color: Color(0xFF4F46E5)),
             const SizedBox(height: 16),
             Text(
-              _isScanning ? 'Scanning installed apps...' : 'Uploading to parents...',
+              _isScanning
+                  ? 'Scanning installed apps...'
+                  : 'Uploading to parents...',
               style: Theme.of(context).textTheme.bodyLarge,
             ),
             const SizedBox(height: 8),
@@ -288,14 +305,14 @@ class _ChildAppsScreenState extends ConsumerState<ChildAppsScreen> {
                 ],
               ),
             ),
-            
+
             Expanded(
               child: ListView.builder(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 itemCount: _installedApps.length,
                 itemBuilder: (context, index) {
                   final app = _installedApps[index];
-                  
+
                   return Card(
                     margin: const EdgeInsets.only(bottom: 8),
                     child: ListTile(
@@ -362,7 +379,7 @@ class _ChildAppsScreenState extends ConsumerState<ChildAppsScreen> {
           ],
         ],
       ),
-      
+
       // Rescan button
       floatingActionButton: _isScanning || _isUploading
           ? null
@@ -384,10 +401,7 @@ class _ChildAppsScreenState extends ConsumerState<ChildAppsScreen> {
             _buildAppIcon(app),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(
-                app.appName,
-                style: const TextStyle(fontSize: 18),
-              ),
+              child: Text(app.appName, style: const TextStyle(fontSize: 18)),
             ),
           ],
         ),
@@ -441,10 +455,7 @@ class _DetailRow extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: Text(
-              value,
-              style: TextStyle(color: Colors.grey[600]),
-            ),
+            child: Text(value, style: TextStyle(color: Colors.grey[600])),
           ),
         ],
       ),
