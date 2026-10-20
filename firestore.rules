@@ -1,19 +1,91 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Helper function for authentication
-    function isAuthenticated() {
+    function isSignedIn() {
       return request.auth != null;
     }
 
-    // USERS COLLECTION
+    function familyPath(familyId) {
+      return /databases/$(database)/documents/families/$(familyId);
+    }
+
+    function userPath(userId) {
+      return /databases/$(database)/documents/users/$(userId);
+    }
+
+    function isFamilyParent(familyId) {
+      return isSignedIn()
+        && exists(familyPath(familyId))
+        && (
+          get(familyPath(familyId)).data.get('parentIds', []).hasAny([request.auth.uid])
+          || get(familyPath(familyId)).data.get('parentId', '') == request.auth.uid
+        );
+    }
+
+    function isFamilyChild(familyId, childId) {
+      return isSignedIn()
+        && request.auth.uid == childId
+        && (
+          (
+            exists(userPath(childId))
+            && get(userPath(childId)).data.get('role', '') == 'child'
+            && get(userPath(childId)).data.get('familyId', '') == familyId
+          )
+          || (
+            exists(familyPath(familyId))
+            && get(familyPath(familyId)).data.get('childIds', []).hasAny([childId])
+          )
+        );
+    }
+
+    function isFamilyMember(familyId) {
+      return isFamilyParent(familyId)
+        || (
+          isSignedIn()
+          && isFamilyChild(familyId, request.auth.uid)
+        );
+    }
+
+    function childAppPolicyIsDefault() {
+      return request.resource.data.get('rule', 'ask')
+          in ['ask', 'ask_parent', 'ASK', 'ASK_PARENT']
+        && request.resource.data.get('type', 'ASK') in ['ask', 'ask_parent', 'ASK', 'ASK_PARENT']
+        && request.resource.data.get('dailyLimitMinutes', null) == null
+        && request.resource.data.get('dailyLimitBonusMinutes', 0) == 0
+        && request.resource.data.get('policyVersion', 0) == 0
+        && request.resource.data.get('allowedFrom', null) == null
+        && request.resource.data.get('allowedUntil', null) == null;
+    }
+
+    function childAppMetadataOnly() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        'name',
+        'appName',
+        'packageName',
+        'version',
+        'isAvailable',
+        'iconBase64',
+        'detectedAt',
+        'installedDate',
+        'updatedAt',
+        'lastUpdated',
+        'isSystemApp'
+      ]);
+    }
+
     match /users/{userId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated()
+      allow read: if isSignedIn()
+        && (
+          request.auth.uid == userId
+          || (
+            resource.data.get('familyId', '') != ''
+            && isFamilyParent(resource.data.get('familyId', ''))
+          )
+        );
+      allow create: if isSignedIn()
         && request.auth.uid == userId
         && request.resource.data.get('role', '') in ['', 'parent', 'child'];
-      allow update: if isAuthenticated()
+      allow update: if isSignedIn()
         && request.auth.uid == userId
         && (
           request.resource.data.get('role', '') == resource.data.get('role', '')
@@ -22,71 +94,237 @@ service cloud.firestore {
             && request.resource.data.get('role', '') in ['parent', 'child']
           )
         );
-      allow delete: if isAuthenticated() && request.auth.uid == userId;
+      allow delete: if isSignedIn() && request.auth.uid == userId;
     }
-    
-    // FAMILIES COLLECTION & ALL NESTED SUBCOLLECTIONS
-    // Covers: children, apps, usage, locations, requests, approvals, education_tasks, notifications, events
+
     match /families/{familyId} {
-      allow read, write: if isAuthenticated();
-      
-      // Children subcollection and all nested paths (apps, usage, locations, requests, education_tasks, temporaryApprovals)
+      allow read: if isFamilyMember(familyId);
+      allow create: if isSignedIn()
+        && request.resource.data.get('parentIds', []).hasAny([request.auth.uid]);
+      allow update, delete: if isFamilyParent(familyId);
+
+      // Nested family records default to parent-only writes. Child-owned writes
+      // are granted narrowly below so child clients cannot change app policies.
+      match /{document=**} {
+        allow read: if isFamilyMember(familyId);
+        allow write: if isFamilyParent(familyId);
+      }
+
       match /children/{childId} {
-        allow read, write: if isAuthenticated();
-        
-        match /{childSubcollection=**} {
-          allow read, write: if isAuthenticated();
+        allow read: if isFamilyMember(familyId);
+        allow create: if isFamilyParent(familyId);
+        allow update: if isFamilyParent(familyId)
+          || (
+            isFamilyChild(familyId, childId)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'lastSeen',
+              'lastLocation',
+              'lastLocationUpdate',
+              'displayName'
+            ])
+          );
+        allow delete: if isFamilyParent(familyId);
+
+        match /apps/{appId} {
+          allow read: if isFamilyMember(familyId);
+          allow create: if isFamilyParent(familyId)
+            || (isFamilyChild(familyId, childId) && childAppPolicyIsDefault());
+          allow update: if isFamilyParent(familyId)
+            || (isFamilyChild(familyId, childId) && childAppMetadataOnly());
+          allow delete: if isFamilyParent(familyId);
+        }
+
+        match /usage/{usageId} {
+          allow read: if isFamilyMember(familyId);
+          allow create: if isFamilyChild(familyId, childId)
+            && request.resource.data.keys().hasOnly([
+              'packageName',
+              'appName',
+              'todayMinutes',
+              'weekMinutes',
+              'monthMinutes',
+              'dailyResetDate',
+              'timeZoneId',
+              'lastUsed',
+              'openCount',
+              'updatedAt'
+            ]);
+          allow update: if isFamilyChild(familyId, childId)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'packageName',
+              'appName',
+              'todayMinutes',
+              'weekMinutes',
+              'monthMinutes',
+              'dailyResetDate',
+              'timeZoneId',
+              'lastUsed',
+              'openCount',
+              'updatedAt'
+            ]);
+          allow delete: if isFamilyParent(familyId);
+        }
+
+        match /locations/{locationId} {
+          allow read: if isFamilyMember(familyId);
+          allow create, update: if isFamilyChild(familyId, childId)
+            && request.resource.data.get('childId', childId) == childId;
+          allow delete: if isFamilyParent(familyId);
+        }
+
+        match /requests/{requestId} {
+          allow read: if isFamilyMember(familyId);
+          allow create: if isFamilyChild(familyId, childId)
+            && request.resource.data.get('childId', childId) == childId
+            && request.resource.data.get('status', '') == 'pending';
+          allow update: if isFamilyParent(familyId);
+          allow delete: if isFamilyParent(familyId);
+        }
+
+        match /temporaryApprovals/{approvalId} {
+          allow read: if isFamilyMember(familyId);
+          allow write: if isFamilyParent(familyId);
+        }
+
+        match /approvals/{approvalId} {
+          allow read: if isFamilyMember(familyId);
+          allow write: if isFamilyParent(familyId);
+        }
+
+        match /usageAlerts/{alertId} {
+          allow read: if isFamilyParent(familyId);
+          allow write: if false;
         }
       }
 
-      // Explicit match for study & education tasks
+      match /requests/{requestId} {
+        allow read: if isFamilyMember(familyId);
+        allow create: if isFamilyChild(
+          familyId,
+          request.resource.data.get('childId', '')
+        )
+          && request.resource.data.get('status', '') == 'pending';
+        allow update, delete: if isFamilyParent(familyId);
+      }
+
+      match /settings/{settingId} {
+        allow read: if isFamilyMember(familyId);
+        allow write: if isFamilyParent(familyId);
+      }
+
+      match /events/{eventId} {
+        allow read: if isFamilyParent(familyId);
+        allow create: if isFamilyChild(
+          familyId,
+          request.resource.data.get('childId', '')
+        );
+        allow update, delete: if isFamilyParent(familyId);
+      }
+
+      match /notifications/{notificationId} {
+        allow read: if isFamilyMember(familyId);
+        allow create: if isFamilyParent(familyId)
+          || (
+            isFamilyChild(
+              familyId,
+              request.resource.data.get('childId', '')
+            )
+            && request.resource.data.get('type', '')
+            in ['appRequest', 'newAppDetected']
+          );
+        allow update, delete: if isFamilyParent(familyId);
+      }
+
       match /education_tasks/{taskId} {
-        allow read, write: if isAuthenticated();
+        allow read: if isFamilyMember(familyId);
+        allow create, delete: if isFamilyParent(familyId);
+        allow update: if isFamilyParent(familyId)
+          || (
+            isFamilyChild(
+              familyId,
+              resource.data.get('childId', '')
+            )
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'completed',
+              'completedAt',
+              'progress',
+              'status',
+              'updatedAt'
+            ])
+          );
       }
 
-      // Educational materials are also stored in this top-level collection.
       match /educational_materials/{materialId} {
-        allow read, write: if isAuthenticated();
-      }
-
-      // Match all other family subcollections (notifications, requests, etc.)
-      match /{allFamilyDocs=**} {
-        allow read, write: if isAuthenticated();
+        allow read: if isFamilyMember(familyId);
+        allow write: if isFamilyParent(familyId);
       }
     }
-    
-    // TOP-LEVEL EDUCATION TASKS
+
     match /education_tasks/{taskId} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if isSignedIn();
     }
 
-    // FAMILY INVITES COLLECTION
+    match /educational_materials/{materialId} {
+      allow read, write: if isSignedIn();
+    }
+
     match /family_invites/{inviteCode} {
-      allow read, write: if isAuthenticated();
-    }
-    
-    // NOTIFICATIONS COLLECTION
-    match /notifications/{notificationId} {
-      allow read, write: if isAuthenticated();
-    }
-    
-    // FCM TOKENS COLLECTION
-    match /fcm_tokens/{tokenId} {
-      allow read, write: if isAuthenticated();
-    }
-    
-    // DEVICE STATUS COLLECTION
-    match /device_status/{statusId} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if isSignedIn();
     }
 
-    // RULES & LOGS COLLECTIONS
+    match /notifications/{notificationId} {
+      allow read: if isSignedIn()
+        && (
+          request.auth.uid == resource.data.get('childId', '')
+          || isFamilyParent(resource.data.get('familyId', ''))
+        );
+      allow create: if isSignedIn()
+        && (
+          isFamilyParent(request.resource.data.get('familyId', ''))
+          || (
+            isFamilyChild(
+              request.resource.data.get('familyId', ''),
+              request.resource.data.get('childId', '')
+            )
+            && request.resource.data.get('type', '')
+            in ['appRequest', 'newAppDetected']
+          )
+        );
+      allow update, delete: if isFamilyParent(resource.data.get('familyId', ''));
+    }
+
+    match /fcm_tokens/{tokenId} {
+      allow read: if isSignedIn()
+        && resource.data.get('userId', '') == request.auth.uid;
+      allow create, update: if isSignedIn()
+        && request.resource.data.get('userId', '') == request.auth.uid;
+      allow delete: if isSignedIn()
+        && resource.data.get('userId', '') == request.auth.uid;
+    }
+
+    match /device_status/{statusId} {
+      allow read: if isSignedIn()
+        && (
+          isFamilyParent(resource.data.get('familyId', ''))
+          || isFamilyChild(
+            resource.data.get('familyId', ''),
+            resource.data.get('childId', '')
+          )
+        );
+      allow create, update: if isSignedIn()
+        && isFamilyChild(
+          request.resource.data.get('familyId', ''),
+          request.resource.data.get('childId', '')
+        );
+      allow delete: if isFamilyParent(resource.data.get('familyId', ''));
+    }
+
     match /rules/{ruleId} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if isSignedIn();
     }
 
     match /rule_enforcement_logs/{logId} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if isSignedIn();
     }
   }
 }

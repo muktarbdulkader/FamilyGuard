@@ -21,7 +21,9 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.Timestamp
 import kotlinx.coroutines.*
+import kotlinx.coroutines.tasks.await
 import java.time.LocalDateTime
+import java.time.ZoneId
 import java.util.concurrent.TimeUnit
 
 /**
@@ -51,7 +53,9 @@ class MonitoringService : Service() {
     private var heartbeatJob: Job? = null
     
     private var lastForegroundApp: String? = null
-    private var lastCheckTime: Long = 0
+    private var lastUsageUpdateAtMs: Long = 0
+    private var activeUsagePackage: String? = null
+    private var usageSecondRemainder = 0L
     private val checkIntervalMs = 1000L // Check every 1 second for fast blocking
     
     // For notification tracking
@@ -119,7 +123,6 @@ class MonitoringService : Service() {
         deviceStatusHelper = DeviceStatusHelper(this)
         
         createNotificationChannel()
-        lastCheckTime = System.currentTimeMillis()
         
         // Restore cached familyId & childId for background runs
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -426,9 +429,6 @@ class MonitoringService : Service() {
         // Increment usage tracking
         database.incrementUsageMinutes(packageName, 0, currentTime) // Initialize if needed
         
-        // Check for daily limit notifications
-        checkDailyLimitAndNotify(packageName)
-        
         // Immediate rule evaluation for the new app
         enforcementManager.enforceRuleForApp(packageName, currentTime)
     }
@@ -437,18 +437,50 @@ class MonitoringService : Service() {
      * Update usage tracking for the current foreground app
      */
     private suspend fun updateUsageTracking(packageName: String, currentTime: LocalDateTime) {
-        if (isSystemApp(packageName)) return
-        
-        val timeSinceLastCheck = System.currentTimeMillis() - lastCheckTime
-        if (timeSinceLastCheck > checkIntervalMs) {
-            // Convert to minutes (rounded up)
-            val minutesToAdd = ((timeSinceLastCheck + 30000) / 60000).toInt() // Round to nearest minute
-            if (minutesToAdd > 0) {
-                database.incrementUsageMinutes(packageName, minutesToAdd, currentTime)
-            }
+        val nowMs = System.currentTimeMillis()
+        if (isSystemApp(packageName)) {
+            activeUsagePackage = null
+            lastUsageUpdateAtMs = 0
+            usageSecondRemainder = 0
+            return
         }
-        
-        lastCheckTime = System.currentTimeMillis()
+
+        if (activeUsagePackage != packageName || lastUsageUpdateAtMs == 0L) {
+            activeUsagePackage = packageName
+            lastUsageUpdateAtMs = nowMs
+            usageSecondRemainder = 0
+            return
+        }
+
+        val elapsedMs = (nowMs - lastUsageUpdateAtMs).coerceAtLeast(0L)
+        lastUsageUpdateAtMs = nowMs
+        usageSecondRemainder += minOf(elapsedMs, 5_000L) / 1_000L
+        val minutesToAdd = (usageSecondRemainder / 60L).toInt()
+        if (minutesToAdd <= 0) return
+
+        usageSecondRemainder %= 60L
+        val previousUsage = database.getUsage(packageName)
+        val previousMinutes = if (previousUsage?.dailyResetDate == currentTime.toLocalDate().toString()) {
+            previousUsage.todayMinutes
+        } else {
+            0
+        }
+        database.incrementUsageMinutes(packageName, minutesToAdd, currentTime)
+
+        val updatedUsage = database.getUsage(packageName) ?: return
+        val rule = database.getRule(packageName) ?: return
+        val limit = rule.dailyLimitMinutes
+        if (rule.type != RuleEngine.RuleType.TIME_LIMIT || limit == null || limit <= 0) return
+
+        val thresholdMinutes = kotlin.math.ceil(
+            limit * rule.usageAlertThresholdPercent.coerceIn(1, 99) / 100.0
+        ).toInt()
+        val crossedThreshold = previousMinutes < thresholdMinutes &&
+            updatedUsage.todayMinutes >= thresholdMinutes
+        val crossedLimit = previousMinutes < limit && updatedUsage.todayMinutes >= limit
+        if (crossedThreshold || crossedLimit) {
+            syncUsageToFirestore(packageName)
+        }
     }
     
     /**
@@ -632,48 +664,6 @@ class MonitoringService : Service() {
     }
     
     /**
-     * Send notification when daily limit is reached
-     */
-    private suspend fun sendDailyLimitNotification(packageName: String, appName: String, limitMinutes: Int) {
-        val familyId = currentFamilyId ?: return
-        val childId = currentChildId ?: return
-        
-        try {
-            val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-            val childName = getCurrentChildName()
-            
-            val notificationData = hashMapOf(
-                "familyId" to familyId,
-                "childId" to childId,
-                "childName" to childName,
-                "type" to "dailyLimitReached",
-                "priority" to "normal",
-                "title" to "$childName: Screen Time Limit Reached",
-                "body" to "$childName has reached their daily limit for $appName.",
-                "data" to hashMapOf(
-                    "type" to "dailyLimitReached",
-                    "familyId" to familyId,
-                    "childId" to childId,
-                    "childName" to childName,
-                    "appName" to appName,
-                    "packageName" to packageName,
-                    "dailyLimitMinutes" to limitMinutes
-                ),
-                "createdAt" to com.google.firebase.Timestamp.now(),
-                "expiresAt" to com.google.firebase.Timestamp(
-                    java.util.Date(System.currentTimeMillis() + 8 * 60 * 60 * 1000) // 8 hours
-                )
-            )
-
-            firestore.collection("notifications")
-                .add(notificationData)
-                
-        } catch (e: Exception) {
-            android.util.Log.e("MonitoringService", "Error sending daily limit notification", e)
-        }
-    }
-    
-    /**
      * Send real-time notification to parent when child attempts to use a blocked app
      */
     private suspend fun sendBlockedAppNotification(packageName: String, appName: String) {
@@ -750,39 +740,13 @@ class MonitoringService : Service() {
         }
     }
     
-    /**
-     * Check if daily limit reached and send notification
-     */
-    private suspend fun checkDailyLimitAndNotify(packageName: String) {
-        try {
-            val rule = database.getRule(packageName) ?: return
-            
-            if (rule.type == RuleEngine.RuleType.TIME_LIMIT && rule.dailyLimitMinutes != null) {
-                val usage = database.getUsage(packageName)
-                val currentUsage = usage?.todayMinutes ?: 0
-                val limitMinutes = rule.dailyLimitMinutes
-                
-                // Check if we just reached the daily limit
-                if (currentUsage >= limitMinutes && 
-                    (currentUsage - (checkIntervalMs / 60000).toInt()) < limitMinutes) {
-                    
-                    val appInfo = getAppInfo(packageName)
-                    if (appInfo != null) {
-                        sendDailyLimitNotification(packageName, appInfo.name, limitMinutes)
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("MonitoringService", "Error checking daily limit", e)
-        }
-    }
-
     private val lastSyncedUsageMinutes = java.util.concurrent.ConcurrentHashMap<String, Int>()
+    private val lastSyncedUsageDates = java.util.concurrent.ConcurrentHashMap<String, String>()
 
     /**
      * Periodically sync only CHANGED app usage minutes to Firestore (quota-optimized)
      */
-    private suspend fun syncUsageToFirestore() = withContext(Dispatchers.IO) {
+    private suspend fun syncUsageToFirestore(urgentPackage: String? = null) = withContext(Dispatchers.IO) {
         val familyId = currentFamilyId ?: return@withContext
         val childId = currentChildId ?: return@withContext
 
@@ -793,13 +757,17 @@ class MonitoringService : Service() {
             val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
             val batch = firestore.batch()
             var count = 0
+            val syncedEntries = mutableListOf<Pair<String, RuleEngine.UsageData>>()
 
             for ((pkg, usage) in allUsage) {
+                if (urgentPackage != null && pkg != urgentPackage) continue
                 val currentMinutes = usage.todayMinutes
                 val lastMinutes = lastSyncedUsageMinutes[pkg] ?: 0
+                val lastDate = lastSyncedUsageDates[pkg]
 
-                // QUOTA OPTIMIZATION: Only sync apps that were actually used (> 0 min) and have changed!
-                if (currentMinutes <= 0 || currentMinutes == lastMinutes) {
+                if (currentMinutes <= 0 ||
+                    (usage.dailyResetDate == lastDate && currentMinutes == lastMinutes)
+                ) {
                     continue
                 }
 
@@ -817,17 +785,24 @@ class MonitoringService : Service() {
                     "todayMinutes" to currentMinutes,
                     "weekMinutes" to currentMinutes,
                     "monthMinutes" to currentMinutes,
+                    "dailyResetDate" to usage.dailyResetDate,
+                    "timeZoneId" to ZoneId.systemDefault().id,
                     "lastUsed" to com.google.firebase.Timestamp.now(),
-                    "openCount" to 1
+                    "openCount" to 1,
+                    "updatedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp()
                 )
                 batch.set(appDoc, usageData, com.google.firebase.firestore.SetOptions.merge())
-                lastSyncedUsageMinutes[pkg] = currentMinutes
+                syncedEntries.add(pkg to usage)
                 count++
                 if (count >= 50) break
             }
 
             if (count > 0) {
-                batch.commit()
+                batch.commit().await()
+                syncedEntries.forEach { (pkg, usage) ->
+                    lastSyncedUsageMinutes[pkg] = usage.todayMinutes
+                    lastSyncedUsageDates[pkg] = usage.dailyResetDate
+                }
                 android.util.Log.d("MonitoringService", "Synced $count changed app usage records to Firestore")
             }
         } catch (e: Exception) {

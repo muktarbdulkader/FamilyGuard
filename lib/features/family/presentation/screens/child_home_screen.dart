@@ -6,6 +6,7 @@ import '../../../../core/providers/auth_provider.dart';
 import '../../../../core/providers/user_provider.dart';
 import '../../../../core/providers/theme_provider.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/family_bottom_navigation.dart';
 
 import 'dart:async';
 import '../../../../core/services/app_scanner_service.dart';
@@ -16,7 +17,6 @@ import '../../../../core/services/education_service.dart';
 import '../../../../core/services/notification_service.dart';
 import '../../../../core/providers/locale_provider.dart';
 import '../../../../l10n/app_localizations.dart';
-import '../../../child/presentation/screens/child_education_screen.dart';
 
 /// Pixel-matched Child Companion Home Screen
 /// Matches the exact sleek dark teal & slate styling:
@@ -39,13 +39,14 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
   bool _hasLocationPermission = true;
   final _permissionService = PermissionService();
 
-  static const Color _bgDark = AppColors.darkNavyBg;
-  static const Color _cardBg = AppColors.darkNavyCard;
+  AppColors get _colors => AppColors.of(context);
+  Color get _bgDark => _colors.background;
+  Color get _cardBg => _colors.surface;
   static const Color _cardBorder = AppColors.darkNavyBorder;
   static const Color _tealAccent = AppColors.tealAccent;
-  static const Color _heroBg = AppColors.heroForestTeal;
-  static const Color _heroBorder = AppColors.heroForestBorder;
-  static const Color _metricBg = AppColors.metricDarkBg;
+  Color get _heroBg => _colors.heroBg;
+  Color get _heroBorder => _colors.heroBorder;
+  Color get _metricBg => _colors.metricBg;
 
   @override
   void initState() {
@@ -127,7 +128,7 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.error_outline_rounded,
                     size: 48,
                     color: Color(0xFFEF4444),
@@ -135,8 +136,8 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                   const SizedBox(height: 12),
                   Text(
                     l10n.errorLoadingDashboard,
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: _colors.textPrimary,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -192,8 +193,8 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                                     children: [
                                       Text(
                                         l10n.appName,
-                                        style: const TextStyle(
-                                          color: Colors.white,
+                                        style: TextStyle(
+                                          color: _colors.textPrimary,
                                           fontSize: 20,
                                           fontWeight: FontWeight.w900,
                                           letterSpacing: -0.3,
@@ -202,7 +203,7 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                                       const SizedBox(height: 2),
                                       Text(
                                         '${l10n.welcomeMessage} ${user?.displayName ?? 'Friend'}',
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           color: Color(0xFF94A3B8),
                                           fontSize: 13,
                                           fontWeight: FontWeight.w500,
@@ -226,13 +227,13 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                               width: 44,
                               height: 44,
                               decoration: BoxDecoration(
-                                color: const Color(0xFF14243B),
+                                color: _colors.surfaceHighlight,
                                 borderRadius: BorderRadius.circular(14),
                                 border: Border.all(color: _cardBorder),
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.settings_outlined,
-                                color: Colors.white,
+                                color: _colors.textPrimary,
                                 size: 22,
                               ),
                             ),
@@ -284,12 +285,12 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                                   Container(
                                     padding: const EdgeInsets.all(8),
                                     decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.2),
+                                      color: _colors.textPrimary.withOpacity(0.2),
                                       borderRadius: BorderRadius.circular(10),
                                     ),
-                                    child: const Icon(
+                                    child: Icon(
                                       Icons.warning_amber_rounded,
-                                      color: Colors.white,
+                                      color: _colors.textPrimary,
                                       size: 22,
                                     ),
                                   ),
@@ -299,10 +300,10 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
-                                        const Text(
+                                        Text(
                                           'Protection Setup Needed',
                                           style: TextStyle(
-                                            color: Colors.white,
+                                            color: _colors.textPrimary,
                                             fontWeight: FontWeight.w800,
                                             fontSize: 13,
                                           ),
@@ -315,7 +316,7 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                                               ? 'Tap to enable "Display over other apps".'
                                               : 'Tap to enable Location sharing for parents.',
                                           style: TextStyle(
-                                            color: Colors.white.withOpacity(
+                                            color: _colors.textPrimary.withOpacity(
                                               0.9,
                                             ),
                                             fontSize: 11.5,
@@ -324,9 +325,9 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                                       ],
                                     ),
                                   ),
-                                  const Icon(
+                                  Icon(
                                     Icons.arrow_forward_ios_rounded,
-                                    color: Colors.white70,
+                                    color: _colors.textSecondary,
                                     size: 14,
                                   ),
                                 ],
@@ -353,7 +354,7 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                           children: [
                             Text(
                               l10n.allProtectionsOn,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: _tealAccent,
                                 fontSize: 13,
                                 fontWeight: FontWeight.w700,
@@ -363,8 +364,8 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                             const SizedBox(height: 10),
                             Text(
                               l10n.childSafe,
-                              style: const TextStyle(
-                                color: Colors.white,
+                              style: TextStyle(
+                                color: _colors.textPrimary,
                                 fontSize: 22,
                                 height: 1.25,
                                 fontWeight: FontWeight.w900,
@@ -403,8 +404,8 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                           children: [
                             Text(
                               l10n.myLearning,
-                              style: const TextStyle(
-                                color: Colors.white,
+                              style: TextStyle(
+                                color: _colors.textPrimary,
                                 fontSize: 20,
                                 fontWeight: FontWeight.w900,
                                 letterSpacing: -0.3,
@@ -433,8 +434,8 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                               l10n.myProtection,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Colors.white,
+                              style: TextStyle(
+                                color: _colors.textPrimary,
                                 fontSize: 20,
                                 fontWeight: FontWeight.w900,
                                 letterSpacing: -0.3,
@@ -489,7 +490,13 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                 bottom: 16,
                 left: 18,
                 right: 18,
-                child: _buildChildFloatingBottomBar(context, user, l10n),
+                child: FamilyBottomNavigation(
+                  isParent: false,
+                  selected: FamilyNavDestination.home,
+                  familyId: user?.familyId,
+                  childId: user?.uid,
+                  childName: user?.displayName,
+                ),
               ),
             ],
           ),
@@ -515,7 +522,7 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Color(0xFF86A5A1),
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
@@ -526,8 +533,8 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
               value,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: _colors.textPrimary,
                 fontSize: 14,
                 fontWeight: FontWeight.w800,
               ),
@@ -589,10 +596,10 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                   children: [
                     Row(
                       children: [
-                        const Text(
+                        Text(
                           'Study & Lessons',
                           style: TextStyle(
-                            color: Colors.white,
+                            color: _colors.textPrimary,
                             fontSize: 17,
                             fontWeight: FontWeight.w800,
                           ),
@@ -610,8 +617,8 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                             ),
                             child: Text(
                               '$pendingCount NEW',
-                              style: const TextStyle(
-                                color: Colors.white,
+                              style: TextStyle(
+                                color: _colors.textPrimary,
                                 fontSize: 9,
                                 fontWeight: FontWeight.w900,
                               ),
@@ -627,8 +634,8 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                           : 'Explore study videos, notes, and lessons.',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF8BA0B8),
+                      style: TextStyle(
+                        color: _colors.textSecondary,
                         fontSize: 13,
                       ),
                     ),
@@ -642,17 +649,15 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ChildEducationScreen(
-                    familyId: familyId,
-                    childId: childId,
-                    childName: childName,
-                  ),
-                ),
+              onPressed: () => context.push(
+                AppRoutes.childEducation,
+                extra: {
+                  'familyId': familyId,
+                  'childId': childId,
+                  'childName': childName,
+                },
               ),
-              icon: const Icon(
+              icon: Icon(
                 Icons.school_outlined,
                 size: 18,
                 color: Color(0xFF042421),
@@ -709,7 +714,7 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                     child: Center(
                       child: Text(
                         initial,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Color(0xFF042421),
                           fontSize: 22,
                           fontWeight: FontWeight.w900,
@@ -739,8 +744,8 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                   children: [
                     Text(
                       childName,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: _colors.textPrimary,
                         fontSize: 17,
                         fontWeight: FontWeight.w800,
                       ),
@@ -752,14 +757,14 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                           : 'This Device',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF8BA0B8),
+                      style: TextStyle(
+                        color: _colors.textSecondary,
                         fontSize: 13,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Row(
-                      children: const [
+                      children: [
                         Icon(
                           Icons.shield_outlined,
                           size: 13,
@@ -827,7 +832,7 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
     required bool isSolid,
     required VoidCallback onTap,
   }) {
-    final foregroundColor = isSolid ? const Color(0xFF042421) : Colors.white;
+    final foregroundColor = isSolid ? const Color(0xFF042421) : _colors.textPrimary;
     final content = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -876,161 +881,6 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
     }
   }
 
-  // ── Floating Bottom Navigation Bar for Child ────────────────────────
-  Widget _buildChildFloatingBottomBar(
-    BuildContext context,
-    dynamic user,
-    AppLocalizations l10n,
-  ) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0A1424),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: const Color(0xFF1E3554)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.4),
-            blurRadius: 18,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          // Home (Selected)
-          Expanded(
-            child: _buildNavPill(
-              icon: Icons.home_outlined,
-              label: l10n.home,
-              isSelected: true,
-              onTap: () {},
-            ),
-          ),
-          // Apps
-          Expanded(
-            child: _buildNavPill(
-              icon: Icons.grid_view_rounded,
-              label: l10n.apps,
-              isSelected: false,
-              onTap: () => context.push(AppRoutes.childApps),
-            ),
-          ),
-          // Lessons
-          Expanded(
-            child: _buildNavPill(
-              icon: Icons.school_outlined,
-              label: l10n.lessons,
-              isSelected: false,
-              onTap: () {
-                if (user?.familyId != null) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ChildEducationScreen(
-                        familyId: user!.familyId!,
-                        childId: user.uid,
-                        childName: user.displayName ?? 'Me',
-                      ),
-                    ),
-                  );
-                }
-              },
-            ),
-          ),
-          // Health
-          Expanded(
-            child: _buildNavPill(
-              icon: Icons.health_and_safety_outlined,
-              label: l10n.health,
-              isSelected: false,
-              onTap: () => context.push(AppRoutes.childStatus),
-            ),
-          ),
-          // Permissions / Setup
-          Expanded(
-            child: _buildNavPill(
-              icon: Icons.shield_outlined,
-              label: l10n.setup,
-              isSelected: false,
-              onTap: () => context.push(AppRoutes.childPermissions),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNavPill({
-    required IconData icon,
-    required String label,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    if (isSelected) {
-      return InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(22),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-          decoration: BoxDecoration(
-            color: const Color(0xFF0E3835),
-            borderRadius: BorderRadius.circular(22),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, color: _tealAccent, size: 20),
-              const SizedBox(height: 2),
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: _tealAccent,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    } else {
-      return InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(22),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF1F5F9),
-            borderRadius: BorderRadius.circular(22),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, color: const Color(0xFF475569), size: 20),
-              const SizedBox(height: 2),
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Color(0xFF475569),
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-  }
-
   void _showMonitoringInfo(BuildContext context) {
     showDialog(
       context: context,
@@ -1041,13 +891,13 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
           side: const BorderSide(color: _cardBorder),
         ),
         title: Row(
-          children: const [
+          children: [
             Icon(Icons.shield_rounded, color: _tealAccent),
             SizedBox(width: 10),
             Text(
               'About Smart Guard',
               style: TextStyle(
-                color: Colors.white,
+                color: _colors.textPrimary,
                 fontWeight: FontWeight.bold,
                 fontSize: 18,
               ),
@@ -1057,11 +907,11 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: const [
+          children: [
             Text(
               'FamilyGuard keeps your device balanced and safe:',
               style: TextStyle(
-                color: Colors.white,
+                color: _colors.textPrimary,
                 fontWeight: FontWeight.w600,
                 fontSize: 13,
               ),
@@ -1113,8 +963,8 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
       isScrollControlled: true,
       builder: (context) => Container(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 30),
-        decoration: const BoxDecoration(
-          color: Color(0xFF0F1E33),
+        decoration: BoxDecoration(
+          color: _colors.surface,
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
           border: Border(top: BorderSide(color: Color(0xFF1E3554), width: 1.5)),
         ),
@@ -1150,7 +1000,7 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                               user!.displayName.isNotEmpty)
                           ? user.displayName[0].toUpperCase()
                           : 'C',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Color(0xFF042421),
                         fontSize: 22,
                         fontWeight: FontWeight.w900,
@@ -1168,8 +1018,8 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                                 user!.displayName.isNotEmpty
                             ? user.displayName
                             : 'Child Companion',
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: _colors.textPrimary,
                           fontSize: 17,
                           fontWeight: FontWeight.w800,
                         ),
@@ -1179,8 +1029,8 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                         user?.email != null && user!.email.isNotEmpty
                             ? user.email
                             : 'Protected Child Device',
-                        style: const TextStyle(
-                          color: Color(0xFF8BA0B8),
+                        style: TextStyle(
+                          color: _colors.textSecondary,
                           fontSize: 12.5,
                         ),
                       ),
@@ -1199,7 +1049,7 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                   ),
                   child: Text(
                     l10n.child.toUpperCase(),
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: _tealAccent,
                       fontSize: 10,
                       fontWeight: FontWeight.w900,
@@ -1277,7 +1127,7 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                     vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF14243B),
+                    color: _colors.surfaceHighlight,
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(color: _cardBorder),
                   ),
@@ -1302,10 +1152,10 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'Dark Navy Palette',
                               style: TextStyle(
-                                color: Colors.white,
+                                color: _colors.textPrimary,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -1314,8 +1164,8 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                               isDark
                                   ? 'Unified Dark Navy across all pages'
                                   : 'Light theme enabled',
-                              style: const TextStyle(
-                                color: Color(0xFF8BA0B8),
+                              style: TextStyle(
+                                color: _colors.textSecondary,
                                 fontSize: 11.5,
                               ),
                             ),
@@ -1349,22 +1199,22 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                     context.go(AppRoutes.login);
                   }
                 },
-                icon: const Icon(
+                icon: Icon(
                   Icons.logout_rounded,
                   size: 18,
-                  color: Colors.white,
+                  color: _colors.textPrimary,
                 ),
-                label: const Text(
+                label: Text(
                   'Sign Out',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: _colors.textPrimary,
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFDC2626),
-                  foregroundColor: Colors.white,
+                  foregroundColor: _colors.textPrimary,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
@@ -1395,7 +1245,7 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: const Color(0xFF14243B),
+                color: _colors.surfaceHighlight,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: _cardBorder),
               ),
@@ -1408,8 +1258,8 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: _colors.textPrimary,
                       fontSize: 14.5,
                       fontWeight: FontWeight.w700,
                     ),
@@ -1417,8 +1267,8 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: const TextStyle(
-                      color: Color(0xFF8BA0B8),
+                    style: TextStyle(
+                      color: _colors.textSecondary,
                       fontSize: 12,
                     ),
                   ),

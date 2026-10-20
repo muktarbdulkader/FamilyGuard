@@ -21,6 +21,7 @@ import '../../../../core/models/educational_material_model.dart';
 import '../../../../core/services/education_service.dart';
 import '../../../../core/providers/auth_provider.dart';
 import '../../../../core/providers/theme_provider.dart';
+import '../../../../core/widgets/family_bottom_navigation.dart';
 import '../../../../l10n/app_localizations.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -105,170 +106,187 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
         child: Column(
           children: [
             // ── Header ──────────────────────────────────────────
-            Container(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF0C1829) : Colors.white,
-                border: Border(
-                  bottom: BorderSide(
-                    color: isDark ? const Color(0xFF1E3554) : Colors.grey[200]!,
+            Flexible(
+              flex: 3,
+              child: SingleChildScrollView(
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF0C1829) : Colors.white,
+                    border: Border(
+                      bottom: BorderSide(
+                        color: isDark
+                            ? const Color(0xFF1E3554)
+                            : Colors.grey[200]!,
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      IconButton(
-                        icon: Icon(
-                          isRtl
-                              ? Icons.arrow_forward_ios_rounded
-                              : Icons.arrow_back_ios_new_rounded,
-                          size: 20,
-                          color: isDark
-                              ? Colors.white
-                              : const Color(0xFF0F172A),
-                        ),
-                        onPressed: () => Navigator.of(context).maybePop(),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.all(9),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: isDark
-                                ? [
-                                    const Color(0xFF063D39),
-                                    const Color(0xFF0D5E57),
-                                  ]
-                                : [
-                                    const Color(0xFF4F46E5),
-                                    const Color(0xFF7C3AED),
-                                  ],
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
+                      Row(
+                        children: [
+                          IconButton(
+                            icon: Icon(
+                              isRtl
+                                  ? Icons.arrow_forward_ios_rounded
+                                  : Icons.arrow_back_ios_new_rounded,
+                              size: 20,
                               color: isDark
-                                  ? const Color(0xFF2DD4BF).withOpacity(0.2)
-                                  : const Color(0xFF4F46E5).withOpacity(0.25),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
+                                  ? Colors.white
+                                  : const Color(0xFF0F172A),
                             ),
-                          ],
-                        ),
-                        child: Icon(
-                          Icons.family_restroom_rounded,
-                          size: 22,
-                          color: isDark
-                              ? const Color(0xFF2DD4BF)
-                              : Colors.white,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              l10n.familyControls,
-                              style: TextStyle(
-                                fontWeight: FontWeight.w800,
-                                fontSize: 18,
-                                color: isDark
-                                    ? Colors.white
-                                    : const Color(0xFF0F172A),
-                                letterSpacing: -0.3,
+                            visualDensity: VisualDensity.compact,
+                            constraints: const BoxConstraints.tightFor(
+                              width: 40,
+                              height: 40,
+                            ),
+                            onPressed: () => Navigator.of(context).maybePop(),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.all(9),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: isDark
+                                    ? [
+                                        const Color(0xFF063D39),
+                                        const Color(0xFF0D5E57),
+                                      ]
+                                    : [
+                                        const Color(0xFF4F46E5),
+                                        const Color(0xFF7C3AED),
+                                      ],
                               ),
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: isDark
+                                      ? const Color(0xFF2DD4BF).withOpacity(0.2)
+                                      : const Color(
+                                          0xFF4F46E5,
+                                        ).withOpacity(0.25),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
                             ),
-                            Text(
-                              l10n.parentDashboard,
-                              style: TextStyle(
-                                color: isDark
-                                    ? const Color(0xFF8BA0B8)
-                                    : const Color(0xFF64748B),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                              ),
+                            child: Icon(
+                              Icons.family_restroom_rounded,
+                              size: 22,
+                              color: isDark
+                                  ? const Color(0xFF2DD4BF)
+                                  : Colors.white,
                             ),
-                          ],
-                        ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  l10n.familyControls,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 18,
+                                    color: isDark
+                                        ? Colors.white
+                                        : const Color(0xFF0F172A),
+                                    letterSpacing: -0.3,
+                                  ),
+                                ),
+                                Text(
+                                  l10n.parentDashboard,
+                                  style: TextStyle(
+                                    color: isDark
+                                        ? const Color(0xFF8BA0B8)
+                                        : const Color(0xFF64748B),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () => _showSettings(),
+                            visualDensity: VisualDensity.compact,
+                            constraints: const BoxConstraints.tightFor(
+                              width: 40,
+                              height: 40,
+                            ),
+                            icon: Icon(
+                              Icons.settings_outlined,
+                              color: isDark
+                                  ? const Color(0xFF8BA0B8)
+                                  : const Color(0xFF64748B),
+                            ),
+                            tooltip: l10n.settings,
+                          ),
+                        ],
                       ),
-                      IconButton(
-                        onPressed: () => _showSettings(),
-                        icon: Icon(
-                          Icons.settings_outlined,
-                          color: isDark
-                              ? const Color(0xFF8BA0B8)
-                              : const Color(0xFF64748B),
+                      const SizedBox(height: 16),
+                      familiesAsync.when(
+                        loading: () => const _LoadingSelector(
+                          title: 'Loading families...',
                         ),
-                        tooltip: l10n.settings,
+                        error: (error, stack) => _ErrorSelector(
+                          title: 'Error loading families',
+                          error: error.toString(),
+                        ),
+                        data: (families) {
+                          if (families.isEmpty) {
+                            return _EmptyStateSelector(
+                              title: 'No families found',
+                              subtitle:
+                                  'Create a family to start managing parental controls',
+                              onAction: () => _showCreateFamilyDialog(),
+                              actionLabel: 'Create Family',
+                            );
+                          }
+                          return FamilySelector(
+                            families: families,
+                            selectedFamily: selectedFamily ?? families.first,
+                            onFamilySelected: (family) {
+                              ref.read(selectedFamilyProvider.notifier).state =
+                                  family;
+                              ref.read(selectedChildProvider.notifier).state =
+                                  null;
+                            },
+                          );
+                        },
                       ),
+                      const SizedBox(height: 12),
+                      if (selectedFamily != null)
+                        childrenAsync.when(
+                          loading: () => const _LoadingSelector(
+                            title: 'Loading children...',
+                          ),
+                          error: (error, stack) => _ErrorSelector(
+                            title: 'Error loading children',
+                            error: error.toString(),
+                          ),
+                          data: (children) {
+                            if (children.isEmpty) {
+                              return _EmptyStateSelector(
+                                title: 'No children in this family',
+                                subtitle: 'Invite children to join this family',
+                                onAction: () => _showInviteChildDialog(),
+                                actionLabel: 'Invite Child',
+                              );
+                            }
+                            return ChildSelector(
+                              children: children,
+                              selectedChild: selectedChild ?? children.first,
+                              onChildSelected: (child) {
+                                ref.read(selectedChildProvider.notifier).state =
+                                    child;
+                              },
+                            );
+                          },
+                        ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-
-                  // Family Selector
-                  familiesAsync.when(
-                    loading: () =>
-                        const _LoadingSelector(title: 'Loading families...'),
-                    error: (error, stack) => _ErrorSelector(
-                      title: 'Error loading families',
-                      error: error.toString(),
-                    ),
-                    data: (families) {
-                      if (families.isEmpty) {
-                        return _EmptyStateSelector(
-                          title: 'No families found',
-                          subtitle:
-                              'Create a family to start managing parental controls',
-                          onAction: () => _showCreateFamilyDialog(),
-                          actionLabel: 'Create Family',
-                        );
-                      }
-                      return FamilySelector(
-                        families: families,
-                        selectedFamily: selectedFamily ?? families.first,
-                        onFamilySelected: (family) {
-                          ref.read(selectedFamilyProvider.notifier).state =
-                              family;
-                          ref.read(selectedChildProvider.notifier).state = null;
-                        },
-                      );
-                    },
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // Child Selector (always show when family available)
-                  if (selectedFamily != null)
-                    childrenAsync.when(
-                      loading: () =>
-                          const _LoadingSelector(title: 'Loading children...'),
-                      error: (error, stack) => _ErrorSelector(
-                        title: 'Error loading children',
-                        error: error.toString(),
-                      ),
-                      data: (children) {
-                        if (children.isEmpty) {
-                          return _EmptyStateSelector(
-                            title: 'No children in this family',
-                            subtitle: 'Invite children to join this family',
-                            onAction: () => _showInviteChildDialog(),
-                            actionLabel: 'Invite Child',
-                          );
-                        }
-                        return ChildSelector(
-                          children: children,
-                          selectedChild: selectedChild ?? children.first,
-                          onChildSelected: (child) {
-                            ref.read(selectedChildProvider.notifier).state =
-                                child;
-                          },
-                        );
-                      },
-                    ),
-                ],
+                ),
               ),
             ),
 
@@ -321,6 +339,7 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
 
             // ── Tab Views ─────────────────────────────────────────
             Expanded(
+              flex: 5,
               child: TabBarView(
                 controller: _tabController,
                 children: [
@@ -364,6 +383,10 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
             ),
           ],
         ),
+      ),
+      bottomNavigationBar: const FamilyBottomNavigation(
+        isParent: true,
+        selected: FamilyNavDestination.apps,
       ),
     );
   }
@@ -1901,9 +1924,7 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: isStale
-                        ? const Color(0xFFD97706)
-                        : Colors.grey[600],
+                    color: isStale ? const Color(0xFFD97706) : Colors.grey[600],
                   ),
                 ),
               ),
@@ -2599,9 +2620,13 @@ class _LoadingSelector extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          Text(
-            title,
-            style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+          Expanded(
+            child: Text(
+              title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+            ),
           ),
         ],
       ),

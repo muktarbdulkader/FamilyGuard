@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import '../models/family_model.dart';
 import '../models/app_info.dart';
 import 'user_provider.dart';
@@ -16,9 +17,10 @@ final userFamiliesProvider = StreamProvider<List<FamilyModel>>((ref) {
       .collection('families')
       .where('parentIds', arrayContains: user.uid)
       .snapshots()
-      .map((snapshot) => snapshot.docs
-          .map((doc) => FamilyModel.fromFirestore(doc))
-          .toList());
+      .map(
+        (snapshot) =>
+            snapshot.docs.map((doc) => FamilyModel.fromFirestore(doc)).toList(),
+      );
 });
 
 /// Provider for selected family
@@ -37,16 +39,20 @@ final familyChildrenProvider = StreamProvider<List<ChildModel>>((ref) {
       .where('familyId', isEqualTo: family.id)
       .where('role', isEqualTo: 'child')
       .snapshots()
-      .map((snapshot) => snapshot.docs
-          .map((doc) => ChildModel.fromFirestore(doc))
-          .toList());
+      .map(
+        (snapshot) =>
+            snapshot.docs.map((doc) => ChildModel.fromFirestore(doc)).toList(),
+      );
 });
 
 /// Provider for selected child
 final selectedChildProvider = StateProvider<ChildModel?>((ref) => null);
 
 /// Provider for child's apps with real-time updates
-final childAppsProvider = StreamProvider.family<List<AppInfo>, String>((ref, childId) {
+final childAppsProvider = StreamProvider.family<List<AppInfo>, String>((
+  ref,
+  childId,
+) {
   final family = ref.watch(selectedFamilyProvider);
   final user = ref.watch(currentUserDataProvider).value;
   final familyId = family?.id ?? user?.familyId;
@@ -62,11 +68,16 @@ final childAppsProvider = StreamProvider.family<List<AppInfo>, String>((ref, chi
       .doc(childId)
       .collection('apps')
       .snapshots()
-      .map((snapshot) => snapshot.docs
-          .map((doc) => AppInfo.fromFirestore(doc))
-          .where((app) => app.isAvailable) // Only show available apps
-          .toList()
-        ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()))); // Sort alphabetically
+      .map(
+        (snapshot) =>
+            snapshot.docs
+                .map((doc) => AppInfo.fromFirestore(doc))
+                .where((app) => app.isAvailable) // Only show available apps
+                .toList()
+              ..sort(
+                (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+              ),
+      ); // Sort alphabetically
 });
 
 class FamilyChildParams {
@@ -85,101 +96,117 @@ class FamilyChildParams {
 }
 
 /// Provider for child apps when both familyId and childId are known
-final familyChildAppsProvider = StreamProvider.family<List<AppInfo>, FamilyChildParams>((ref, params) {
-  if (params.familyId.isEmpty || params.childId.isEmpty) {
-    return Stream.value([]);
-  }
+final familyChildAppsProvider =
+    StreamProvider.family<List<AppInfo>, FamilyChildParams>((ref, params) {
+      if (params.familyId.isEmpty || params.childId.isEmpty) {
+        return Stream.value([]);
+      }
 
-  return FirebaseFirestore.instance
-      .collection('families')
-      .doc(params.familyId)
-      .collection('children')
-      .doc(params.childId)
-      .collection('apps')
-      .snapshots()
-      .map((snapshot) => snapshot.docs
-          .map((doc) => AppInfo.fromFirestore(doc))
-          .where((app) => app.isAvailable)
-          .toList()
-        ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase())));
-});
+      return FirebaseFirestore.instance
+          .collection('families')
+          .doc(params.familyId)
+          .collection('children')
+          .doc(params.childId)
+          .collection('apps')
+          .snapshots()
+          .map(
+            (snapshot) =>
+                snapshot.docs
+                    .map((doc) => AppInfo.fromFirestore(doc))
+                    .where((app) => app.isAvailable)
+                    .toList()
+                  ..sort(
+                    (a, b) =>
+                        a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+                  ),
+          );
+    });
 
 /// Provider for child's app usage data
-final childAppUsageProvider = StreamProvider.family<Map<String, AppUsageModel>, String>((ref, childId) {
-  final family = ref.watch(selectedFamilyProvider);
-  final familyId = (family != null && family.id.isNotEmpty)
-      ? family.id
-      : (ref.watch(currentUserDataProvider).value?.familyId ?? '');
+final childAppUsageProvider =
+    StreamProvider.family<Map<String, AppUsageModel>, String>((ref, childId) {
+      final family = ref.watch(selectedFamilyProvider);
+      final familyId = (family != null && family.id.isNotEmpty)
+          ? family.id
+          : (ref.watch(currentUserDataProvider).value?.familyId ?? '');
 
-  if (familyId.isEmpty || childId.isEmpty) {
-    return Stream.value({});
-  }
+      if (familyId.isEmpty || childId.isEmpty) {
+        return Stream.value({});
+      }
 
-  return FirebaseFirestore.instance
-      .collection('families')
-      .doc(familyId)
-      .collection('children')
-      .doc(childId)
-      .collection('usage')
-      .snapshots()
-      .map((snapshot) {
-    final usageMap = <String, AppUsageModel>{};
-    for (final doc in snapshot.docs) {
-      final usage = AppUsageModel.fromFirestore(doc.data());
-      usageMap[usage.packageName] = usage;
-    }
-    return usageMap;
-  });
-});
+      return FirebaseFirestore.instance
+          .collection('families')
+          .doc(familyId)
+          .collection('children')
+          .doc(childId)
+          .collection('usage')
+          .snapshots()
+          .map((snapshot) {
+            final usageMap = <String, AppUsageModel>{};
+            for (final doc in snapshot.docs) {
+              final usage = AppUsageModel.fromFirestore(doc.data());
+              usageMap[usage.packageName] = usage;
+            }
+            return usageMap;
+          });
+    });
 
 /// Provider for child's app usage data when both familyId and childId are known
-final familyChildAppUsageProvider = StreamProvider.family<Map<String, AppUsageModel>, FamilyChildParams>((ref, params) {
-  if (params.familyId.isEmpty || params.childId.isEmpty) {
-    return Stream.value({});
-  }
+final familyChildAppUsageProvider =
+    StreamProvider.family<Map<String, AppUsageModel>, FamilyChildParams>((
+      ref,
+      params,
+    ) {
+      if (params.familyId.isEmpty || params.childId.isEmpty) {
+        return Stream.value({});
+      }
 
-  return FirebaseFirestore.instance
-      .collection('families')
-      .doc(params.familyId)
-      .collection('children')
-      .doc(params.childId)
-      .collection('usage')
-      .snapshots()
-      .map((snapshot) {
-    final usageMap = <String, AppUsageModel>{};
-    for (final doc in snapshot.docs) {
-      final usage = AppUsageModel.fromFirestore(doc.data());
-      usageMap[usage.packageName] = usage;
-    }
-    return usageMap;
-  });
-});
+      return FirebaseFirestore.instance
+          .collection('families')
+          .doc(params.familyId)
+          .collection('children')
+          .doc(params.childId)
+          .collection('usage')
+          .snapshots()
+          .map((snapshot) {
+            final usageMap = <String, AppUsageModel>{};
+            for (final doc in snapshot.docs) {
+              final usage = AppUsageModel.fromFirestore(doc.data());
+              usageMap[usage.packageName] = usage;
+            }
+            return usageMap;
+          });
+    });
 
 /// Provider for specific app with usage data
-final appWithUsageProvider = Provider.family<AsyncValue<AppWithUsage?>, AppWithUsageParams>((ref, params) {
-  final appsAsync = ref.watch(childAppsProvider(params.childId));
-  final usageAsync = ref.watch(childAppUsageProvider(params.childId));
+final appWithUsageProvider =
+    Provider.family<AsyncValue<AppWithUsage?>, AppWithUsageParams>((
+      ref,
+      params,
+    ) {
+      final appsAsync = ref.watch(childAppsProvider(params.childId));
+      final usageAsync = ref.watch(childAppUsageProvider(params.childId));
 
-  return appsAsync.when(
-    data: (apps) => usageAsync.when(
-      data: (usageMap) {
-        final app = apps.cast<AppInfo?>().firstWhere(
-          (a) => a?.packageName == params.packageName,
-          orElse: () => null,
-        );
-        
-        if (app == null) return const AsyncValue.data(null);
-        
-        final usage = usageMap[params.packageName];
-        return AsyncValue.data(AppWithUsage(app: app, usage: usage));
-      },
-      loading: () => const AsyncValue.loading(),
-      error: (error, stack) => AsyncValue.error(error, stack),
-    ),
-    loading: () => const AsyncValue.loading(),
-    error: (error, stack) => AsyncValue.error(error, stack),
-  );
-});
+      return appsAsync.when(
+        data: (apps) => usageAsync.when(
+          data: (usageMap) {
+            final app = apps.cast<AppInfo?>().firstWhere(
+              (a) => a?.packageName == params.packageName,
+              orElse: () => null,
+            );
+
+            if (app == null) return const AsyncValue.data(null);
+
+            final usage = usageMap[params.packageName];
+            return AsyncValue.data(AppWithUsage(app: app, usage: usage));
+          },
+          loading: () => const AsyncValue.loading(),
+          error: (error, stack) => AsyncValue.error(error, stack),
+        ),
+        loading: () => const AsyncValue.loading(),
+        error: (error, stack) => AsyncValue.error(error, stack),
+      );
+    });
 
 /// Service for managing app rules
 class AppRuleService {
@@ -192,6 +219,7 @@ class AppRuleService {
     required String packageName,
     required AppControlRule rule,
     int? dailyLimitMinutes,
+    int? usageAlertThresholdPercent,
     String? allowedFrom,
     String? allowedUntil,
   }) async {
@@ -208,22 +236,29 @@ class AppRuleService {
       'type': rule.name.toUpperCase(),
       'updatedAt': FieldValue.serverTimestamp(),
       'lastUpdated': FieldValue.serverTimestamp(),
+      'policyVersion': FieldValue.increment(1),
     };
 
     // Add rule-specific fields
     switch (rule) {
       case AppControlRule.timeLimited:
         updates['dailyLimitMinutes'] = dailyLimitMinutes;
+        updates['usageAlertThresholdPercent'] =
+            usageAlertThresholdPercent ?? 50;
         break;
       case AppControlRule.timeRestricted:
         updates['allowedFrom'] = allowedFrom;
         updates['allowedUntil'] = allowedUntil;
+        updates['dailyLimitBonusMinutes'] = 0;
+        updates['dailyLimitBonusDate'] = null;
         break;
       default:
         // Clear time-related fields for other rules
         updates['dailyLimitMinutes'] = null;
         updates['allowedFrom'] = null;
         updates['allowedUntil'] = null;
+        updates['dailyLimitBonusMinutes'] = 0;
+        updates['dailyLimitBonusDate'] = null;
         break;
     }
 
@@ -274,6 +309,31 @@ class AppRuleService {
     }
   }
 
+  Future<void> applyUsageDecision({
+    required String familyId,
+    required String childId,
+    required String packageName,
+    required String action,
+    required String usageDate,
+    String? continuationMode,
+    int? dailyLimitMinutes,
+    int? grantedMinutes,
+  }) async {
+    final callable = FirebaseFunctions.instance.httpsCallable(
+      'applyAppUsageDecision',
+    );
+    await callable.call(<String, dynamic>{
+      'familyId': familyId,
+      'childId': childId,
+      'packageName': packageName,
+      'action': action,
+      'usageDate': usageDate,
+      'continuationMode': ?continuationMode,
+      'dailyLimitMinutes': ?dailyLimitMinutes,
+      'grantedMinutes': ?grantedMinutes,
+    });
+  }
+
   /// Batch update multiple app rules
   Future<void> batchUpdateAppRules({
     required String familyId,
@@ -296,6 +356,7 @@ class AppRuleService {
         'type': update.rule.name.toUpperCase(),
         'updatedAt': FieldValue.serverTimestamp(),
         'lastUpdated': FieldValue.serverTimestamp(),
+        'policyVersion': FieldValue.increment(1),
       };
 
       if (update.dailyLimitMinutes != null) {
@@ -306,6 +367,10 @@ class AppRuleService {
       }
       if (update.allowedUntil != null) {
         data['allowedUntil'] = update.allowedUntil;
+      }
+      if (update.rule != AppControlRule.timeLimited) {
+        data['dailyLimitBonusMinutes'] = 0;
+        data['dailyLimitBonusDate'] = null;
       }
 
       batch.set(appRef, data, SetOptions(merge: true));
@@ -328,17 +393,16 @@ class AppRuleService {
 }
 
 /// Provider for app rule service
-final appRuleServiceProvider = Provider<AppRuleService>((ref) => AppRuleService());
+final appRuleServiceProvider = Provider<AppRuleService>(
+  (ref) => AppRuleService(),
+);
 
 /// Combined app and usage data
 class AppWithUsage {
   final AppInfo app;
   final AppUsageModel? usage;
 
-  AppWithUsage({
-    required this.app,
-    this.usage,
-  });
+  AppWithUsage({required this.app, this.usage});
 
   /// Get today's usage in minutes
   int get todayMinutes => usage?.todayMinutes ?? 0;
@@ -347,12 +411,14 @@ class AppWithUsage {
   String get usageStatusText => usage?.usageStatusText ?? 'Not used today';
 
   /// Get usage percentage for daily limit
-  double get usagePercentage => usage?.getUsagePercentage(app.dailyLimitMinutes) ?? 0.0;
+  double get usagePercentage =>
+      usage?.getUsagePercentage(app.effectiveDailyLimit(DateTime.now())) ?? 0.0;
 
   /// Check if app is over daily limit
   bool get isOverLimit {
-    if (app.dailyLimitMinutes == null) return false;
-    return todayMinutes >= app.dailyLimitMinutes!;
+    final limit = app.effectiveDailyLimit(DateTime.now());
+    if (limit <= 0) return false;
+    return todayMinutes >= limit;
   }
 
   /// Get status color based on usage and rules
@@ -365,7 +431,9 @@ class AppWithUsage {
       case AppControlRule.ask:
         return const Color(0xFF2196F3); // Blue
       case AppControlRule.timeLimited:
-        return isOverLimit ? const Color(0xFFF44336) : const Color(0xFFFF9800); // Red if over limit, orange otherwise
+        return isOverLimit
+            ? const Color(0xFFF44336)
+            : const Color(0xFFFF9800); // Red if over limit, orange otherwise
       case AppControlRule.timeRestricted:
         return const Color(0xFF9C27B0); // Purple
     }
@@ -381,8 +449,9 @@ class AppWithUsage {
       case AppControlRule.ask:
         return 'Ask Parent';
       case AppControlRule.timeLimited:
-        if (app.dailyLimitMinutes != null) {
-          return isOverLimit ? 'Limit Exceeded' : 'Limited (${app.dailyLimitMinutes}m)';
+        final limit = app.effectiveDailyLimit(DateTime.now());
+        if (limit > 0) {
+          return isOverLimit ? 'Limit Exceeded' : 'Limited (${limit}m)';
         }
         return 'Time Limited';
       case AppControlRule.timeRestricted:
@@ -399,10 +468,7 @@ class AppWithUsageParams {
   final String childId;
   final String packageName;
 
-  AppWithUsageParams({
-    required this.childId,
-    required this.packageName,
-  });
+  AppWithUsageParams({required this.childId, required this.packageName});
 
   @override
   bool operator ==(Object other) =>

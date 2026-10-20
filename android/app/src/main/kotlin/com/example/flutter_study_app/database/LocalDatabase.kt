@@ -20,7 +20,7 @@ class LocalDatabase private constructor(context: Context) :
     
     companion object {
         private const val DATABASE_NAME = "parental_control.db"
-        private const val DATABASE_VERSION = 1
+        private const val DATABASE_VERSION = 2
         
         // Tables
         private const val TABLE_RULES = "app_rules"
@@ -36,6 +36,8 @@ class LocalDatabase private constructor(context: Context) :
         private const val RULE_CREATED_AT = "created_at"
         private const val RULE_UPDATED_AT = "updated_at"
         private const val RULE_SYNC_STATUS = "sync_status" // For Firebase sync tracking
+        private const val RULE_ALERT_THRESHOLD = "usage_alert_threshold_percent"
+        private const val RULE_POLICY_VERSION = "policy_version"
         
         // Usage table columns
         private const val USAGE_PACKAGE_NAME = "package_name"
@@ -72,7 +74,9 @@ class LocalDatabase private constructor(context: Context) :
                 $RULE_END_TIME TEXT,
                 $RULE_CREATED_AT TEXT NOT NULL,
                 $RULE_UPDATED_AT TEXT NOT NULL,
-                $RULE_SYNC_STATUS INTEGER DEFAULT 1
+                $RULE_SYNC_STATUS INTEGER DEFAULT 1,
+                $RULE_ALERT_THRESHOLD INTEGER NOT NULL DEFAULT 50,
+                $RULE_POLICY_VERSION INTEGER NOT NULL DEFAULT 0
             )
         """)
         
@@ -105,11 +109,14 @@ class LocalDatabase private constructor(context: Context) :
     }
     
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        // Handle database upgrades here
-        db.execSQL("DROP TABLE IF EXISTS $TABLE_RULES")
-        db.execSQL("DROP TABLE IF EXISTS $TABLE_USAGE")
-        db.execSQL("DROP TABLE IF EXISTS $TABLE_TEMPORARY_APPROVALS")
-        onCreate(db)
+        if (oldVersion < 2) {
+            db.execSQL(
+                "ALTER TABLE $TABLE_RULES ADD COLUMN $RULE_ALERT_THRESHOLD INTEGER NOT NULL DEFAULT 50"
+            )
+            db.execSQL(
+                "ALTER TABLE $TABLE_RULES ADD COLUMN $RULE_POLICY_VERSION INTEGER NOT NULL DEFAULT 0"
+            )
+        }
     }
     
     /**
@@ -127,6 +134,8 @@ class LocalDatabase private constructor(context: Context) :
             put(RULE_CREATED_AT, rule.createdAt.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
             put(RULE_UPDATED_AT, rule.updatedAt.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
             put(RULE_SYNC_STATUS, 1) // Mark as synced
+            put(RULE_ALERT_THRESHOLD, rule.usageAlertThresholdPercent.coerceIn(1, 99))
+            put(RULE_POLICY_VERSION, rule.policyVersion)
         }
         
         val result = db.insertWithOnConflict(TABLE_RULES, null, values, SQLiteDatabase.CONFLICT_REPLACE)
@@ -154,7 +163,9 @@ class LocalDatabase private constructor(context: Context) :
                     allowedStartTime = c.getString(c.getColumnIndexOrThrow(RULE_START_TIME))?.let { LocalTime.parse(it) },
                     allowedEndTime = c.getString(c.getColumnIndexOrThrow(RULE_END_TIME))?.let { LocalTime.parse(it) },
                     createdAt = LocalDateTime.parse(c.getString(c.getColumnIndexOrThrow(RULE_CREATED_AT))),
-                    updatedAt = LocalDateTime.parse(c.getString(c.getColumnIndexOrThrow(RULE_UPDATED_AT)))
+                    updatedAt = LocalDateTime.parse(c.getString(c.getColumnIndexOrThrow(RULE_UPDATED_AT))),
+                    usageAlertThresholdPercent = c.getInt(c.getColumnIndexOrThrow(RULE_ALERT_THRESHOLD)),
+                    policyVersion = c.getLong(c.getColumnIndexOrThrow(RULE_POLICY_VERSION))
                 )
             } else {
                 null
@@ -176,7 +187,9 @@ class LocalDatabase private constructor(context: Context) :
                     allowedStartTime = c.getString(c.getColumnIndexOrThrow(RULE_START_TIME))?.let { LocalTime.parse(it) },
                     allowedEndTime = c.getString(c.getColumnIndexOrThrow(RULE_END_TIME))?.let { LocalTime.parse(it) },
                     createdAt = LocalDateTime.parse(c.getString(c.getColumnIndexOrThrow(RULE_CREATED_AT))),
-                    updatedAt = LocalDateTime.parse(c.getString(c.getColumnIndexOrThrow(RULE_UPDATED_AT)))
+                    updatedAt = LocalDateTime.parse(c.getString(c.getColumnIndexOrThrow(RULE_UPDATED_AT))),
+                    usageAlertThresholdPercent = c.getInt(c.getColumnIndexOrThrow(RULE_ALERT_THRESHOLD)),
+                    policyVersion = c.getLong(c.getColumnIndexOrThrow(RULE_POLICY_VERSION))
                 )
                 rules.add(rule)
             }
@@ -315,6 +328,28 @@ class LocalDatabase private constructor(context: Context) :
         
         val result = db.insertWithOnConflict(TABLE_TEMPORARY_APPROVALS, null, values, SQLiteDatabase.CONFLICT_REPLACE)
         return result != -1L
+    }
+
+    fun replaceTemporaryApprovals(
+        approvals: List<RuleEngine.TemporaryApproval>,
+        currentTime: LocalDateTime
+    ) {
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            db.update(
+                TABLE_TEMPORARY_APPROVALS,
+                ContentValues().apply { put(APPROVAL_IS_ACTIVE, 0) },
+                "$APPROVAL_IS_ACTIVE = 1",
+                null
+            )
+            approvals
+                .filterNot { it.isExpired(currentTime) }
+                .forEach { insertTemporaryApproval(it) }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
     }
     
     fun getActiveTemporaryApproval(packageName: String): RuleEngine.TemporaryApproval? {

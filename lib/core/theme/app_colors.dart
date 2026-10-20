@@ -6,6 +6,9 @@ import '../providers/theme_provider.dart';
 /// Instead of hardcoding hex colors across multiple files, every widget and
 /// screen references this single source of truth.
 class AppColors {
+  static AppColors of(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark ? dark : light;
+
   // ── Static constants for const expressions ─────────────────────────
   static const Color darkNavyBg = Color(0xFF0C1829);
   static const Color darkNavyCard = Color(0xFF132238);

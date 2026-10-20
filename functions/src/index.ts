@@ -2,6 +2,7 @@ import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import * as crypto from 'crypto';
+import { getUsageAlertKind, localDateForTimeZone } from './usage_alerts';
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -147,15 +148,14 @@ async function validateParentAuthorization(userId: string, familyId: string): Pr
 
     const familyData = familyDoc.data();
     const parentIds = familyData?.parentIds || [];
-    
+
     if (!parentIds.includes(userId)) {
-      // CRITICAL: Log unauthorized parent action attempt
       await logSecurityEvent('unauthorized_parent_action', {
         userId,
         familyId,
         timestamp: admin.firestore.FieldValue.serverTimestamp(),
       });
-      
+
       throw new functions.https.HttpsError('permission-denied', 'Parent authorization required');
     }
   } catch (error) {
@@ -165,6 +165,267 @@ async function validateParentAuthorization(userId: string, familyId: string): Pr
     throw new functions.https.HttpsError('internal', 'Error validating parent authorization');
   }
 }
+
+    export const applyAppUsageDecision = functions.https.onCall(async (data, context) => {
+      if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'Authentication required');
+      }
+
+      const familyId = typeof data.familyId === 'string' ? data.familyId : '';
+      const childId = typeof data.childId === 'string' ? data.childId : '';
+      const packageName = typeof data.packageName === 'string' ? data.packageName : '';
+      const action = typeof data.action === 'string' ? data.action : '';
+      if (!familyId || !childId || !packageName || !action) {
+        throw new functions.https.HttpsError('invalid-argument', 'Missing app decision details');
+      }
+
+      const parentId = context.auth.uid;
+      const familyRef = db.collection('families').doc(familyId);
+      const childUserRef = db.collection('users').doc(childId);
+      const childRef = familyRef.collection('children').doc(childId);
+      const appRef = childRef.collection('apps').doc(packageName);
+      const usageRef = childRef.collection('usage').doc(packageName.replace(/\./g, '_'));
+      const approvalRef = childRef.collection('temporaryApprovals')
+        .doc(packageName.replace(/\./g, '_'));
+      const decisionTime = Date.now();
+      let appName = packageName;
+      let grantedMinutes: number | undefined;
+      let effectiveLimitMinutes: number | undefined;
+      let policyVersion = 0;
+
+      await db.runTransaction(async (transaction) => {
+        const [familyDoc, childUserDoc, childDoc, appDoc, usageDoc, approvalDoc] = await Promise.all([
+          transaction.get(familyRef),
+          transaction.get(childUserRef),
+          transaction.get(childRef),
+          transaction.get(appRef),
+          transaction.get(usageRef),
+          transaction.get(approvalRef),
+        ]);
+        if (!familyDoc.exists) {
+          throw new functions.https.HttpsError('not-found', 'Family not found');
+        }
+
+        const familyData = familyDoc.data() ?? {};
+        const parentIds = Array.isArray(familyData.parentIds)
+          ? familyData.parentIds
+          : [familyData.parentId];
+        if (!parentIds.includes(parentId)) {
+          throw new functions.https.HttpsError('permission-denied', 'Parent authorization required');
+        }
+
+        const childUser = childUserDoc.data() ?? {};
+        const childFamilyId = childUser.familyId;
+        const isKnownChild = childDoc.exists ||
+          (childFamilyId === familyId && childUser.role === 'child') ||
+          (Array.isArray(familyData.childIds) && familyData.childIds.includes(childId));
+        if (!isKnownChild) {
+          throw new functions.https.HttpsError('permission-denied', 'Child is not in this family');
+        }
+        if (!appDoc.exists) {
+          throw new functions.https.HttpsError('not-found', 'App policy not found');
+        }
+
+        const app = appDoc.data() ?? {};
+        appName = String(app.name ?? app.appName ?? packageName);
+        const rawRule = String(app.rule ?? app.type ?? '').toLowerCase();
+        const normalizedRule = rawRule.replace(/[^a-z]/g, '');
+        const isTimeLimited = normalizedRule === 'timelimited' || normalizedRule === 'timelimit';
+        const usage = usageDoc.data() ?? {};
+        const usedMinutes = Number(usage.todayMinutes ?? 0);
+        const timeZone = typeof usage.timeZoneId === 'string' ? usage.timeZoneId : 'UTC';
+        let localUsageDate = typeof usage.dailyResetDate === 'string'
+          ? usage.dailyResetDate
+          : (typeof data.usageDate === 'string' ? data.usageDate : '');
+        try {
+          localUsageDate = localDateForTimeZone(new Date(decisionTime), timeZone);
+        } catch (_) {
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(localUsageDate)) {
+            localUsageDate = typeof data.usageDate === 'string' ? data.usageDate : '';
+          }
+        }
+
+        const baseLimit = Number(app.dailyLimitMinutes ?? 0);
+        const currentBonus = app.dailyLimitBonusDate === localUsageDate
+          ? Number(app.dailyLimitBonusMinutes ?? 0)
+          : 0;
+        const currentRule = String(app.rule ?? app.type ?? 'ask');
+        const updates: Record<string, unknown> = {
+          updatedAt: FieldValue.serverTimestamp(),
+          lastUpdated: FieldValue.serverTimestamp(),
+          policyVersion: Number(app.policyVersion ?? 0) + 1,
+          policyAction: action,
+          policyActionBy: parentId,
+          policyActionAt: FieldValue.serverTimestamp(),
+        };
+
+        if (action === 'block') {
+          updates.rule = 'block';
+          updates.type = 'BLOCKED';
+          updates.dailyLimitMinutes = null;
+          updates.dailyLimitBonusMinutes = 0;
+          updates.dailyLimitBonusDate = null;
+        } else if (action === 'continue') {
+          if (!['keep', 'remove', 'adjust'].includes(data.continuationMode)) {
+            throw new functions.https.HttpsError('invalid-argument', 'Invalid continuation option');
+          }
+          if (data.continuationMode === 'remove') {
+            updates.rule = 'allow';
+            updates.type = 'ALLOWED';
+            updates.dailyLimitMinutes = null;
+            updates.dailyLimitBonusMinutes = 0;
+            updates.dailyLimitBonusDate = null;
+          } else if (data.continuationMode === 'adjust') {
+            const newLimit = Number(data.dailyLimitMinutes);
+            if (!Number.isInteger(newLimit) || newLimit < usedMinutes + 1 || newLimit > 1440) {
+              throw new functions.https.HttpsError(
+                'invalid-argument',
+                'The adjusted daily limit must exceed today’s usage and be at most 1440 minutes'
+              );
+            }
+            updates.rule = 'timeLimited';
+            updates.type = 'TIME_LIMIT';
+            updates.dailyLimitMinutes = newLimit;
+          }
+        } else if (action === 'grant') {
+          const additionalMinutes = Number(data.grantedMinutes);
+          if (!isTimeLimited) {
+            throw new functions.https.HttpsError(
+              'failed-precondition',
+              'Extra time can only be granted to an app with a daily time limit'
+            );
+          }
+          if (!Number.isInteger(additionalMinutes) || additionalMinutes < 1 || additionalMinutes > 480) {
+            throw new functions.https.HttpsError('invalid-argument', 'Extra time must be between 1 and 480 minutes');
+          }
+          const nextBonus = currentBonus + additionalMinutes;
+          if (baseLimit + nextBonus > 1440) {
+            throw new functions.https.HttpsError('invalid-argument', 'The resulting daily allowance cannot exceed 1440 minutes');
+          }
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(localUsageDate)) {
+            throw new functions.https.HttpsError('failed-precondition', 'Child local usage date is unavailable');
+          }
+          updates.dailyLimitBonusMinutes = nextBonus;
+          updates.dailyLimitBonusDate = localUsageDate;
+          grantedMinutes = additionalMinutes;
+          effectiveLimitMinutes = baseLimit + nextBonus;
+        } else {
+          throw new functions.https.HttpsError('invalid-argument', 'Unsupported app decision');
+        }
+
+        policyVersion = Number(app.policyVersion ?? 0) + 1;
+        if (action === 'continue' && data.continuationMode === 'keep') {
+          updates.rule = currentRule;
+        }
+        transaction.set(appRef, updates, { merge: true });
+        if (action === 'block' && approvalDoc.exists) {
+          transaction.delete(approvalRef);
+        }
+      });
+
+      if (action === 'grant' && grantedMinutes != null) {
+        await sendAppTimeGrantedNotification({
+          childId,
+          familyId,
+          packageName,
+          appName,
+          grantedMinutes,
+          effectiveLimitMinutes: effectiveLimitMinutes ?? 0,
+        });
+      }
+
+      return { success: true, policyVersion, grantedMinutes };
+    });
+
+    export const processAppUsageAlert = functions.firestore
+      .document('families/{familyId}/children/{childId}/usage/{usageId}')
+      .onWrite(async (change, context) => {
+        if (!change.after.exists) return;
+
+        const { familyId, childId } = context.params;
+        const usage = change.after.data() ?? {};
+        const packageName = typeof usage.packageName === 'string'
+          ? usage.packageName
+          : context.params.usageId.replace(/_/g, '.');
+        const usageDate = typeof usage.dailyResetDate === 'string' ? usage.dailyResetDate : '';
+        const usedMinutes = Number(usage.todayMinutes ?? 0);
+        if (!packageName || !/^\d{4}-\d{2}-\d{2}$/.test(usageDate) || usedMinutes < 0) return;
+
+        const childRef = db.collection('families').doc(familyId).collection('children').doc(childId);
+        const [appDoc, childDoc, userDoc] = await Promise.all([
+          childRef.collection('apps').doc(packageName).get(),
+          childRef.get(),
+          db.collection('users').doc(childId).get(),
+        ]);
+        if (!appDoc.exists) return;
+
+        const app = appDoc.data() ?? {};
+        const rule = String(app.rule ?? app.type ?? '').toLowerCase().replace(/[_\s-]/g, '');
+        if (!['timelimited', 'timelimit'].includes(rule)) return;
+
+        const baseLimit = Number(app.dailyLimitMinutes ?? 0);
+        const bonus = app.dailyLimitBonusDate === usageDate
+          ? Number(app.dailyLimitBonusMinutes ?? 0)
+          : 0;
+        const effectiveLimit = baseLimit + bonus;
+        const configuredThreshold = Number(app.usageAlertThresholdPercent ?? 50);
+        const thresholdPercent = Number.isFinite(configuredThreshold)
+          ? configuredThreshold
+          : 50;
+        const alertKind = getUsageAlertKind(usedMinutes, effectiveLimit, thresholdPercent);
+        if (!alertKind) return;
+
+        const appName = String(app.name ?? app.appName ?? usage.appName ?? packageName);
+        const childData = childDoc.data() ?? {};
+        const userData = userDoc.data() ?? {};
+        const childName = String(userData.displayName ?? userData.name ??
+          childData.displayName ?? childData.name ?? 'Child');
+        const packageHash = crypto.createHash('sha256').update(packageName).digest('hex').slice(0, 20);
+        const alertRef = childRef.collection('usageAlerts')
+          .doc(`${usageDate}_${packageHash}_${alertKind}`);
+        const notificationRef = db.collection('notifications').doc();
+        const title = alertKind === 'dailyLimitReached'
+          ? 'App time limit reached'
+          : 'High app usage';
+        const body = alertKind === 'dailyLimitReached'
+          ? `Time limit reached: ${childName} has used ${appName} for ${usedMinutes} minutes today. Choose what happens next.`
+          : `High app usage: ${childName} has used ${appName} for ${usedMinutes} of the allowed ${effectiveLimit} minutes today.`;
+        const notificationData = {
+          familyId,
+          childId,
+          childName,
+          type: alertKind,
+          priority: alertKind === 'dailyLimitReached' ? 'high' : 'normal',
+          title,
+          body,
+          data: {
+            type: alertKind,
+            familyId,
+            childId,
+            childName,
+            appName,
+            packageName,
+            usedMinutes,
+            allowedMinutes: effectiveLimit,
+            usageDate,
+          },
+          createdAt: FieldValue.serverTimestamp(),
+          isRead: false,
+        };
+
+        await db.runTransaction(async (transaction) => {
+          const existingAlert = await transaction.get(alertRef);
+          if (existingAlert.exists) return;
+          transaction.create(alertRef, {
+            type: alertKind,
+            packageName,
+            usageDate,
+            usedMinutes,
+            createdAt: FieldValue.serverTimestamp(),
+          });
+          transaction.create(notificationRef, notificationData);
+        });
+      });
 
 /**
  * CRITICAL: Rate limiting to prevent abuse
@@ -1187,6 +1448,59 @@ async function sendDenialNotificationToChild(
 
   } catch (error) {
     console.error('Error sending denial notification to child:', error);
+  }
+}
+
+async function sendAppTimeGrantedNotification(data: {
+  familyId: string;
+  childId: string;
+  packageName: string;
+  appName: string;
+  grantedMinutes: number;
+  effectiveLimitMinutes: number;
+}) {
+  try {
+    const tokenSnapshot = await db.collection('fcm_tokens')
+      .where('userId', '==', data.childId)
+      .where('isActive', '==', true)
+      .get();
+    const tokens = tokenSnapshot.docs
+      .map((doc) => (doc.data() as FCMToken).token)
+      .filter((token) => token.length > 0);
+    if (tokens.length === 0) {
+      const childDoc = await db.collection('users').doc(data.childId).get();
+      const fallbackToken = childDoc.get('fcmToken');
+      if (typeof fallbackToken === 'string' && fallbackToken.length > 0) {
+        tokens.push(fallbackToken);
+      }
+    }
+    if (tokens.length === 0) {
+      console.warn(`No active FCM token found for child ${data.childId}`);
+      return;
+    }
+
+    await sendToTokensWithRetry(tokens, {
+      notification: {
+        title: 'More time granted',
+        body: `Your parent granted ${data.grantedMinutes} more minutes for ${data.appName}.`,
+      },
+      data: {
+        type: 'appTimeGranted',
+        familyId: data.familyId,
+        childId: data.childId,
+        packageName: data.packageName,
+        appName: data.appName,
+        grantedMinutes: String(data.grantedMinutes),
+        allowedMinutes: String(data.effectiveLimitMinutes),
+        verified: 'true',
+      },
+      android: {
+        priority: 'high',
+        notification: { channelId: 'high_notifications' },
+      },
+    });
+  } catch (error) {
+    console.error('Error sending app time granted notification:', error);
   }
 }
 

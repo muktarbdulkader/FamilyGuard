@@ -31,10 +31,7 @@ class RouterNotifier extends ChangeNotifier {
   final Ref _ref;
 
   RouterNotifier(this._ref) {
-    _ref.listen<AuthState>(
-      authNotifierProvider,
-      (_, __) => notifyListeners(),
-    );
+    _ref.listen<AuthState>(authNotifierProvider, (_, __) => notifyListeners());
   }
 }
 
@@ -55,7 +52,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: AppRoutes.splash,
     refreshListenable: notifier,
     debugLogDiagnostics: true,
-    
+
     // Route configuration
     routes: [
       // Splash and onboarding routes
@@ -64,13 +61,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'splash',
         builder: (context, state) => const SplashScreen(),
       ),
-      
+
       GoRoute(
         path: AppRoutes.welcome,
         name: 'welcome',
         builder: (context, state) => const WelcomeScreen(),
       ),
-      
+
       // Authentication routes
       GoRoute(
         path: AppRoutes.login,
@@ -84,7 +81,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
-      
+
       GoRoute(
         path: AppRoutes.register,
         name: 'register',
@@ -97,14 +94,14 @@ final routerProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
-      
+
       // Role selection route (after initial login/registration)
       GoRoute(
         path: AppRoutes.roleSelection,
         name: 'role-selection',
         builder: (context, state) => const RoleSelectionScreen(),
       ),
-      
+
       GoRoute(
         path: AppRoutes.languageSettings,
         builder: (context, state) => const LanguageSettingsPage(),
@@ -116,11 +113,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'parent-home',
         builder: (context, state) => const ParentHomeScreen(),
       ),
-      
+
       // Child home route
       GoRoute(
         path: AppRoutes.childHome,
-        name: 'child-home', 
+        name: 'child-home',
         builder: (context, state) => const ChildHomeScreen(),
       ),
 
@@ -130,7 +127,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'family-setup',
         builder: (context, state) => const FamilySetupScreen(),
       ),
-      
+
       GoRoute(
         path: AppRoutes.familyJoin,
         name: 'family-join',
@@ -143,27 +140,29 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'child-permissions',
         builder: (context, state) => const PermissionOnboardingScreen(),
       ),
-      
+
       GoRoute(
         path: AppRoutes.childStatus,
         name: 'child-status',
         builder: (context, state) => const MonitoringStatusScreen(),
       ),
-      
+
       // Child app management route
       GoRoute(
         path: AppRoutes.childApps,
         name: 'child-apps',
         builder: (context, state) => const ChildAppsScreen(),
       ),
-      
+
       // Parent app management route
       GoRoute(
         path: '/parent-apps/:childId/:childName',
         name: 'parent-app-management',
         builder: (context, state) => ParentAppManagementScreen(
-          familyId: state.pathParameters['familyId'] ?? '',
+          familyId: state.uri.queryParameters['familyId'] ?? '',
           childId: state.pathParameters['childId']!,
+          initialPackageName: state.uri.queryParameters['packageName'],
+          initialUsageDate: state.uri.queryParameters['usageDate'],
         ),
       ),
 
@@ -248,7 +247,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'profile',
         builder: (context, state) => const ProfileScreen(),
       ),
-      
+
       // Error route for undefined routes
       GoRoute(
         path: '/error',
@@ -278,57 +277,63 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
     ],
-    
+
     // Redirect logic based on authentication state
     redirect: (context, state) async {
       final authState = ref.read(authNotifierProvider);
       final location = state.matchedLocation;
-      
+
       // If still loading auth state, don't redirect
       if (authState.isLoading) {
         return null;
       }
-      
+
       // Allow splash and welcome screens for unauthenticated users
-      final isOnboardingRoute = location == AppRoutes.splash || location == AppRoutes.welcome;
-      final isAuthRoute = location == AppRoutes.login || location == AppRoutes.register;
-      
+      final isOnboardingRoute =
+          location == AppRoutes.splash || location == AppRoutes.welcome;
+      final isAuthRoute =
+          location == AppRoutes.login || location == AppRoutes.register;
+
       // Check if user is authenticated
       final isAuthenticated = authState.user != null;
-      
+
       // If user is not authenticated, allow onboarding and auth routes
       if (!isAuthenticated) {
         return isOnboardingRoute || isAuthRoute ? null : AppRoutes.splash;
       }
-      
+
       // User is authenticated, check their role
       final user = authState.user!;
       final userRole = user.role;
-      
+
       // If user has no role and not on role selection, redirect there
       if (userRole == UserRole.none) {
-        return location == AppRoutes.roleSelection ? null : AppRoutes.roleSelection;
+        return location == AppRoutes.roleSelection
+            ? null
+            : AppRoutes.roleSelection;
       }
-      
+
       // If user has role but on onboarding/login/register/role selection, redirect to appropriate home
-      if (isOnboardingRoute || isAuthRoute || location == AppRoutes.roleSelection) {
+      if (isOnboardingRoute ||
+          isAuthRoute ||
+          location == AppRoutes.roleSelection) {
         if (userRole == UserRole.parent) {
           return AppRoutes.parentHome;
         } else if (userRole == UserRole.child) {
           return AppRoutes.childHome;
         }
       }
-      
+
       // Role-based access control
       if (userRole == UserRole.parent && _isChildRoute(location)) {
         return AppRoutes.parentHome;
       } else if (userRole == UserRole.child && _isParentRoute(location)) {
         return AppRoutes.childHome;
       }
-      
+
       return null; // No redirect needed
     },
-    
+
     // Error handler for route errors
     errorBuilder: (context, state) => Scaffold(
       appBar: AppBar(title: const Text('Route Error')),
@@ -367,7 +372,7 @@ bool _isChildRoute(String location) {
     AppRoutes.permissionOnboarding,
     AppRoutes.monitoringStatus,
   ];
-  
+
   return childRoutes.any((route) => location.startsWith(route));
 }
 
@@ -378,9 +383,11 @@ bool _isParentRoute(String location) {
     AppRoutes.parentApps,
     AppRoutes.parentLocation,
     AppRoutes.parentRequests,
+    AppRoutes.parentEducation,
     AppRoutes.familySetup,
+    '/notifications',
   ];
-  
+
   return parentRoutes.any((route) => location.startsWith(route)) ||
-         location.startsWith('/parent-apps/');
+      location.startsWith('/parent-apps/');
 }

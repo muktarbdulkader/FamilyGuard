@@ -40,17 +40,19 @@ class ChildSelector extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 8),
-        
+
         if (children.length <= 2) ...[
           // Few children - show as cards
-          ...children.map((child) => Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: _ChildCard(
-              child: child,
-              isSelected: selectedChild?.id == child.id,
-              onTap: () => onChildSelected(child),
+          ...children.map(
+            (child) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _ChildCard(
+                child: child,
+                isSelected: selectedChild?.id == child.id,
+                onTap: () => onChildSelected(child),
+              ),
             ),
-          )),
+          ),
         ] else ...[
           // Many children - show as dropdown
           Container(
@@ -69,7 +71,9 @@ class ChildSelector extends StatelessWidget {
                 dropdownColor: isDark ? const Color(0xFF132238) : Colors.white,
                 hint: Text(
                   'Select a child',
-                  style: TextStyle(color: isDark ? const Color(0xFF8BA0B8) : Colors.grey[600]),
+                  style: TextStyle(
+                    color: isDark ? const Color(0xFF8BA0B8) : Colors.grey[600],
+                  ),
                 ),
                 isExpanded: true,
                 icon: Icon(
@@ -163,13 +167,9 @@ class _ChildCard extends StatelessWidget {
         ? (isSelected ? const Color(0xFF2DD4BF) : const Color(0xFF1E3554))
         : (isSelected ? Colors.green[300]! : Colors.grey[300]!);
 
-    final avatarBg = isDark
-        ? const Color(0xFF063D39)
-        : Colors.green[100]!;
+    final avatarBg = isDark ? const Color(0xFF063D39) : Colors.green[100]!;
 
-    final avatarColor = isDark
-        ? const Color(0xFF2DD4BF)
-        : Colors.green[700]!;
+    final avatarColor = isDark ? const Color(0xFF2DD4BF) : Colors.green[700]!;
 
     return GestureDetector(
       onTap: onTap,
@@ -179,10 +179,7 @@ class _ChildCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: cardBg,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: borderColor,
-            width: isSelected ? 1.5 : 1,
-          ),
+          border: Border.all(color: borderColor, width: isSelected ? 1.5 : 1),
         ),
         child: Row(
           children: [
@@ -192,11 +189,7 @@ class _ChildCard extends StatelessWidget {
                 CircleAvatar(
                   radius: 22,
                   backgroundColor: avatarBg,
-                  child: Icon(
-                    Icons.child_care,
-                    color: avatarColor,
-                    size: 24,
-                  ),
+                  child: Icon(Icons.child_care, color: avatarColor, size: 24),
                 ),
                 Positioned(
                   right: 0,
@@ -226,11 +219,18 @@ class _ChildCard extends StatelessWidget {
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 15.5,
-                      color: isDark ? Colors.white : (isSelected ? Colors.green[800] : Colors.black87),
+                      color: isDark
+                          ? Colors.white
+                          : (isSelected ? Colors.green[800] : Colors.black87),
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 3),
-                  Row(
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -251,22 +251,31 @@ class _ChildCard extends StatelessWidget {
                         ),
                       ),
                       if (child.deviceInfo != null) ...[
-                        const SizedBox(width: 8),
-                        Icon(
-                          Icons.phone_android,
-                          size: 12,
-                          color: isDark ? const Color(0xFF8BA0B8) : Colors.grey[600],
-                        ),
-                        const SizedBox(width: 2),
-                        Expanded(
-                          child: Text(
-                            child.deviceInfo!,
-                            style: TextStyle(
-                              color: isDark ? const Color(0xFF8BA0B8) : Colors.grey[600],
-                              fontSize: 11,
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.phone_android,
+                              size: 12,
+                              color: isDark
+                                  ? const Color(0xFF8BA0B8)
+                                  : Colors.grey[600],
                             ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                            const SizedBox(width: 2),
+                            Flexible(
+                              child: Text(
+                                child.deviceInfo!,
+                                style: TextStyle(
+                                  color: isDark
+                                      ? const Color(0xFF8BA0B8)
+                                      : Colors.grey[600],
+                                  fontSize: 11,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ],

@@ -6,6 +6,8 @@ const String _kThemePreferenceKey = 'app_theme_mode_preference';
 
 /// Notifier to manage dark/light theme toggle across all app screens
 class ThemeModeNotifier extends StateNotifier<ThemeMode> {
+  bool _hasUserSelectedTheme = false;
+
   ThemeModeNotifier() : super(ThemeMode.dark) {
     _loadTheme();
   }
@@ -14,6 +16,7 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final savedMode = prefs.getString(_kThemePreferenceKey);
+      if (_hasUserSelectedTheme) return;
       if (savedMode == 'light') {
         state = ThemeMode.light;
       } else {
@@ -26,6 +29,7 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
   }
 
   Future<void> toggleTheme() async {
+    _hasUserSelectedTheme = true;
     final nextMode = state == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
     state = nextMode;
     try {
@@ -40,6 +44,7 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
   }
 
   Future<void> setThemeMode(ThemeMode mode) async {
+    _hasUserSelectedTheme = true;
     state = mode;
     try {
       final prefs = await SharedPreferences.getInstance();

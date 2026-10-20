@@ -5,6 +5,7 @@ import '../../../../core/models/request_model.dart';
 import '../../../../core/providers/auth_provider.dart';
 import '../../../../core/providers/user_provider.dart';
 import '../../../../core/providers/family_provider.dart';
+import '../../../../core/widgets/family_bottom_navigation.dart';
 import '../../../../l10n/app_localizations.dart';
 
 /// Parent screen for reviewing and acting on child app access requests
@@ -104,6 +105,10 @@ class _AppRequestsScreenState extends ConsumerState<AppRequestsScreen>
             tabController: _tabController,
           );
         },
+      ),
+      bottomNavigationBar: const FamilyBottomNavigation(
+        isParent: true,
+        selected: FamilyNavDestination.requests,
       ),
     );
   }

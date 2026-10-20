@@ -22,11 +22,11 @@ class NotificationService {
   static NotificationService get instance => _instance;
 
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
-  final FlutterLocalNotificationsPlugin _localNotifications = 
+  final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  
+
   StreamSubscription<RemoteMessage>? _foregroundSubscription;
   StreamSubscription<String>? _tokenRefreshSubscription;
   StreamSubscription<QuerySnapshot>? _familyNotificationsSubscription;
@@ -49,12 +49,14 @@ class NotificationService {
     await _requestPermissions();
     await _setupMessageHandlers();
     await _registerFCMToken();
-    
+
     _isInitialized = true;
   }
 
   Future<void> _initializeLocalNotifications() async {
-    const androidInitialization = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidInitialization = AndroidInitializationSettings(
+      '@mipmap/ic_launcher',
+    );
     const iosInitialization = DarwinInitializationSettings(
       requestAlertPermission: false,
       requestBadgePermission: false,
@@ -112,9 +114,11 @@ class NotificationService {
       playSound: false,
     );
 
-    final plugin = _localNotifications.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
-    
+    final plugin = _localNotifications
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+
     if (plugin != null) {
       await plugin.createNotificationChannel(urgentChannel);
       await plugin.createNotificationChannel(highChannel);
@@ -140,7 +144,8 @@ class NotificationService {
       try {
         await _localNotifications
             .resolvePlatformSpecificImplementation<
-                AndroidFlutterLocalNotificationsPlugin>()
+              AndroidFlutterLocalNotificationsPlugin
+            >()
             ?.requestNotificationsPermission();
       } catch (e) {
         if (kDebugMode) {
@@ -154,12 +159,9 @@ class NotificationService {
       try {
         await _localNotifications
             .resolvePlatformSpecificImplementation<
-                IOSFlutterLocalNotificationsPlugin>()
-            ?.requestPermissions(
-              alert: true,
-              badge: true,
-              sound: true,
-            );
+              IOSFlutterLocalNotificationsPlugin
+            >()
+            ?.requestPermissions(alert: true, badge: true, sound: true);
       } catch (e) {
         if (kDebugMode) {
           print('iOS notification permission error: $e');
@@ -170,11 +172,13 @@ class NotificationService {
 
   Future<void> _setupMessageHandlers() async {
     // Handle messages when app is in foreground
-    _foregroundSubscription = FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
-    
+    _foregroundSubscription = FirebaseMessaging.onMessage.listen(
+      _handleForegroundMessage,
+    );
+
     // Handle messages when app is in background but not terminated
     FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageOpenedApp);
-    
+
     // Handle messages when app was terminated
     final initialMessage = await _messaging.getInitialMessage();
     if (initialMessage != null) {
@@ -182,7 +186,9 @@ class NotificationService {
     }
 
     // Handle token refresh
-    _tokenRefreshSubscription = _messaging.onTokenRefresh.listen(_onTokenRefresh);
+    _tokenRefreshSubscription = _messaging.onTokenRefresh.listen(
+      _onTokenRefresh,
+    );
   }
 
   Future<void> _registerFCMToken() async {
@@ -204,19 +210,20 @@ class NotificationService {
   Future<void> _saveFCMToken(String userId, String token) async {
     try {
       final tokenDoc = _firestore.collection('fcm_tokens').doc(token);
-      
-      await tokenDoc.set(FCMToken(
-        userId: userId,
-        token: token,
-        platform: Platform.isIOS ? 'ios' : 'android',
-        deviceId: await _getDeviceId(),
-        createdAt: DateTime.now(),
-        lastUsed: DateTime.now(),
-      ).toFirestore());
+
+      await tokenDoc.set(
+        FCMToken(
+          userId: userId,
+          token: token,
+          platform: Platform.isIOS ? 'ios' : 'android',
+          deviceId: await _getDeviceId(),
+          createdAt: DateTime.now(),
+          lastUsed: DateTime.now(),
+        ).toFirestore(),
+      );
 
       // Clean up old tokens for this user/device
       await _cleanupOldTokens(userId, token);
-      
     } catch (e) {
       if (kDebugMode) {
         print('Error saving FCM token: $e');
@@ -228,12 +235,12 @@ class NotificationService {
     try {
       final prefs = await SharedPreferences.getInstance();
       String? deviceId = prefs.getString('device_id');
-      
+
       if (deviceId == null) {
         deviceId = DateTime.now().millisecondsSinceEpoch.toString();
         await prefs.setString('device_id', deviceId);
       }
-      
+
       return deviceId;
     } catch (e) {
       return null;
@@ -253,7 +260,7 @@ class NotificationService {
           batch.delete(doc.reference);
         }
       }
-      
+
       await batch.commit();
     } catch (e) {
       if (kDebugMode) {
@@ -276,7 +283,7 @@ class NotificationService {
     if (notification != null) {
       final priority = _getPriorityFromData(message.data);
       final channelId = _getChannelForPriority(priority);
-      
+
       await _localNotifications.show(
         message.hashCode,
         notification.title,
@@ -290,8 +297,9 @@ class NotificationService {
             priority: _getPriorityForPriority(priority),
             icon: android?.smallIcon,
             playSound: priority != NotificationPriority.low,
-            enableVibration: priority == NotificationPriority.urgent || 
-                           priority == NotificationPriority.high,
+            enableVibration:
+                priority == NotificationPriority.urgent ||
+                priority == NotificationPriority.high,
           ),
         ),
         payload: jsonEncode(message.data),
@@ -317,24 +325,49 @@ class NotificationService {
     }
   }
 
-    void _navigateFromNotification(Map<String, dynamic> data) {
+  void _navigateFromNotification(Map<String, dynamic> data) {
     final context = rootNavigatorKey.currentContext;
     if (context == null) return;
-    
+
     final rawType = (data['type'] ?? '').toString();
     final childId = (data['childId'] ?? '').toString();
     final childName = (data['childName'] ?? 'Child').toString();
     final requestId = (data['requestId'] ?? '').toString();
     final packageName = (data['packageName'] ?? '').toString();
 
-    if (rawType == 'appApproved' || rawType == 'app_approved' || rawType == 'request_approved') {
+    if (rawType == 'appApproved' ||
+        rawType == 'app_approved' ||
+        rawType == 'request_approved') {
       if (packageName.isNotEmpty) {
         MonitoringService.instance.openApp(packageName);
       }
       return;
     }
 
-    if (rawType.contains('request') || rawType == 'appRequest' || rawType == 'blocked_app_attempt' || requestId.isNotEmpty) {
+    if (rawType == 'highAppUsage' ||
+        rawType == 'high_app_usage' ||
+        rawType == 'dailyLimitReached' ||
+        rawType == 'daily_limit_reached') {
+      if (childId.isNotEmpty && packageName.isNotEmpty) {
+        final target = Uri(
+          path:
+              '/parent-apps/${Uri.encodeComponent(childId)}/${Uri.encodeComponent(childName)}',
+          queryParameters: {
+            if (data['familyId']?.toString().isNotEmpty == true)
+              'familyId': data['familyId'].toString(),
+            'packageName': packageName,
+            if (data['usageDate']?.toString().isNotEmpty == true)
+              'usageDate': data['usageDate'].toString(),
+          },
+        );
+        context.push(target.toString());
+      } else {
+        context.push(AppRoutes.parentApps);
+      }
+    } else if (rawType.contains('request') ||
+        rawType == 'appRequest' ||
+        rawType == 'blocked_app_attempt' ||
+        requestId.isNotEmpty) {
       context.push(AppRoutes.parentRequests);
     } else if (rawType.contains('app') || rawType == 'newAppDetected') {
       if (childId.isNotEmpty) {
@@ -364,33 +397,34 @@ class NotificationService {
         .where('familyId', isEqualTo: familyId)
         .snapshots()
         .listen(
-      (snapshot) {
-        for (final change in snapshot.docChanges) {
-          if (change.type == DocumentChangeType.added || change.type == DocumentChangeType.modified) {
-            try {
-              final notif = ParentNotification.fromFirestore(change.doc);
-              final notifKey = '${notif.id}_${notif.status}';
-              // Alert for unread recent notifications
-              if (!notif.isRead &&
-                  !_shownNotificationIds.contains(notifKey) &&
-                  notif.createdAt.isAfter(recentThreshold)) {
-                _shownNotificationIds.add(notifKey);
-                _showLocalNotification(notif);
-              }
-            } catch (e) {
-              if (kDebugMode) {
-                print('Error processing incoming parent notification: $e');
+          (snapshot) {
+            for (final change in snapshot.docChanges) {
+              if (change.type == DocumentChangeType.added ||
+                  change.type == DocumentChangeType.modified) {
+                try {
+                  final notif = ParentNotification.fromFirestore(change.doc);
+                  final notifKey = '${notif.id}_${notif.status}';
+                  // Alert for unread recent notifications
+                  if (!notif.isRead &&
+                      !_shownNotificationIds.contains(notifKey) &&
+                      notif.createdAt.isAfter(recentThreshold)) {
+                    _shownNotificationIds.add(notifKey);
+                    _showLocalNotification(notif);
+                  }
+                } catch (e) {
+                  if (kDebugMode) {
+                    print('Error processing incoming parent notification: $e');
+                  }
+                }
               }
             }
-          }
-        }
-      },
-      onError: (e) {
-        if (kDebugMode) {
-          print('Error in family notifications subscription: $e');
-        }
-      },
-    );
+          },
+          onError: (e) {
+            if (kDebugMode) {
+              print('Error in family notifications subscription: $e');
+            }
+          },
+        );
   }
 
   /// Start real-time Firestore listener for child device to receive approval & denial alerts
@@ -406,37 +440,39 @@ class NotificationService {
         .where('childId', isEqualTo: childId)
         .snapshots()
         .listen(
-      (snapshot) {
-        for (final change in snapshot.docChanges) {
-          if (change.type == DocumentChangeType.added || change.type == DocumentChangeType.modified) {
-            try {
-              final notif = ParentNotification.fromFirestore(change.doc);
-              final isChildAlert = notif.type == NotificationType.appApproved ||
-                  notif.type == NotificationType.appDenied ||
-                  notif.isApproved ||
-                  notif.isDenied;
-              final notifKey = 'child_${notif.id}_${notif.status}';
+          (snapshot) {
+            for (final change in snapshot.docChanges) {
+              if (change.type == DocumentChangeType.added ||
+                  change.type == DocumentChangeType.modified) {
+                try {
+                  final notif = ParentNotification.fromFirestore(change.doc);
+                  final isChildAlert =
+                      notif.type == NotificationType.appApproved ||
+                      notif.type == NotificationType.appDenied ||
+                      notif.isApproved ||
+                      notif.isDenied;
+                  final notifKey = 'child_${notif.id}_${notif.status}';
 
-              if (isChildAlert &&
-                  !_shownNotificationIds.contains(notifKey) &&
-                  notif.createdAt.isAfter(recentThreshold)) {
-                _shownNotificationIds.add(notifKey);
-                _showLocalNotification(notif);
-              }
-            } catch (e) {
-              if (kDebugMode) {
-                print('Error processing incoming child notification: $e');
+                  if (isChildAlert &&
+                      !_shownNotificationIds.contains(notifKey) &&
+                      notif.createdAt.isAfter(recentThreshold)) {
+                    _shownNotificationIds.add(notifKey);
+                    _showLocalNotification(notif);
+                  }
+                } catch (e) {
+                  if (kDebugMode) {
+                    print('Error processing incoming child notification: $e');
+                  }
+                }
               }
             }
-          }
-        }
-      },
-      onError: (e) {
-        if (kDebugMode) {
-          print('Error in child notifications subscription: $e');
-        }
-      },
-    );
+          },
+          onError: (e) {
+            if (kDebugMode) {
+              print('Error in child notifications subscription: $e');
+            }
+          },
+        );
   }
 
   /// Show a real system notification directly on this device
@@ -513,10 +549,7 @@ class NotificationService {
       childId: childId,
       childName: childName,
       type: NotificationType.newAppDetected,
-      data: {
-        'appName': appName,
-        'packageName': packageName,
-      },
+      data: {'appName': appName, 'packageName': packageName},
     );
   }
 
@@ -551,7 +584,9 @@ class NotificationService {
       familyId: familyId,
       childId: childId,
       childName: childName,
-      type: isOnline ? NotificationType.deviceOnline : NotificationType.deviceOffline,
+      type: isOnline
+          ? NotificationType.deviceOnline
+          : NotificationType.deviceOffline,
       data: {
         'isOnline': isOnline,
         'timestamp': DateTime.now().millisecondsSinceEpoch,
@@ -570,9 +605,7 @@ class NotificationService {
       childId: childId,
       childName: childName,
       type: NotificationType.permissionDisabled,
-      data: {
-        'permission': permission,
-      },
+      data: {'permission': permission},
     );
   }
 
@@ -587,9 +620,7 @@ class NotificationService {
       childId: childId,
       childName: childName,
       type: NotificationType.serviceUnavailable,
-      data: {
-        'service': service,
-      },
+      data: {'service': service},
     );
   }
 
@@ -630,7 +661,9 @@ class NotificationService {
           'childId': childId,
         },
         createdAt: DateTime.now(),
-        expiresAt: expirationTime != null ? DateTime.now().add(expirationTime) : null,
+        expiresAt: expirationTime != null
+            ? DateTime.now().add(expirationTime)
+            : null,
       );
 
       // Save notification to Firestore
@@ -645,7 +678,6 @@ class NotificationService {
       if (kDebugMode) {
         print('Created and alerted notification: $title - $body');
       }
-
     } catch (e) {
       if (kDebugMode) {
         print('Error creating notification: $e');
@@ -660,8 +692,10 @@ class NotificationService {
     Map<String, dynamic> data,
   ) async {
     try {
-      final fiveMinutesAgo = DateTime.now().subtract(const Duration(minutes: 5));
-      
+      final fiveMinutesAgo = DateTime.now().subtract(
+        const Duration(minutes: 5),
+      );
+
       final query = _firestore
           .collection('notifications')
           .where('familyId', isEqualTo: familyId)
@@ -671,7 +705,7 @@ class NotificationService {
           .limit(1);
 
       final snapshot = await query.get();
-      
+
       if (snapshot.docs.isEmpty) return false;
 
       // For app requests, also check if it's the same app
@@ -769,10 +803,7 @@ class NotificationService {
 
   Future<void> markNotificationAsRead(String notificationId) async {
     try {
-      await _firestore
-          .collection('notifications')
-          .doc(notificationId)
-          .update({
+      await _firestore.collection('notifications').doc(notificationId).update({
         'isRead': true,
         'readAt': FieldValue.serverTimestamp(),
       });
@@ -781,6 +812,26 @@ class NotificationService {
         print('Error marking notification as read: $e');
       }
     }
+  }
+
+  Future<void> deleteNotification(String notificationId) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw StateError('You must be signed in to delete notifications.');
+    }
+
+    final reference = _firestore
+        .collection('notifications')
+        .doc(notificationId);
+    final snapshot = await reference.get();
+    if (!snapshot.exists) return;
+
+    final notification = ParentNotification.fromFirestore(snapshot);
+    if (notification.familyId.isEmpty) {
+      throw StateError('This notification is missing its family information.');
+    }
+
+    await reference.delete();
   }
 
   Stream<List<ParentNotification>> getNotificationsForParent(String familyId) {

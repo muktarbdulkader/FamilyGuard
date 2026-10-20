@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../../core/constants/app_routes.dart';
 import '../../../../../core/providers/user_provider.dart';
 import '../../../../../core/services/family_service.dart';
 import 'qr_code_screen.dart';
@@ -88,7 +89,13 @@ class _FamilySetupScreenState extends ConsumerState<FamilySetupScreen> {
         title: const Text('Family Setup'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
-          onPressed: () => context.pop(),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go(AppRoutes.parentHome);
+            }
+          },
         ),
       ),
       body: Container(
@@ -117,7 +124,13 @@ class _FamilySetupScreenState extends ConsumerState<FamilySetupScreen> {
                     Text('Error: $error'),
                     const SizedBox(height: 16),
                     ElevatedButton(
-                      onPressed: () => context.pop(),
+                      onPressed: () {
+                        if (context.canPop()) {
+                          context.pop();
+                        } else {
+                          context.go(AppRoutes.parentHome);
+                        }
+                      },
                       child: const Text('Go Back'),
                     ),
                   ],

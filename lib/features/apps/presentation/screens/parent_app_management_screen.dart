@@ -16,11 +16,15 @@ import '../../../../l10n/app_localizations.dart';
 class ParentAppManagementScreen extends ConsumerStatefulWidget {
   final String familyId;
   final String childId;
+  final String? initialPackageName;
+  final String? initialUsageDate;
 
   const ParentAppManagementScreen({
     super.key,
     required this.familyId,
     required this.childId,
+    this.initialPackageName,
+    this.initialUsageDate,
   });
 
   @override
@@ -38,6 +42,7 @@ class _ParentAppManagementScreenState
   String _searchQuery = '';
   _AppFilter _activeFilter = _AppFilter.all;
   bool _hideSystemApps = false;
+  bool _didOpenInitialUsageDecision = false;
 
   // FIX 6: cache decoded icons so base64Decode is not run on every rebuild.
   final Map<String, Uint8List> _iconCache = {};
@@ -89,6 +94,9 @@ class _ParentAppManagementScreenState
             rule: newRule,
             dailyLimitMinutes: newRule == AppControlRule.timeLimited
                 ? (app.dailyLimitMinutes ?? 60)
+                : null,
+            usageAlertThresholdPercent: newRule == AppControlRule.timeLimited
+                ? app.usageAlertThresholdPercent
                 : null,
             allowedFrom: newRule == AppControlRule.timeRestricted
                 ? app.allowedFrom
@@ -214,6 +222,222 @@ class _ParentAppManagementScreenState
     }
   }
 
+  String _localDateString(DateTime value) =>
+      '${value.year.toString().padLeft(4, '0')}-'
+      '${value.month.toString().padLeft(2, '0')}-'
+      '${value.day.toString().padLeft(2, '0')}';
+
+  Future<void> _showUsageDecisionSheet(
+    AppInfo app,
+    AppUsageModel? usage,
+    String usageDate,
+  ) async {
+    final familyId = _resolveFamilyId();
+    final childId = _resolveChildId();
+    if (familyId.isEmpty || childId.isEmpty) return;
+
+    var continuationMode = 'keep';
+    var grantMinutes = 15;
+    final usedMinutes = usage?.todayMinutes ?? 0;
+    final currentLimit = app.effectiveDailyLimit(DateTime.now());
+    final adjustedLimitController = TextEditingController(
+      text: '${currentLimit > usedMinutes ? currentLimit : usedMinutes + 15}',
+    );
+    final customMinutesController = TextEditingController();
+
+    Future<void> applyDecision({
+      required String action,
+      String? mode,
+      int? dailyLimit,
+      int? extraMinutes,
+    }) async {
+      Navigator.of(context).pop();
+      try {
+        await ref
+            .read(appRuleServiceProvider)
+            .applyUsageDecision(
+              familyId: familyId,
+              childId: childId,
+              packageName: app.packageName,
+              action: action,
+              usageDate: usageDate,
+              continuationMode: mode,
+              dailyLimitMinutes: dailyLimit,
+              grantedMinutes: extraMinutes,
+            );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                action == 'block'
+                    ? '${app.name} blocked; the child device will sync this policy.'
+                    : action == 'grant'
+                    ? '$extraMinutes extra minutes granted to ${app.name}.'
+                    : 'Decision saved for ${app.name}.',
+              ),
+            ),
+          );
+        }
+      } catch (error) {
+        _showError('Could not apply app decision: $error');
+      }
+    }
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+          final allowance = app.effectiveDailyLimit(DateTime.now());
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom,
+            ),
+            child: Container(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.88,
+              ),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF132238) : Colors.white,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(24),
+                ),
+              ),
+              child: ListView(
+                padding: const EdgeInsets.all(20),
+                children: [
+                  Text(
+                    'Usage alert: ${app.name}',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '$usedMinutes of $allowance minutes used today',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 20),
+                  FilledButton.icon(
+                    onPressed: () => applyDecision(action: 'block'),
+                    icon: const Icon(Icons.block),
+                    label: const Text('Block App'),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Allow continued use',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  RadioListTile<String>(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Keep the current policy'),
+                    value: 'keep',
+                    groupValue: continuationMode,
+                    onChanged: (value) =>
+                        setSheetState(() => continuationMode = value!),
+                  ),
+                  RadioListTile<String>(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Remove the daily time limit'),
+                    value: 'remove',
+                    groupValue: continuationMode,
+                    onChanged: (value) =>
+                        setSheetState(() => continuationMode = value!),
+                  ),
+                  RadioListTile<String>(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Adjust the daily time limit'),
+                    value: 'adjust',
+                    groupValue: continuationMode,
+                    onChanged: (value) =>
+                        setSheetState(() => continuationMode = value!),
+                  ),
+                  if (continuationMode == 'adjust')
+                    TextField(
+                      controller: adjustedLimitController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'New daily limit (minutes)',
+                        helperText: 'Must be greater than usage today.',
+                      ),
+                    ),
+                  const SizedBox(height: 8),
+                  OutlinedButton(
+                    onPressed: () => applyDecision(
+                      action: 'continue',
+                      mode: continuationMode,
+                      dailyLimit: continuationMode == 'adjust'
+                          ? int.tryParse(adjustedLimitController.text.trim())
+                          : null,
+                    ),
+                    child: const Text('Save continued-use choice'),
+                  ),
+                  const Divider(height: 32),
+                  Text(
+                    'Give more time today',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: [5, 15, 30, 60].map((minutes) {
+                      return ChoiceChip(
+                        label: Text('+${minutes}m'),
+                        selected: grantMinutes == minutes,
+                        onSelected: (_) =>
+                            setSheetState(() => grantMinutes = minutes),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: customMinutesController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Custom extra minutes (optional)',
+                      helperText: 'Enter 1–480, or select a preset above.',
+                    ),
+                    onChanged: (value) {
+                      final parsed = int.tryParse(value);
+                      if (parsed != null && parsed > 0 && parsed <= 480) {
+                        setSheetState(() => grantMinutes = parsed);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  FilledButton.icon(
+                    onPressed: app.rule == AppControlRule.timeLimited
+                        ? () {
+                            final custom = int.tryParse(
+                              customMinutesController.text.trim(),
+                            );
+                            final requested = custom ?? grantMinutes;
+                            if (requested < 1 || requested > 480) {
+                              _showError(
+                                'Extra time must be between 1 and 480 minutes.',
+                              );
+                              return;
+                            }
+                            applyDecision(
+                              action: 'grant',
+                              extraMinutes: requested,
+                            );
+                          }
+                        : null,
+                    icon: const Icon(Icons.more_time),
+                    label: const Text('Grant extra time'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+    adjustedLimitController.dispose();
+    customMinutesController.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final familyId = _resolveFamilyId();
@@ -224,7 +448,11 @@ class _ParentAppManagementScreenState
         FamilyChildParams(familyId: familyId, childId: childId),
       ),
     );
-    final usageAsync = ref.watch(childAppUsageProvider(childId));
+    final usageAsync = ref.watch(
+      familyChildAppUsageProvider(
+        FamilyChildParams(familyId: familyId, childId: childId),
+      ),
+    );
     final usageMap = usageAsync.value ?? <String, AppUsageModel>{};
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final l10n = AppLocalizations.of(context);
@@ -286,8 +514,14 @@ class _ParentAppManagementScreenState
                       color: Colors.blueGrey,
                     ),
                     const SizedBox(width: 12),
-                    Text(
-                      _hideSystemApps ? 'Show System Apps' : 'Hide System Apps',
+                    Flexible(
+                      child: Text(
+                        _hideSystemApps
+                            ? 'Show System Apps'
+                            : 'Hide System Apps',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ],
                 ),
@@ -299,7 +533,13 @@ class _ParentAppManagementScreenState
                   children: [
                     Icon(Icons.block_rounded, size: 20, color: Colors.red),
                     SizedBox(width: 12),
-                    Text('Block All User Apps'),
+                    Flexible(
+                      child: Text(
+                        'Block All User Apps',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -313,7 +553,13 @@ class _ParentAppManagementScreenState
                       color: Colors.amber,
                     ),
                     SizedBox(width: 12),
-                    Text('Set All User Apps to Ask/Notify'),
+                    Flexible(
+                      child: Text(
+                        'Set All User Apps to Ask/Notify',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -327,7 +573,13 @@ class _ParentAppManagementScreenState
                       color: Colors.green,
                     ),
                     SizedBox(width: 12),
-                    Text('Allow All User Apps'),
+                    Flexible(
+                      child: Text(
+                        'Allow All User Apps',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -387,6 +639,26 @@ class _ParentAppManagementScreenState
           ),
         ),
         data: (allApps) {
+          if (!_didOpenInitialUsageDecision &&
+              widget.initialPackageName != null) {
+            final initialApp = allApps.cast<AppInfo?>().firstWhere(
+              (app) => app?.packageName == widget.initialPackageName,
+              orElse: () => null,
+            );
+            if (initialApp != null) {
+              _didOpenInitialUsageDecision = true;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  _showUsageDecisionSheet(
+                    initialApp,
+                    usageMap[initialApp.packageName],
+                    widget.initialUsageDate ?? _localDateString(DateTime.now()),
+                  );
+                }
+              });
+            }
+          }
+
           final appsList = allApps.where((app) {
             if (_hideSystemApps && app.isSystemApp) return false;
             if (_searchQuery.isNotEmpty) {
@@ -395,6 +667,7 @@ class _ParentAppManagementScreenState
               final matchesPkg = app.packageName.toLowerCase().contains(query);
               if (!matchesName && !matchesPkg) return false;
             }
+
             switch (_activeFilter) {
               case _AppFilter.all:
                 return true;
@@ -428,174 +701,180 @@ class _ParentAppManagementScreenState
               )
               .length;
 
-          return Column(
-            children: [
-              // Header Summary Metrics
-              Container(
-                color: isDark ? const Color(0xFF0C1829) : Colors.white,
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                child: Column(
-                  children: [
-                    // FIX 2: five chips (incl. Timed) in a horizontal scroller.
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          _buildMetricChip(
-                            label: 'Total',
-                            count: totalCount,
-                            color: isDark
-                                ? const Color(0xFF2DD4BF)
-                                : const Color(0xFF4F46E5),
-                            isSelected: _activeFilter == _AppFilter.all,
-                            onTap: () =>
-                                setState(() => _activeFilter = _AppFilter.all),
-                          ),
-                          const SizedBox(width: 8),
-                          _buildMetricChip(
-                            label: 'Blocked',
-                            count: blockedCount,
-                            color: const Color(0xFFEF4444),
-                            isSelected: _activeFilter == _AppFilter.blocked,
-                            onTap: () => setState(
-                              () => _activeFilter = _AppFilter.blocked,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          _buildMetricChip(
-                            label: 'Notify / Ask',
-                            count: askCount,
-                            color: const Color(0xFFF59E0B),
-                            isSelected: _activeFilter == _AppFilter.ask,
-                            onTap: () =>
-                                setState(() => _activeFilter = _AppFilter.ask),
-                          ),
-                          const SizedBox(width: 8),
-                          _buildMetricChip(
-                            label: 'Allowed',
-                            count: allowedCount,
-                            color: const Color(0xFF10B981),
-                            isSelected: _activeFilter == _AppFilter.allowed,
-                            onTap: () => setState(
-                              () => _activeFilter = _AppFilter.allowed,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          _buildMetricChip(
-                            label: 'Timed',
-                            count: timedCount,
-                            color: isDark
-                                ? const Color(0xFF38BDF8)
-                                : const Color(0xFF7C3AED),
-                            isSelected: _activeFilter == _AppFilter.timeLimited,
-                            onTap: () => setState(
-                              () => _activeFilter = _AppFilter.timeLimited,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    // Search Bar
-                    TextField(
-                      controller: _searchController,
-                      style: TextStyle(
-                        color: isDark ? Colors.white : Colors.black87,
-                      ),
-                      decoration: InputDecoration(
-                        hintText: 'Search apps or package name...',
-                        hintStyle: TextStyle(
-                          color: isDark ? const Color(0xFF8BA0B8) : Colors.grey,
-                        ),
-                        prefixIcon: Icon(
-                          Icons.search_rounded,
-                          size: 20,
-                          color: isDark ? const Color(0xFF8BA0B8) : Colors.grey,
-                        ),
-                        suffixIcon: _searchQuery.isNotEmpty
-                            ? IconButton(
-                                icon: Icon(
-                                  Icons.clear_rounded,
-                                  size: 18,
-                                  color: isDark
-                                      ? const Color(0xFF8BA0B8)
-                                      : Colors.grey,
-                                ),
-                                onPressed: () {
-                                  _searchController.clear();
-                                  setState(() => _searchQuery = '');
-                                },
-                              )
-                            : null,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 0,
-                        ),
-                        filled: true,
-                        fillColor: isDark
-                            ? const Color(0xFF132238)
-                            : const Color(0xFFF1F5F9),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(
-                            color: isDark
-                                ? const Color(0xFF1E3554)
-                                : Colors.transparent,
-                          ),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(
-                            color: isDark
-                                ? const Color(0xFF1E3554)
-                                : Colors.transparent,
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(
-                            color: isDark
-                                ? const Color(0xFF2DD4BF)
-                                : const Color(0xFF4F46E5),
-                            width: 1.5,
-                          ),
-                        ),
-                      ),
-                      onChanged: (query) {
-                        setState(() => _searchQuery = query);
-                      },
-                    ),
-                  ],
+          return RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(
+                familyChildAppsProvider(
+                  FamilyChildParams(familyId: familyId, childId: childId),
                 ),
-              ),
-
-              // Apps List / Empty View
-              Expanded(
-                child: appsList.isEmpty
-                    ? _buildEmptyState(allApps.isEmpty)
-                    : RefreshIndicator(
-                        onRefresh: () async {
-                          ref.invalidate(
-                            familyChildAppsProvider(
-                              FamilyChildParams(
-                                familyId: familyId,
-                                childId: childId,
+              );
+            },
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Container(
+                    color: isDark ? const Color(0xFF0C1829) : Colors.white,
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                    child: Column(
+                      children: [
+                        // FIX 2: five chips (incl. Timed) in a horizontal scroller.
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              _buildMetricChip(
+                                label: 'Total',
+                                count: totalCount,
+                                color: isDark
+                                    ? const Color(0xFF2DD4BF)
+                                    : const Color(0xFF4F46E5),
+                                isSelected: _activeFilter == _AppFilter.all,
+                                onTap: () => setState(
+                                  () => _activeFilter = _AppFilter.all,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              _buildMetricChip(
+                                label: 'Blocked',
+                                count: blockedCount,
+                                color: const Color(0xFFEF4444),
+                                isSelected: _activeFilter == _AppFilter.blocked,
+                                onTap: () => setState(
+                                  () => _activeFilter = _AppFilter.blocked,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              _buildMetricChip(
+                                label: 'Notify / Ask',
+                                count: askCount,
+                                color: const Color(0xFFF59E0B),
+                                isSelected: _activeFilter == _AppFilter.ask,
+                                onTap: () => setState(
+                                  () => _activeFilter = _AppFilter.ask,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              _buildMetricChip(
+                                label: 'Allowed',
+                                count: allowedCount,
+                                color: const Color(0xFF10B981),
+                                isSelected: _activeFilter == _AppFilter.allowed,
+                                onTap: () => setState(
+                                  () => _activeFilter = _AppFilter.allowed,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              _buildMetricChip(
+                                label: 'Timed',
+                                count: timedCount,
+                                color: isDark
+                                    ? const Color(0xFF38BDF8)
+                                    : const Color(0xFF7C3AED),
+                                isSelected:
+                                    _activeFilter == _AppFilter.timeLimited,
+                                onTap: () => setState(
+                                  () => _activeFilter = _AppFilter.timeLimited,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        // Search Bar
+                        TextField(
+                          controller: _searchController,
+                          style: TextStyle(
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: 'Search apps or package name...',
+                            hintStyle: TextStyle(
+                              color: isDark
+                                  ? const Color(0xFF8BA0B8)
+                                  : Colors.grey,
+                            ),
+                            prefixIcon: Icon(
+                              Icons.search_rounded,
+                              size: 20,
+                              color: isDark
+                                  ? const Color(0xFF8BA0B8)
+                                  : Colors.grey,
+                            ),
+                            suffixIcon: _searchQuery.isNotEmpty
+                                ? IconButton(
+                                    icon: Icon(
+                                      Icons.clear_rounded,
+                                      size: 18,
+                                      color: isDark
+                                          ? const Color(0xFF8BA0B8)
+                                          : Colors.grey,
+                                    ),
+                                    onPressed: () {
+                                      _searchController.clear();
+                                      setState(() => _searchQuery = '');
+                                    },
+                                  )
+                                : null,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 0,
+                            ),
+                            filled: true,
+                            fillColor: isDark
+                                ? const Color(0xFF132238)
+                                : const Color(0xFFF1F5F9),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: isDark
+                                    ? const Color(0xFF1E3554)
+                                    : Colors.transparent,
                               ),
                             ),
-                          );
-                        },
-                        child: ListView.builder(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                          itemCount: appsList.length,
-                          itemBuilder: (context, index) {
-                            final app = appsList[index];
-                            return _buildAppCard(app, usageMap);
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: isDark
+                                    ? const Color(0xFF1E3554)
+                                    : Colors.transparent,
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: isDark
+                                    ? const Color(0xFF2DD4BF)
+                                    : const Color(0xFF4F46E5),
+                                width: 1.5,
+                              ),
+                            ),
+                          ),
+                          onChanged: (query) {
+                            setState(() => _searchQuery = query);
                           },
                         ),
-                      ),
-              ),
-            ],
+                      ],
+                    ),
+                  ),
+                ),
+                if (appsList.isEmpty)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: _buildEmptyState(allApps.isEmpty),
+                  )
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        final app = appsList[index];
+                        return _buildAppCard(app, usageMap);
+                      }, childCount: appsList.length),
+                    ),
+                  ),
+              ],
+            ),
           );
         },
       ),
@@ -870,7 +1149,7 @@ class _ParentAppManagementScreenState
                                   app.dailyLimitMinutes != null) ...[
                                 const SizedBox(width: 4),
                                 Text(
-                                  '(${app.dailyLimitMinutes}m/day)',
+                                  '(${app.effectiveDailyLimit(DateTime.now())}m/day)',
                                   style: TextStyle(
                                     fontSize: 10,
                                     color: ruleColor,
@@ -948,7 +1227,10 @@ class _ParentAppManagementScreenState
                           if (hasUsage) const SizedBox(height: 6),
                           AppUsageIndicator(
                             usedMinutes: appUsage?.todayMinutes ?? 0,
-                            limitMinutes: app.dailyLimitMinutes ?? 60,
+                            limitMinutes:
+                                app.effectiveDailyLimit(DateTime.now()) > 0
+                                ? app.effectiveDailyLimit(DateTime.now())
+                                : 60,
                           ),
                         ],
                       ],

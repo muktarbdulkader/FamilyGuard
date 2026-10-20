@@ -2,8 +2,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/constants/app_routes.dart';
 import '../../../../core/services/permission_service.dart';
 import '../../../../core/providers/user_provider.dart';
+import '../../../../core/widgets/family_bottom_navigation.dart';
 import 'permission_onboarding_screen.dart';
 
 /// Monitoring status screen showing current parental control status
@@ -115,6 +117,7 @@ class _MonitoringStatusScreenState extends ConsumerState<MonitoringStatusScreen>
     final userData = ref.watch(currentUserDataProvider);
     final statusColor = _getStatusColor();
 
+    final user = userData.value;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Monitoring Status'),
@@ -138,7 +141,13 @@ class _MonitoringStatusScreenState extends ConsumerState<MonitoringStatusScreen>
               const SizedBox(height: 16),
               Text('Error: $error'),
               ElevatedButton(
-                onPressed: () => context.pop(),
+                onPressed: () {
+                  if (context.canPop()) {
+                    context.pop();
+                  } else {
+                    context.go(AppRoutes.childHome);
+                  }
+                },
                 child: const Text('Go Back'),
               ),
             ],
@@ -323,6 +332,13 @@ class _MonitoringStatusScreenState extends ConsumerState<MonitoringStatusScreen>
             ],
           ),
         ),
+      ),
+      bottomNavigationBar: FamilyBottomNavigation(
+        isParent: false,
+        selected: FamilyNavDestination.health,
+        familyId: user?.familyId,
+        childId: user?.uid,
+        childName: user?.displayName,
       ),
     );
   }

@@ -100,6 +100,11 @@ class NotificationActions {
     final service = ref.read(notificationServiceProvider);
     await service.markNotificationAsRead(notificationId);
   }
+
+  Future<void> deleteNotification(String notificationId) async {
+    final service = ref.read(notificationServiceProvider);
+    await service.deleteNotification(notificationId);
+  }
   
   Future<void> markAllAsRead() async {
     final notifications = ref.read(currentUserNotificationsProvider);

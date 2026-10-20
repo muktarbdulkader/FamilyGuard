@@ -168,7 +168,13 @@ class _JoinFamilyScreenState extends ConsumerState<JoinFamilyScreen>
         title: const Text('Join Family'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
-          onPressed: () => context.pop(),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go(AppRoutes.childHome);
+            }
+          },
         ),
       ),
       body: Container(

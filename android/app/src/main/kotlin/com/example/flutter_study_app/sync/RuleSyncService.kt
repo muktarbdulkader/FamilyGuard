@@ -6,6 +6,8 @@ import com.example.flutter_study_app.enforcement.RuleEngine
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -37,6 +39,7 @@ class RuleSyncService(
     // stopSync() permanently cancels the scope before new listeners are attached.
     private var syncJob = SupervisorJob()
     private var syncScope = CoroutineScope(Dispatchers.IO + syncJob)
+    private val ruleSyncMutex = Mutex()
     
     companion object {
         private const val COLLECTION_FAMILIES = "families"
@@ -191,37 +194,51 @@ class RuleSyncService(
      * Sync rules from Firestore to local database
      */
     private suspend fun syncRulesFromFirestore(firestoreRules: List<RuleEngine.AppRule>) = withContext(Dispatchers.IO) {
-        try {
-            // Get current local rules
-            val localRules = database.getAllRules().associateBy { it.packageName }
-            
-            // Unconditionally insert/update every rule from Firestore to local DB.
-            // Avoids stale timestamp comparison issues (timezone/format differences).
-            for (firestoreRule in firestoreRules) {
-                database.insertOrUpdateRule(firestoreRule)
-                withContext(Dispatchers.Main) {
-                    onRuleChanged?.invoke(firestoreRule.packageName, firestoreRule.type)
+        ruleSyncMutex.withLock {
+            try {
+                val localRules = database.getAllRules().associateBy { it.packageName }
+
+                for (firestoreRule in firestoreRules) {
+                    val localRule = localRules[firestoreRule.packageName]
+                    val isOlder = localRule != null &&
+                        (firestoreRule.policyVersion < localRule.policyVersion ||
+                            (firestoreRule.policyVersion == localRule.policyVersion &&
+                                firestoreRule.updatedAt.isBefore(localRule.updatedAt)))
+                    if (isOlder) {
+                        android.util.Log.w(
+                            "RuleSyncService",
+                            "Ignored stale rule snapshot for ${firestoreRule.packageName}"
+                        )
+                        continue
+                    }
+
+                    database.insertOrUpdateRule(firestoreRule)
+                    withContext(Dispatchers.Main) {
+                        onRuleChanged?.invoke(firestoreRule.packageName, firestoreRule.type)
+                    }
+                    android.util.Log.d(
+                        "RuleSyncService",
+                        "Updated rule: ${firestoreRule.packageName} -> ${firestoreRule.type} (v${firestoreRule.policyVersion})"
+                    )
                 }
-                android.util.Log.d("RuleSyncService",
-                    "Updated rule: ${firestoreRule.packageName} -> ${firestoreRule.type}")
-            }
-            
-            // Only remove local rules that disappeared from Firestore if the
-            // snapshot actually returned rules (guards against empty-snapshot false deletes).
-            if (firestoreRules.isNotEmpty()) {
-                val firestorePackages = firestoreRules.map { it.packageName }.toSet()
-                for ((packageName, _) in localRules) {
-                    if (!firestorePackages.contains(packageName)) {
-                        database.deleteRule(packageName)
-                        android.util.Log.d("RuleSyncService", "Removed stale rule: $packageName")
+
+                if (firestoreRules.isNotEmpty()) {
+                    val firestorePackages = firestoreRules.map { it.packageName }.toSet()
+                    for (packageName in localRules.keys) {
+                        if (!firestorePackages.contains(packageName)) {
+                            database.deleteRule(packageName)
+                            android.util.Log.d("RuleSyncService", "Removed stale rule: $packageName")
+                        }
                     }
                 }
+
+                android.util.Log.d(
+                    "RuleSyncService",
+                    "Rules sync completed. Updated ${firestoreRules.size} rules"
+                )
+            } catch (e: Exception) {
+                android.util.Log.e("RuleSyncService", "Error syncing rules", e)
             }
-            
-            android.util.Log.d("RuleSyncService", "Rules sync completed. Updated ${firestoreRules.size} rules")
-            
-        } catch (e: Exception) {
-            android.util.Log.e("RuleSyncService", "Error syncing rules", e)
         }
     }
     
@@ -230,13 +247,11 @@ class RuleSyncService(
      */
     private suspend fun syncApprovalsFromFirestore(firestoreApprovals: List<RuleEngine.TemporaryApproval>) = withContext(Dispatchers.IO) {
         try {
-            // Clear existing approvals and insert new ones
-            // This ensures we don't keep expired approvals that were removed from Firestore
             val currentTime = LocalDateTime.now()
-            
+            database.replaceTemporaryApprovals(firestoreApprovals, currentTime)
+
             for (approval in firestoreApprovals) {
                 if (!approval.isExpired(currentTime)) {
-                    database.insertTemporaryApproval(approval)
                     withContext(Dispatchers.Main) {
                         onApprovalChanged?.invoke(approval.packageName)
                     }
@@ -292,17 +307,29 @@ class RuleSyncService(
         }
 
         val limitMinutes = (data["dailyLimitMinutes"] as? Number)?.toInt()
+        val bonusDate = data["dailyLimitBonusDate"] as? String
+        val bonusMinutes = (data["dailyLimitBonusMinutes"] as? Number)?.toInt() ?: 0
+        val effectiveLimitMinutes = if (bonusDate == java.time.LocalDate.now().toString()) {
+            (limitMinutes ?: 0) + bonusMinutes
+        } else {
+            limitMinutes
+        }
+        val alertThreshold = (data["usageAlertThresholdPercent"] as? Number)
+            ?.toInt()?.coerceIn(1, 99) ?: 50
+        val policyVersion = (data["policyVersion"] as? Number)?.toLong() ?: 0L
         val createdAt = parseDateTimeSafe(data["createdAt"] ?: data["detectedAt"] ?: data["installedDate"], LocalDateTime.of(2020, 1, 1, 0, 0))
         val updatedAt = parseDateTimeSafe(data["updatedAt"] ?: data["lastUpdated"], createdAt)
 
         return RuleEngine.AppRule(
             packageName = packageName,
             type = ruleType,
-            dailyLimitMinutes = limitMinutes,
+            dailyLimitMinutes = effectiveLimitMinutes,
             allowedStartTime = allowedStart,
             allowedEndTime = allowedEnd,
             createdAt = createdAt,
-            updatedAt = updatedAt
+            updatedAt = updatedAt,
+            usageAlertThresholdPercent = alertThreshold,
+            policyVersion = policyVersion
         )
     }
     

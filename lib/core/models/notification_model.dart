@@ -5,6 +5,8 @@ enum NotificationType {
   appApproved,
   appDenied,
   newAppDetected,
+  highAppUsage,
+  appTimeGranted,
   dailyLimitReached,
   deviceOffline,
   deviceOnline,
@@ -12,12 +14,7 @@ enum NotificationType {
   serviceUnavailable,
 }
 
-enum NotificationPriority {
-  low,
-  normal,
-  high,
-  urgent,
-}
+enum NotificationPriority { low, normal, high, urgent }
 
 class ParentNotification {
   final String id;
@@ -66,24 +63,48 @@ class ParentNotification {
   factory ParentNotification.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>? ?? {};
     final nestedData = Map<String, dynamic>.from(data['data'] ?? {});
-    
+
     // Resolve child name with comprehensive multi-field fallbacks
     String resolvedChildName = (data['childName'] as String?)?.trim() ?? '';
-    if (resolvedChildName.isEmpty) resolvedChildName = (data['child_name'] as String?)?.trim() ?? '';
-    if (resolvedChildName.isEmpty) resolvedChildName = (data['childDisplayName'] as String?)?.trim() ?? '';
-    if (resolvedChildName.isEmpty) resolvedChildName = (data['displayName'] as String?)?.trim() ?? '';
-    if (resolvedChildName.isEmpty) resolvedChildName = (data['name'] as String?)?.trim() ?? '';
-    if (resolvedChildName.isEmpty) resolvedChildName = (nestedData['childName'] as String?)?.trim() ?? '';
-    if (resolvedChildName.isEmpty) resolvedChildName = (nestedData['child_name'] as String?)?.trim() ?? '';
-    if (resolvedChildName.isEmpty) resolvedChildName = (nestedData['childDisplayName'] as String?)?.trim() ?? '';
-    if (resolvedChildName.isEmpty) resolvedChildName = (nestedData['displayName'] as String?)?.trim() ?? '';
-    if (resolvedChildName.isEmpty) resolvedChildName = (nestedData['name'] as String?)?.trim() ?? '';
+    if (resolvedChildName.isEmpty) {
+      resolvedChildName = (data['child_name'] as String?)?.trim() ?? '';
+    }
+    if (resolvedChildName.isEmpty) {
+      resolvedChildName = (data['childDisplayName'] as String?)?.trim() ?? '';
+    }
+    if (resolvedChildName.isEmpty) {
+      resolvedChildName = (data['displayName'] as String?)?.trim() ?? '';
+    }
+    if (resolvedChildName.isEmpty) {
+      resolvedChildName = (data['name'] as String?)?.trim() ?? '';
+    }
+    if (resolvedChildName.isEmpty) {
+      resolvedChildName = (nestedData['childName'] as String?)?.trim() ?? '';
+    }
+    if (resolvedChildName.isEmpty) {
+      resolvedChildName = (nestedData['child_name'] as String?)?.trim() ?? '';
+    }
+    if (resolvedChildName.isEmpty) {
+      resolvedChildName =
+          (nestedData['childDisplayName'] as String?)?.trim() ?? '';
+    }
+    if (resolvedChildName.isEmpty) {
+      resolvedChildName = (nestedData['displayName'] as String?)?.trim() ?? '';
+    }
+    if (resolvedChildName.isEmpty) {
+      resolvedChildName = (nestedData['name'] as String?)?.trim() ?? '';
+    }
 
     // If still empty or generic, check if the raw title contains the child's name (e.g. "Maya: App Request")
     final rawTitle = (data['title'] as String?)?.trim() ?? '';
-    if ((resolvedChildName.isEmpty || resolvedChildName.toLowerCase() == 'child' || resolvedChildName.toLowerCase() == 'your child') && rawTitle.contains(':')) {
+    if ((resolvedChildName.isEmpty ||
+            resolvedChildName.toLowerCase() == 'child' ||
+            resolvedChildName.toLowerCase() == 'your child') &&
+        rawTitle.contains(':')) {
       final prefix = rawTitle.split(':').first.replaceAll('🚫', '').trim();
-      if (prefix.isNotEmpty && prefix.toLowerCase() != 'child' && prefix.toLowerCase() != 'your child') {
+      if (prefix.isNotEmpty &&
+          prefix.toLowerCase() != 'child' &&
+          prefix.toLowerCase() != 'your child') {
         resolvedChildName = prefix;
       }
     }
@@ -95,38 +116,57 @@ class ParentNotification {
     // Resolve type supporting both camelCase and snake_case
     final rawType = (data['type'] ?? nestedData['type'] ?? '').toString();
     final NotificationType resolvedType = switch (rawType) {
-      'appRequest' || 'app_request' || 'blocked_app_attempt' => NotificationType.appRequest,
-      'appApproved' || 'app_approved' || 'request_approved' => NotificationType.appApproved,
-      'appDenied' || 'app_denied' || 'request_denied' => NotificationType.appDenied,
+      'appRequest' ||
+      'app_request' ||
+      'blocked_app_attempt' => NotificationType.appRequest,
+      'appApproved' ||
+      'app_approved' ||
+      'request_approved' => NotificationType.appApproved,
+      'appDenied' ||
+      'app_denied' ||
+      'request_denied' => NotificationType.appDenied,
       'newAppDetected' || 'new_app_detected' => NotificationType.newAppDetected,
-      'dailyLimitReached' || 'daily_limit_reached' => NotificationType.dailyLimitReached,
+      'highAppUsage' || 'high_app_usage' => NotificationType.highAppUsage,
+      'appTimeGranted' || 'app_time_granted' => NotificationType.appTimeGranted,
+      'dailyLimitReached' ||
+      'daily_limit_reached' => NotificationType.dailyLimitReached,
       'deviceOffline' || 'device_offline' => NotificationType.deviceOffline,
       'deviceOnline' || 'device_online' => NotificationType.deviceOnline,
-      'permissionDisabled' || 'permission_disabled' => NotificationType.permissionDisabled,
-      'serviceUnavailable' || 'service_unavailable' => NotificationType.serviceUnavailable,
+      'permissionDisabled' ||
+      'permission_disabled' => NotificationType.permissionDisabled,
+      'serviceUnavailable' ||
+      'service_unavailable' => NotificationType.serviceUnavailable,
       _ => NotificationType.values.firstWhere(
-          (e) => e.name == rawType,
-          orElse: () => NotificationType.appRequest,
-        ),
+        (e) => e.name == rawType,
+        orElse: () => NotificationType.appRequest,
+      ),
     };
 
     final rawPriority = (data['priority'] ?? '').toString();
-    final NotificationPriority resolvedPriority = NotificationPriority.values.firstWhere(
-      (e) => e.name.toLowerCase() == rawPriority.toLowerCase(),
-      orElse: () => NotificationTemplate.getPriority(resolvedType),
-    );
+    final NotificationPriority resolvedPriority = NotificationPriority.values
+        .firstWhere(
+          (e) => e.name.toLowerCase() == rawPriority.toLowerCase(),
+          orElse: () => NotificationTemplate.getPriority(resolvedType),
+        );
 
     // Resolve title and body with smart fallback using NotificationTemplate
     String resolvedTitle = (data['title'] as String?)?.trim() ?? '';
     if (resolvedTitle.isEmpty) {
-      resolvedTitle = NotificationTemplate.getTitle(resolvedType, resolvedChildName);
+      resolvedTitle = NotificationTemplate.getTitle(
+        resolvedType,
+        resolvedChildName,
+      );
     }
 
     String resolvedBody = (data['body'] as String?)?.trim() ?? '';
     if (resolvedBody.isEmpty) {
-      resolvedBody = NotificationTemplate.getBody(resolvedType, resolvedChildName, nestedData);
+      resolvedBody = NotificationTemplate.getBody(
+        resolvedType,
+        resolvedChildName,
+        nestedData,
+      );
     }
-    
+
     return ParentNotification(
       id: doc.id,
       familyId: data['familyId'] ?? nestedData['familyId'] ?? '',
@@ -142,7 +182,9 @@ class ParentNotification {
       expiresAt: (data['expiresAt'] as Timestamp?)?.toDate(),
       isRead: data['isRead'] ?? false,
       status: (data['status'] ?? nestedData['status'])?.toString(),
-      grantedMinutes: ((data['grantedMinutes'] ?? nestedData['grantedMinutes']) as num?)?.toInt(),
+      grantedMinutes:
+          ((data['grantedMinutes'] ?? nestedData['grantedMinutes']) as num?)
+              ?.toInt(),
     );
   }
 
@@ -219,7 +261,7 @@ class FCMToken {
 
   factory FCMToken.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
-    
+
     return FCMToken(
       userId: data['userId'] ?? '',
       token: data['token'] ?? '',
@@ -276,6 +318,10 @@ class NotificationTemplate {
         return '❌ $name: Access Denied';
       case NotificationType.newAppDetected:
         return '$name: New App Detected';
+      case NotificationType.highAppUsage:
+        return '$name: High App Usage';
+      case NotificationType.appTimeGranted:
+        return 'More Time Granted';
       case NotificationType.dailyLimitReached:
         return '$name: Daily Screen Limit Reached';
       case NotificationType.deviceOffline:
@@ -289,14 +335,18 @@ class NotificationTemplate {
     }
   }
 
-  static String getBody(NotificationType type, String childName, Map<String, dynamic> data) {
+  static String getBody(
+    NotificationType type,
+    String childName,
+    Map<String, dynamic> data,
+  ) {
     final name = childName.trim().isNotEmpty ? childName.trim() : 'Child';
     switch (type) {
       case NotificationType.appRequest:
         final appName = data['appName'] ?? 'an app';
         final requestedMinutes = data['requestedMinutes'] ?? 30;
         return '$name requested to use $appName for $requestedMinutes minutes.';
-      
+
       case NotificationType.appApproved:
         final appName = data['appName'] ?? 'an app';
         final minutes = data['grantedMinutes'] ?? 30;
@@ -309,21 +359,31 @@ class NotificationTemplate {
       case NotificationType.newAppDetected:
         final appName = data['appName'] ?? 'A new app';
         return '$appName was installed on $name\'s device.';
-      
+      case NotificationType.highAppUsage:
+        final appName = data['appName'] ?? 'an app';
+        final usedMinutes = data['usedMinutes'] ?? 0;
+        final allowedMinutes = data['allowedMinutes'] ?? 0;
+        return 'High app usage: $name has used $appName for $usedMinutes of '
+            'the allowed $allowedMinutes minutes today.';
+      case NotificationType.appTimeGranted:
+        final appName = data['appName'] ?? 'an app';
+        final minutes = data['grantedMinutes'] ?? 0;
+        return 'Your parent granted $minutes more minutes for $appName.';
+
       case NotificationType.dailyLimitReached:
         final appName = data['appName'] ?? 'an app';
         return '$name reached their daily limit for $appName.';
-      
+
       case NotificationType.deviceOffline:
         return '$name\'s device went offline.';
-      
+
       case NotificationType.deviceOnline:
         return '$name\'s device is back online and protected.';
-      
+
       case NotificationType.permissionDisabled:
         final permission = data['permission'] ?? 'A required permission';
         return '$permission was disabled on $name\'s device.';
-      
+
       case NotificationType.serviceUnavailable:
         return 'Monitoring service stopped on $name\'s device.';
     }
@@ -339,6 +399,8 @@ class NotificationTemplate {
       case NotificationType.serviceUnavailable:
         return NotificationPriority.urgent;
       case NotificationType.dailyLimitReached:
+      case NotificationType.highAppUsage:
+      case NotificationType.appTimeGranted:
       case NotificationType.deviceOffline:
         return NotificationPriority.normal;
       case NotificationType.newAppDetected:
@@ -355,12 +417,16 @@ class NotificationTemplate {
       case NotificationType.appDenied:
         return const Duration(hours: 12);
       case NotificationType.deviceOnline:
-        return const Duration(hours: 1); // Status change notifications expire quickly
+        return const Duration(
+          hours: 1,
+        ); // Status change notifications expire quickly
       case NotificationType.deviceOffline:
         return null; // Keep until resolved
       case NotificationType.newAppDetected:
         return const Duration(hours: 24); // Give parents a day to review
       case NotificationType.dailyLimitReached:
+      case NotificationType.highAppUsage:
+      case NotificationType.appTimeGranted:
         return const Duration(hours: 8); // Reset overnight
       case NotificationType.permissionDisabled:
       case NotificationType.serviceUnavailable:

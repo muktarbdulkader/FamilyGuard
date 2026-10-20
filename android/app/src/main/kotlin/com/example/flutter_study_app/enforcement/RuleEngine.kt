@@ -46,7 +46,9 @@ class RuleEngine {
         val allowedStartTime: LocalTime? = null,
         val allowedEndTime: LocalTime? = null,
         val createdAt: LocalDateTime,
-        val updatedAt: LocalDateTime
+        val updatedAt: LocalDateTime,
+        val usageAlertThresholdPercent: Int = 50,
+        val policyVersion: Long = 0
     )
     
     /**

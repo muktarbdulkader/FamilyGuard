@@ -9,6 +9,8 @@ import '../../../../core/providers/auth_provider.dart';
 import '../../../../core/providers/notification_provider.dart';
 import '../../../../core/providers/family_provider.dart';
 import '../../../../core/models/family_model.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/family_bottom_navigation.dart';
 import '../../../../l10n/app_localizations.dart';
 
 /// Parent Notifications Screen with top-tier UI:
@@ -50,24 +52,29 @@ class _ParentNotificationsScreenState
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isRtl = Directionality.of(context) == TextDirection.rtl;
+    final colors = AppColors.of(context);
 
     return Scaffold(
-      backgroundColor: isDark
-          ? const Color(0xFF0C1829)
-          : const Color(0xFFF8FAFC),
+      backgroundColor: colors.background,
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: isDark ? const Color(0xFF0C1829) : Colors.white,
-        foregroundColor: isDark ? Colors.white : const Color(0xFF0F172A),
+        backgroundColor: colors.surface,
+        foregroundColor: colors.textPrimary,
         leading: IconButton(
           icon: Icon(
             isRtl
                 ? Icons.arrow_forward_ios_rounded
                 : Icons.arrow_back_ios_new_rounded,
             size: 20,
-            color: isDark ? Colors.white : const Color(0xFF0F172A),
+            color: colors.textPrimary,
           ),
-          onPressed: () => context.pop(),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go(AppRoutes.parentHome);
+            }
+          },
         ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -79,7 +86,7 @@ class _ParentNotificationsScreenState
                   style: TextStyle(
                     fontWeight: FontWeight.w800,
                     fontSize: 18,
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    color: colors.textPrimary,
                   ),
                 ),
                 if (unreadCount > 0) ...[
@@ -109,12 +116,7 @@ class _ParentNotificationsScreenState
             ),
             Text(
               l10n.realTimeAlerts,
-              style: TextStyle(
-                fontSize: 12,
-                color: isDark
-                    ? const Color(0xFF8BA0B8)
-                    : const Color(0xFF64748B),
-              ),
+              style: TextStyle(fontSize: 12, color: colors.textSecondary),
             ),
           ],
         ),
@@ -192,7 +194,7 @@ class _ParentNotificationsScreenState
                       ),
                       child: Text(
                         '${urgentNotifications.length}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Colors.white,
                           fontSize: 9,
                           fontWeight: FontWeight.bold,
@@ -293,6 +295,10 @@ class _ParentNotificationsScreenState
           );
         },
       ),
+      bottomNavigationBar: const FamilyBottomNavigation(
+        isParent: true,
+        selected: FamilyNavDestination.notifications,
+      ),
     );
   }
 }
@@ -312,6 +318,7 @@ class _NotificationList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = AppColors.of(context);
     if (notifications.isEmpty) {
       return Center(
         child: Padding(
@@ -322,31 +329,27 @@ class _NotificationList extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(22),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF4F46E5).withOpacity(0.08),
+                  color: colors.primary.withOpacity(0.08),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
-                  emptyIcon,
-                  size: 54,
-                  color: const Color(0xFF4F46E5),
-                ),
+                child: Icon(emptyIcon, size: 54, color: colors.primary),
               ),
               const SizedBox(height: 20),
               Text(
                 emptyTitle,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF0F172A),
+                  color: colors.textPrimary,
                 ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
               Text(
                 emptySubtitle,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
-                  color: Color(0xFF64748B),
+                  color: colors.textSecondary,
                   height: 1.4,
                 ),
                 textAlign: TextAlign.center,
@@ -366,10 +369,94 @@ class _NotificationList extends ConsumerWidget {
         itemCount: notifications.length,
         itemBuilder: (context, index) {
           final notification = notifications[index];
-          return _ChildNotificationCard(notification: notification);
+          return Dismissible(
+            key: ValueKey(notification.id),
+            direction: DismissDirection.endToStart,
+            background: Container(
+              margin: const EdgeInsets.only(bottom: 14),
+              padding: const EdgeInsets.only(right: 22),
+              alignment: Alignment.centerRight,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.error,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: const Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.delete_outline_rounded, color: Colors.white),
+                  SizedBox(height: 4),
+                  Text(
+                    'Delete',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            confirmDismiss: (_) =>
+                _confirmAndDeleteNotification(context, ref, notification),
+            child: _ChildNotificationCard(notification: notification),
+          );
         },
       ),
     );
+  }
+}
+
+Future<bool> _confirmAndDeleteNotification(
+  BuildContext context,
+  WidgetRef ref,
+  ParentNotification notification,
+) async {
+  final shouldDelete = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('Delete notification?'),
+      content: const Text(
+        'This notification will be permanently removed from your family feed.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext, false),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(
+            backgroundColor: Theme.of(context).colorScheme.error,
+            foregroundColor: Colors.white,
+          ),
+          onPressed: () => Navigator.pop(dialogContext, true),
+          child: const Text('Delete'),
+        ),
+      ],
+    ),
+  );
+  if (shouldDelete != true || !context.mounted) return false;
+
+  try {
+    await ref
+        .read(notificationActionsProvider)
+        .deleteNotification(notification.id);
+    if (!context.mounted) return true;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Notification deleted'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+    return true;
+  } catch (error) {
+    if (!context.mounted) return false;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Could not delete notification: $error'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+    return false;
   }
 }
 
@@ -381,6 +468,7 @@ class _ChildNotificationCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = AppColors.of(context);
     final children = ref.watch(familyChildrenProvider).value ?? [];
     final selectedChild = ref.watch(selectedChildProvider);
 
@@ -449,12 +537,10 @@ class _ChildNotificationCard extends ConsumerWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colors.surface,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: isUnread
-              ? typeColor.withOpacity(0.4)
-              : const Color(0xFFE2E8F0),
+          color: isUnread ? typeColor.withOpacity(0.4) : colors.border,
           width: isUnread ? 1.5 : 1.0,
         ),
         boxShadow: [
@@ -522,10 +608,10 @@ class _ChildNotificationCard extends ConsumerWidget {
                               Flexible(
                                 child: Text(
                                   childName,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 15,
-                                    color: Color(0xFF0F172A),
+                                    color: colors.textPrimary,
                                   ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -537,18 +623,16 @@ class _ChildNotificationCard extends ConsumerWidget {
                                   vertical: 2,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFEEF2FF),
+                                  color: colors.surfaceHighlight,
                                   borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(
-                                    color: const Color(0xFFC7D2FE),
-                                  ),
+                                  border: Border.all(color: colors.border),
                                 ),
-                                child: const Text(
+                                child: Text(
                                   'Child Device',
                                   style: TextStyle(
                                     fontSize: 10,
                                     fontWeight: FontWeight.w700,
-                                    color: Color(0xFF4F46E5),
+                                    color: colors.primary,
                                   ),
                                 ),
                               ),
@@ -557,9 +641,9 @@ class _ChildNotificationCard extends ConsumerWidget {
                           const SizedBox(height: 2),
                           Text(
                             _getTimeAgo(notification.createdAt),
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 11,
-                              color: Color(0xFF94A3B8),
+                              color: colors.textSecondary,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -616,6 +700,12 @@ class _ChildNotificationCard extends ConsumerWidget {
                               .markAsRead(notification.id);
                         } else if (value == 'details') {
                           _showDetailsDialog(context);
+                        } else if (value == 'delete') {
+                          _confirmAndDeleteNotification(
+                            context,
+                            ref,
+                            notification,
+                          );
                         }
                       },
                       itemBuilder: (context) => [
@@ -640,13 +730,30 @@ class _ChildNotificationCard extends ConsumerWidget {
                             ],
                           ),
                         ),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.delete_outline_rounded,
+                                size: 18,
+                                color: Color(0xFFEF4444),
+                              ),
+                              SizedBox(width: 8),
+                              Text(
+                                'Delete notification',
+                                style: TextStyle(color: Color(0xFFEF4444)),
+                              ),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
                   ],
                 ),
 
                 const SizedBox(height: 12),
-                const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                Divider(height: 1, color: colors.border),
                 const SizedBox(height: 12),
 
                 // Notification Title with Icon
@@ -673,15 +780,15 @@ class _ChildNotificationCard extends ConsumerWidget {
                               fontWeight: isUnread
                                   ? FontWeight.w800
                                   : FontWeight.w600,
-                              color: const Color(0xFF0F172A),
+                              color: colors.textPrimary,
                             ),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             cardBody,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 13,
-                              color: Color(0xFF475569),
+                              color: colors.textSecondary,
                               height: 1.35,
                             ),
                           ),
@@ -1209,7 +1316,9 @@ class _ChildNotificationCard extends ConsumerWidget {
         return const Color(0xFFEF4444);
       case NotificationType.newAppDetected:
         return const Color(0xFF2563EB);
+      case NotificationType.highAppUsage:
       case NotificationType.dailyLimitReached:
+      case NotificationType.appTimeGranted:
         return const Color(0xFFD97706);
       case NotificationType.deviceOffline:
       case NotificationType.permissionDisabled:
@@ -1230,8 +1339,11 @@ class _ChildNotificationCard extends ConsumerWidget {
         return Icons.cancel_rounded;
       case NotificationType.newAppDetected:
         return Icons.new_releases_rounded;
+      case NotificationType.highAppUsage:
       case NotificationType.dailyLimitReached:
         return Icons.timer_off_rounded;
+      case NotificationType.appTimeGranted:
+        return Icons.more_time_rounded;
       case NotificationType.deviceOffline:
         return Icons.phonelink_off_rounded;
       case NotificationType.deviceOnline:

@@ -10,6 +10,7 @@ import '../../../../core/providers/theme_provider.dart';
 import '../../../../core/providers/user_provider.dart';
 import '../../../../core/providers/locale_provider.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/family_bottom_navigation.dart';
 import '../../../../l10n/app_localizations.dart';
 
 /// Professional, pixel-matched Profile and Account Management Screen
@@ -22,8 +23,9 @@ class ProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
-  static const Color _bgDark = AppColors.darkNavyBg;
-  static const Color _cardBg = AppColors.darkNavyCard;
+  AppColors get _colors => AppColors.of(context);
+  Color get _bgDark => _colors.background;
+  Color get _cardBg => _colors.surface;
   static const Color _cardBorder = AppColors.darkNavyBorder;
   static const Color _tealAccent = AppColors.tealAccent;
 
@@ -66,7 +68,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       backgroundColor: _bgDark,
       body: SafeArea(
         child: userAsync.when(
-          loading: () => const Center(
+          loading: () => Center(
             child: CircularProgressIndicator(
               color: _tealAccent,
               strokeWidth: 3,
@@ -78,16 +80,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.error_outline_rounded,
                     size: 48,
                     color: Color(0xFFEF4444),
                   ),
                   const SizedBox(height: 12),
-                  const Text(
+                  Text(
                     'Failed to load profile',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: _colors.textPrimary,
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
                     ),
@@ -136,25 +138,29 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               child: Container(
                                 padding: const EdgeInsets.all(10),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF14243B),
+                                  color: _colors.surfaceHighlight,
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(color: _cardBorder),
                                 ),
-                                child: const Icon(
+                                child: Icon(
                                   Icons.arrow_back_ios_new_rounded,
-                                  color: Colors.white,
+                                  color: _colors.textPrimary,
                                   size: 18,
                                 ),
                               ),
                             ),
                             const SizedBox(width: 14),
-                            Text(
-                              l10n.profileSettings,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: -0.3,
+                            Expanded(
+                              child: Text(
+                                l10n.profileSettings,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: _colors.textPrimary,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: -0.3,
+                                ),
                               ),
                             ),
                           ],
@@ -242,7 +248,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   bottom: 16,
                   left: 14,
                   right: 14,
-                  child: _buildFloatingBottomBar(context, l10n, isParent),
+                  child: FamilyBottomNavigation(
+                    isParent: isParent,
+                    selected: FamilyNavDestination.profile,
+                    familyId: currentUser?.familyId,
+                    childId: currentUser?.uid,
+                    childName: currentUser?.displayName,
+                  ),
                 ),
               ],
             );
@@ -254,13 +266,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   // ── Profile Header Card ───────────────────────────────────────────
   Widget _buildProfileHeaderCard(AppLocalizations l10n, UserModel? user) {
-    final displayName = user?.displayName.isNotEmpty == true
-        ? user!.displayName
+    final displayName = user?.displayName.trim() ?? '';
+    final email = user?.email.trim() ?? '';
+    final resolvedDisplayName = displayName.isNotEmpty
+        ? displayName
         : 'Family Member';
-    final email = user?.email.isNotEmpty == true
-        ? user!.email
-        : 'No email provided';
-    final initial = displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U';
+    final resolvedEmail = email.isNotEmpty ? email : 'No email provided';
+    final initial = resolvedDisplayName[0].toUpperCase();
     final isParent = user?.isParent ?? true;
 
     return Container(
@@ -299,7 +311,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 child: Center(
                   child: Text(
                     initial,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Color(0xFF042421),
                       fontSize: 30,
                       fontWeight: FontWeight.w900,
@@ -316,11 +328,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0A1424),
+                      color: _colors.background,
                       shape: BoxShape.circle,
                       border: Border.all(color: _tealAccent, width: 1.5),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.edit_rounded,
                       size: 13,
                       color: _tealAccent,
@@ -340,9 +352,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   children: [
                     Expanded(
                       child: Text(
-                        displayName,
-                        style: const TextStyle(
-                          color: Colors.white,
+                        resolvedDisplayName,
+                        style: TextStyle(
+                          color: _colors.textPrimary,
                           fontSize: 19,
                           fontWeight: FontWeight.w900,
                           letterSpacing: -0.3,
@@ -385,8 +397,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  email,
-                  style: const TextStyle(
+                  resolvedEmail,
+                  style: TextStyle(
                     color: Color(0xFF94A3B8),
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
@@ -405,25 +417,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF14243B),
+                      color: _colors.surfaceHighlight,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: _cardBorder),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(
-                          Icons.edit_outlined,
-                          size: 14,
-                          color: _tealAccent,
-                        ),
+                        Icon(Icons.edit_outlined, size: 14, color: _tealAccent),
                         const SizedBox(width: 6),
-                        Text(
-                          l10n.editProfile,
-                          style: const TextStyle(
-                            color: _tealAccent,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
+                        Flexible(
+                          child: Text(
+                            l10n.editProfile,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: _tealAccent,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
                       ],
@@ -440,9 +452,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   // ── Personal Information Section ──────────────────────────────────
   Widget _buildPersonalInfoSection(AppLocalizations l10n, UserModel? user) {
-    final phone = user?.phoneNumber?.isNotEmpty == true
-        ? user!.phoneNumber!
-        : l10n.noResults;
+    final displayName = user?.displayName.trim() ?? '';
+    final email = user?.email.trim() ?? '';
+    final phoneNumber = user?.phoneNumber?.trim() ?? '';
+    final phone = phoneNumber.isNotEmpty ? phoneNumber : l10n.noResults;
 
     return _buildSectionCard(
       title: l10n.personalInfo,
@@ -450,16 +463,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       children: [
         _buildInfoRow(
           label: l10n.fullName,
-          value: user?.displayName.isNotEmpty == true
-              ? user!.displayName
-              : l10n.noResults,
+          value: displayName.isNotEmpty ? displayName : l10n.noResults,
           icon: Icons.badge_outlined,
           onTap: () => _showEditProfileSheet(l10n, user),
         ),
         const Divider(color: Color(0xFF1E3554), height: 20),
         _buildInfoRow(
           label: l10n.emailAddress,
-          value: user?.email.isNotEmpty == true ? user!.email : l10n.noResults,
+          value: email.isNotEmpty ? email : l10n.noResults,
           icon: Icons.mail_outline_rounded,
           isVerified: true,
         ),
@@ -482,16 +493,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       title: l10n.family,
       icon: Icons.family_restroom_rounded,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   l10n.children,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: _colors.textPrimary,
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                   ),
@@ -499,16 +510,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 const SizedBox(height: 2),
                 Text(
                   '${childrenList.length} ${l10n.children} ${l10n.protected}',
-                  style: const TextStyle(
-                    color: Color(0xFF8BA0B8),
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: _colors.textSecondary, fontSize: 12),
                 ),
               ],
             ),
+            const SizedBox(height: 12),
             ElevatedButton.icon(
               onPressed: () => context.push(AppRoutes.familySetup),
-              icon: const Icon(Icons.qr_code_rounded, size: 16),
+              icon: Icon(Icons.qr_code_rounded, size: 16),
               label: Text(l10n.pairChildDevice),
               style: ElevatedButton.styleFrom(
                 backgroundColor: _tealAccent,
@@ -520,10 +529,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                textStyle: const TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 12,
-                ),
+                textStyle: TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
               ),
             ),
           ],
@@ -571,11 +577,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: const Color(0xFF14243B),
+                color: _colors.surfaceHighlight,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: _cardBorder),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.notifications_active_outlined,
                 color: _tealAccent,
                 size: 18,
@@ -588,15 +594,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 children: [
                   Text(
                     l10n.pushNotifications,
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: _colors.textPrimary,
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                   Text(
                     'Receive safety and request alerts',
-                    style: TextStyle(color: Color(0xFF8BA0B8), fontSize: 11.5),
+                    style: TextStyle(
+                      color: _colors.textSecondary,
+                      fontSize: 11.5,
+                    ),
                   ),
                 ],
               ),
@@ -619,7 +628,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: const Color(0xFF14243B),
+                color: _colors.surfaceHighlight,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: _cardBorder),
               ),
@@ -636,16 +645,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 children: [
                   Text(
                     l10n.appearance,
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: _colors.textPrimary,
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                   Text(
                     isDark ? l10n.darkMode : l10n.lightMode,
-                    style: const TextStyle(
-                      color: Color(0xFF8BA0B8),
+                    style: TextStyle(
+                      color: _colors.textSecondary,
                       fontSize: 11.5,
                     ),
                   ),
@@ -727,19 +736,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           width: double.infinity,
           child: ElevatedButton.icon(
             onPressed: () => _showSignOutConfirmDialog(l10n),
-            icon: const Icon(Icons.logout_rounded, size: 18),
+            icon: Icon(Icons.logout_rounded, size: 18),
             label: Text(l10n.signOut),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF1E3554),
-              foregroundColor: Colors.white,
+              foregroundColor: _colors.textPrimary,
               padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),
               ),
-              textStyle: const TextStyle(
-                fontWeight: FontWeight.w800,
-                fontSize: 14,
-              ),
+              textStyle: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
             ),
           ),
         ),
@@ -749,14 +755,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           width: double.infinity,
           child: TextButton.icon(
             onPressed: () => _showDeleteAccountDialog(l10n),
-            icon: const Icon(
+            icon: Icon(
               Icons.delete_forever_rounded,
               size: 18,
               color: Color(0xFFEF4444),
             ),
             label: Text(
               l10n.deleteAccount,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Color(0xFFEF4444),
                 fontWeight: FontWeight.w700,
                 fontSize: 13,
@@ -765,138 +771,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  // ── Floating Bottom Navigation Bar (6-item compact responsive) ────
-  Widget _buildFloatingBottomBar(
-    BuildContext context,
-    AppLocalizations l10n,
-    bool isParent,
-  ) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0A1424),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: const Color(0xFF1E3554)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.4),
-            blurRadius: 18,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          // 1. Home
-          _buildNavPill(
-            icon: Icons.home_outlined,
-            label: l10n.home,
-            isSelected: false,
-            onTap: () {
-              context.go(isParent ? AppRoutes.parentHome : AppRoutes.childHome);
-            },
-          ),
-          // 2. Control
-          _buildNavPill(
-            icon: Icons.grid_view_rounded,
-            label: l10n.control,
-            isSelected: false,
-            onTap: () {
-              context.push(
-                isParent ? AppRoutes.parentApps : AppRoutes.childApps,
-              );
-            },
-          ),
-          // 3. Location
-          _buildNavPill(
-            icon: Icons.location_on_outlined,
-            label: l10n.location,
-            isSelected: false,
-            onTap: () {
-              context.push(
-                isParent ? AppRoutes.parentLocation : AppRoutes.childStatus,
-              );
-            },
-          ),
-          // 4. Requests
-          _buildNavPill(
-            icon: Icons.access_time_rounded,
-            label: l10n.requests,
-            isSelected: false,
-            onTap: () {
-              context.push(AppRoutes.parentRequests);
-            },
-          ),
-          // 5. Alerts
-          _buildNavPill(
-            icon: Icons.notifications_none_rounded,
-            label: l10n.alerts,
-            isSelected: false,
-            onTap: () {
-              context.push('/notifications');
-            },
-          ),
-          // 6. Profile (Selected)
-          _buildNavPill(
-            icon: Icons.person_rounded,
-            label: l10n.profile,
-            isSelected: true,
-            onTap: () {},
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNavPill({
-    required IconData icon,
-    required String label,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? const Color(0xFF0E3835)
-                : const Color(0xFFF1F5F9),
-            borderRadius: BorderRadius.circular(20),
-            border: isSelected
-                ? Border.all(color: _tealAccent.withOpacity(0.5))
-                : null,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                color: isSelected ? _tealAccent : const Color(0xFF475569),
-                size: 19,
-              ),
-              const SizedBox(height: 2),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    color: isSelected ? _tealAccent : const Color(0xFF475569),
-                    fontSize: 9.5,
-                    fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 
@@ -920,13 +794,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             children: [
               Icon(icon, size: 18, color: _tealAccent),
               const SizedBox(width: 8),
-              Text(
-                title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.2,
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: _colors.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.2,
+                  ),
                 ),
               ),
             ],
@@ -955,7 +833,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: const Color(0xFF14243B),
+                color: _colors.surfaceHighlight,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: _cardBorder),
               ),
@@ -968,8 +846,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 children: [
                   Text(
                     label,
-                    style: const TextStyle(
-                      color: Color(0xFF8BA0B8),
+                    style: TextStyle(
+                      color: _colors.textSecondary,
                       fontSize: 11.5,
                       fontWeight: FontWeight.w500,
                     ),
@@ -977,8 +855,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   const SizedBox(height: 2),
                   Text(
                     value,
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: _colors.textPrimary,
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
                     ),
@@ -1016,7 +894,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
               )
             else if (onTap != null)
-              const Icon(
+              Icon(
                 Icons.arrow_forward_ios_rounded,
                 size: 14,
                 color: Color(0xFF64748B),
@@ -1043,7 +921,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: const Color(0xFF14243B),
+                color: _colors.surfaceHighlight,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: _cardBorder),
               ),
@@ -1056,8 +934,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: _colors.textPrimary,
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
                     ),
@@ -1065,8 +943,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: const TextStyle(
-                      color: Color(0xFF8BA0B8),
+                    style: TextStyle(
+                      color: _colors.textSecondary,
                       fontSize: 11.5,
                     ),
                   ),
@@ -1109,8 +987,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
             child: Container(
               padding: const EdgeInsets.all(24),
-              decoration: const BoxDecoration(
-                color: Color(0xFF0F1E33),
+              decoration: BoxDecoration(
+                color: _colors.surface,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
                 border: Border(
                   top: BorderSide(color: Color(0xFF1E3554), width: 1.5),
@@ -1135,28 +1013,31 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     const SizedBox(height: 18),
                     Text(
                       l10n.editProfile,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: _colors.textPrimary,
                         fontSize: 18,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
                     const SizedBox(height: 6),
-                    const Text(
+                    Text(
                       'Your role and family link cannot be changed here.',
-                      style: TextStyle(color: Color(0xFF8BA0B8), fontSize: 12),
+                      style: TextStyle(
+                        color: _colors.textSecondary,
+                        fontSize: 12,
+                      ),
                     ),
                     const SizedBox(height: 18),
                     // Name Field
                     TextFormField(
                       controller: nameController,
-                      style: const TextStyle(color: Colors.white),
+                      style: TextStyle(color: _colors.textPrimary),
                       decoration: InputDecoration(
                         labelText: l10n.fullName,
-                        labelStyle: const TextStyle(color: Color(0xFF8BA0B8)),
+                        labelStyle: TextStyle(color: _colors.textSecondary),
                         filled: true,
-                        fillColor: const Color(0xFF14243B),
-                        prefixIcon: const Icon(
+                        fillColor: _colors.surfaceHighlight,
+                        prefixIcon: Icon(
                           Icons.person_outline,
                           color: _tealAccent,
                         ),
@@ -1188,13 +1069,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     TextFormField(
                       controller: phoneController,
                       keyboardType: TextInputType.phone,
-                      style: const TextStyle(color: Colors.white),
+                      style: TextStyle(color: _colors.textPrimary),
                       decoration: InputDecoration(
                         labelText: l10n.phoneNumber,
-                        labelStyle: const TextStyle(color: Color(0xFF8BA0B8)),
+                        labelStyle: TextStyle(color: _colors.textSecondary),
                         filled: true,
-                        fillColor: const Color(0xFF14243B),
-                        prefixIcon: const Icon(
+                        fillColor: _colors.surfaceHighlight,
+                        prefixIcon: Icon(
                           Icons.phone_outlined,
                           color: _tealAccent,
                         ),
@@ -1222,7 +1103,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           child: OutlinedButton(
                             onPressed: () => Navigator.pop(ctx),
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: const Color(0xFF8BA0B8),
+                              foregroundColor: _colors.textSecondary,
                               side: const BorderSide(color: _cardBorder),
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
@@ -1292,7 +1173,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               ),
                             ),
                             child: isSaving
-                                ? const SizedBox(
+                                ? SizedBox(
                                     height: 18,
                                     width: 18,
                                     child: CircularProgressIndicator(
@@ -1302,7 +1183,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                   )
                                 : Text(
                                     l10n.save,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontWeight: FontWeight.w800,
                                     ),
                                   ),
@@ -1343,8 +1224,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
             child: Container(
               padding: const EdgeInsets.all(24),
-              decoration: const BoxDecoration(
-                color: Color(0xFF0F1E33),
+              decoration: BoxDecoration(
+                color: _colors.surface,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
                 border: Border(
                   top: BorderSide(color: Color(0xFF1E3554), width: 1.5),
@@ -1369,8 +1250,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     const SizedBox(height: 18),
                     Text(
                       l10n.changePassword,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: _colors.textPrimary,
                         fontSize: 18,
                         fontWeight: FontWeight.w900,
                       ),
@@ -1378,20 +1259,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     const SizedBox(height: 6),
                     Text(
                       l10n.changePasswordDescription,
-                      style: TextStyle(color: Color(0xFF8BA0B8), fontSize: 12),
+                      style: TextStyle(
+                        color: _colors.textSecondary,
+                        fontSize: 12,
+                      ),
                     ),
                     const SizedBox(height: 18),
                     // Current Password
                     TextFormField(
                       controller: currentPasswordController,
                       obscureText: obscureCurrent,
-                      style: const TextStyle(color: Colors.white),
+                      style: TextStyle(color: _colors.textPrimary),
                       decoration: InputDecoration(
                         labelText: l10n.currentPassword,
-                        labelStyle: const TextStyle(color: Color(0xFF8BA0B8)),
+                        labelStyle: TextStyle(color: _colors.textSecondary),
                         filled: true,
-                        fillColor: const Color(0xFF14243B),
-                        prefixIcon: const Icon(
+                        fillColor: _colors.surfaceHighlight,
+                        prefixIcon: Icon(
                           Icons.lock_outline,
                           color: _tealAccent,
                         ),
@@ -1433,16 +1317,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     TextFormField(
                       controller: newPasswordController,
                       obscureText: obscureNew,
-                      style: const TextStyle(color: Colors.white),
+                      style: TextStyle(color: _colors.textPrimary),
                       decoration: InputDecoration(
                         labelText: l10n.newPassword,
-                        labelStyle: const TextStyle(color: Color(0xFF8BA0B8)),
+                        labelStyle: TextStyle(color: _colors.textSecondary),
                         filled: true,
-                        fillColor: const Color(0xFF14243B),
-                        prefixIcon: const Icon(
-                          Icons.lock_reset,
-                          color: _tealAccent,
-                        ),
+                        fillColor: _colors.surfaceHighlight,
+                        prefixIcon: Icon(Icons.lock_reset, color: _tealAccent),
                         suffixIcon: IconButton(
                           icon: Icon(
                             obscureNew
@@ -1480,13 +1361,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     TextFormField(
                       controller: confirmPasswordController,
                       obscureText: obscureConfirm,
-                      style: const TextStyle(color: Colors.white),
+                      style: TextStyle(color: _colors.textPrimary),
                       decoration: InputDecoration(
                         labelText: l10n.confirmNewPassword,
-                        labelStyle: const TextStyle(color: Color(0xFF8BA0B8)),
+                        labelStyle: TextStyle(color: _colors.textSecondary),
                         filled: true,
-                        fillColor: const Color(0xFF14243B),
-                        prefixIcon: const Icon(
+                        fillColor: _colors.surfaceHighlight,
+                        prefixIcon: Icon(
                           Icons.check_circle_outline,
                           color: _tealAccent,
                         ),
@@ -1530,7 +1411,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           child: OutlinedButton(
                             onPressed: () => Navigator.pop(dialogCtx),
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: const Color(0xFF8BA0B8),
+                              foregroundColor: _colors.textSecondary,
                               side: const BorderSide(color: _cardBorder),
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
@@ -1605,7 +1486,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                   )
                                 : Text(
                                     l10n.saveNewPassword,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontWeight: FontWeight.w800,
                                     ),
                                   ),
@@ -1638,25 +1519,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF0F1E33),
+        backgroundColor: _colors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(
           l10n.resetPassword,
-          style: const TextStyle(
-            color: Colors.white,
+          style: TextStyle(
+            color: _colors.textPrimary,
             fontWeight: FontWeight.w800,
           ),
         ),
         content: Text(
           'Send a password reset email to $email?',
-          style: const TextStyle(color: Color(0xFF8BA0B8)),
+          style: TextStyle(color: _colors.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
             child: Text(
               l10n.cancel,
-              style: const TextStyle(color: Color(0xFF8BA0B8)),
+              style: TextStyle(color: _colors.textSecondary),
             ),
           ),
           ElevatedButton(
@@ -1705,8 +1586,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         minChildSize: 0.4,
         builder: (_, scrollController) => Container(
           padding: const EdgeInsets.all(24),
-          decoration: const BoxDecoration(
-            color: Color(0xFF0F1E33),
+          decoration: BoxDecoration(
+            color: _colors.surface,
             borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
             border: Border(
               top: BorderSide(color: Color(0xFF1E3554), width: 1.5),
@@ -1728,8 +1609,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               const SizedBox(height: 18),
               Text(
                 l10n.privacyPolicy,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: _colors.textPrimary,
                   fontSize: 20,
                   fontWeight: FontWeight.w900,
                 ),
@@ -1770,8 +1651,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         minChildSize: 0.4,
         builder: (_, scrollController) => Container(
           padding: const EdgeInsets.all(24),
-          decoration: const BoxDecoration(
-            color: Color(0xFF0F1E33),
+          decoration: BoxDecoration(
+            color: _colors.surface,
             borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
             border: Border(
               top: BorderSide(color: Color(0xFF1E3554), width: 1.5),
@@ -1793,8 +1674,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               const SizedBox(height: 18),
               Text(
                 l10n.termsOfService,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: _colors.textPrimary,
                   fontSize: 20,
                   fontWeight: FontWeight.w900,
                 ),
@@ -1825,25 +1706,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF0F1E33),
+        backgroundColor: _colors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(
           l10n.signOutConfirmTitle,
-          style: const TextStyle(
-            color: Colors.white,
+          style: TextStyle(
+            color: _colors.textPrimary,
             fontWeight: FontWeight.w800,
           ),
         ),
         content: Text(
           l10n.signOutConfirmMessage,
-          style: const TextStyle(color: Color(0xFF8BA0B8)),
+          style: TextStyle(color: _colors.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: Text(
               l10n.cancel,
-              style: const TextStyle(color: Color(0xFF8BA0B8)),
+              style: TextStyle(color: _colors.textSecondary),
             ),
           ),
           ElevatedButton(
@@ -1856,7 +1737,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFDC2626),
-              foregroundColor: Colors.white,
+              foregroundColor: _colors.textPrimary,
             ),
             child: Text(l10n.signOut),
           ),
@@ -1874,13 +1755,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (dialogCtx, setDialogState) => AlertDialog(
-          backgroundColor: const Color(0xFF0F1E33),
+          backgroundColor: _colors.surface,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
           title: Text(
             l10n.deleteAccountConfirmTitle,
-            style: const TextStyle(
+            style: TextStyle(
               color: Color(0xFFEF4444),
               fontWeight: FontWeight.w800,
             ),
@@ -1891,18 +1772,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             children: [
               Text(
                 l10n.deleteAccountConfirmMessage,
-                style: const TextStyle(color: Color(0xFF8BA0B8), fontSize: 13),
+                style: TextStyle(color: _colors.textSecondary, fontSize: 13),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: passwordController,
                 obscureText: true,
-                style: const TextStyle(color: Colors.white),
+                style: TextStyle(color: _colors.textPrimary),
                 decoration: InputDecoration(
                   labelText: l10n.password,
-                  labelStyle: const TextStyle(color: Color(0xFF8BA0B8)),
+                  labelStyle: TextStyle(color: _colors.textSecondary),
                   filled: true,
-                  fillColor: const Color(0xFF14243B),
+                  fillColor: _colors.surfaceHighlight,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -1915,7 +1796,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               onPressed: () => Navigator.pop(dialogCtx),
               child: Text(
                 l10n.cancel,
-                style: const TextStyle(color: Color(0xFF8BA0B8)),
+                style: TextStyle(color: _colors.textSecondary),
               ),
             ),
             ElevatedButton(
@@ -1948,14 +1829,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFDC2626),
-                foregroundColor: Colors.white,
+                foregroundColor: _colors.textPrimary,
               ),
               child: isDeleting
-                  ? const SizedBox(
+                  ? SizedBox(
                       height: 16,
                       width: 16,
                       child: CircularProgressIndicator(
-                        color: Colors.white,
+                        color: _colors.textPrimary,
                         strokeWidth: 2,
                       ),
                     )

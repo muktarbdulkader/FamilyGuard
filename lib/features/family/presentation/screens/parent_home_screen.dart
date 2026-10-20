@@ -11,6 +11,7 @@ import '../../../../core/providers/family_provider.dart';
 import '../../../../core/providers/notification_provider.dart';
 import '../../../../core/providers/theme_provider.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/family_bottom_navigation.dart';
 import '../../../../core/services/notification_service.dart';
 import '../../../../core/providers/locale_provider.dart';
 import '../../../../l10n/app_localizations.dart';
@@ -24,13 +25,10 @@ import '../../../../l10n/app_localizations.dart';
 class ParentHomeScreen extends ConsumerWidget {
   const ParentHomeScreen({super.key});
 
-  static const Color _bgDark = AppColors.darkNavyBg;
-  static const Color _cardBg = AppColors.darkNavyCard;
-  static const Color _cardBorder = AppColors.darkNavyBorder;
   static const Color _tealAccent = AppColors.tealAccent;
-  static const Color _heroBg = AppColors.heroForestTeal;
-  static const Color _heroBorder = AppColors.heroForestBorder;
-  static const Color _metricBg = AppColors.metricDarkBg;
+  static const Color _cardBorder = AppColors.darkNavyBorder;
+
+  AppColors _colors(BuildContext context) => AppColors.of(context);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -46,7 +44,7 @@ class ParentHomeScreen extends ConsumerWidget {
     }
 
     return Scaffold(
-      backgroundColor: _bgDark,
+      backgroundColor: _colors(context).background,
       body: SafeArea(
         child: userData.when(
           loading: () => const Center(
@@ -61,7 +59,7 @@ class ParentHomeScreen extends ConsumerWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.error_outline_rounded,
                     size: 48,
                     color: Color(0xFFEF4444),
@@ -69,8 +67,8 @@ class ParentHomeScreen extends ConsumerWidget {
                   const SizedBox(height: 12),
                   Text(
                     l10n.errorLoadingDashboard,
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: _colors(context).textPrimary,
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
                     ),
@@ -128,8 +126,8 @@ class ParentHomeScreen extends ConsumerWidget {
                                     children: [
                                       Text(
                                         l10n.appName,
-                                        style: const TextStyle(
-                                          color: Colors.white,
+                                        style: TextStyle(
+                                          color: _colors(context).textPrimary,
                                           fontSize: 20,
                                           fontWeight: FontWeight.w900,
                                           letterSpacing: -0.3,
@@ -141,7 +139,7 @@ class ParentHomeScreen extends ConsumerWidget {
                                                 user!.displayName.isNotEmpty
                                             ? '${l10n.welcomeMessage} ${user.displayName}'
                                             : '${l10n.welcomeMessage} ${l10n.parent}',
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           color: Color(0xFF94A3B8),
                                           fontSize: 13,
                                           fontWeight: FontWeight.w500,
@@ -167,16 +165,16 @@ class ParentHomeScreen extends ConsumerWidget {
                                   width: 44,
                                   height: 44,
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF14243B),
+                                    color: _colors(context).surfaceHighlight,
                                     borderRadius: BorderRadius.circular(14),
                                     border: Border.all(color: _cardBorder),
                                   ),
                                   child: Stack(
                                     alignment: Alignment.center,
                                     children: [
-                                      const Icon(
+                                      Icon(
                                         Icons.notifications_outlined,
-                                        color: Colors.white,
+                                        color: _colors(context).textPrimary,
                                         size: 22,
                                       ),
                                       if (ref.watch(
@@ -209,13 +207,13 @@ class ParentHomeScreen extends ConsumerWidget {
                                   width: 44,
                                   height: 44,
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF14243B),
+                                    color: _colors(context).surfaceHighlight,
                                     borderRadius: BorderRadius.circular(14),
                                     border: Border.all(color: _cardBorder),
                                   ),
-                                  child: const Icon(
+                                  child: Icon(
                                     Icons.settings_outlined,
-                                    color: Colors.white,
+                                    color: _colors(context).textPrimary,
                                     size: 22,
                                   ),
                                 ),
@@ -234,16 +232,16 @@ class ParentHomeScreen extends ConsumerWidget {
                       child: Container(
                         padding: const EdgeInsets.all(22),
                         decoration: BoxDecoration(
-                          color: _heroBg,
+                          color: _colors(context).heroBg,
                           borderRadius: BorderRadius.circular(22),
-                          border: Border.all(color: _heroBorder, width: 1.2),
+                          border: Border.all(color: _colors(context).heroBorder, width: 1.2),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               l10n.allProtectionsOn,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: _tealAccent,
                                 fontSize: 13,
                                 fontWeight: FontWeight.w700,
@@ -253,8 +251,8 @@ class ParentHomeScreen extends ConsumerWidget {
                             const SizedBox(height: 10),
                             Text(
                               l10n.familySafeNow,
-                              style: const TextStyle(
-                                color: Colors.white,
+                              style: TextStyle(
+                                color: _colors(context).textPrimary,
                                 fontSize: 23,
                                 height: 1.25,
                                 fontWeight: FontWeight.w900,
@@ -265,11 +263,19 @@ class ParentHomeScreen extends ConsumerWidget {
                             // Metrics row
                             Row(
                               children: [
-                                _buildMetricBox(l10n.limits, l10n.enforced),
+                                _buildMetricBox(
+                                  context,
+                                  l10n.limits,
+                                  l10n.enforced,
+                                ),
                                 const SizedBox(width: 10),
-                                _buildMetricBox(l10n.gps, l10n.live),
+                                _buildMetricBox(context, l10n.gps, l10n.live),
                                 const SizedBox(width: 10),
-                                _buildMetricBox(l10n.approvals, l10n.instant),
+                                _buildMetricBox(
+                                  context,
+                                  l10n.approvals,
+                                  l10n.instant,
+                                ),
                               ],
                             ),
                           ],
@@ -289,8 +295,8 @@ class ParentHomeScreen extends ConsumerWidget {
                               l10n.children,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Colors.white,
+                              style: TextStyle(
+                                color: _colors(context).textPrimary,
                                 fontSize: 20,
                                 fontWeight: FontWeight.w900,
                                 letterSpacing: -0.3,
@@ -309,7 +315,7 @@ class ParentHomeScreen extends ConsumerWidget {
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    const Icon(
+                                    Icon(
                                       Icons.add_rounded,
                                       size: 18,
                                       color: _tealAccent,
@@ -321,7 +327,7 @@ class ParentHomeScreen extends ConsumerWidget {
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         textAlign: TextAlign.end,
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           color: _tealAccent,
                                           fontSize: 14,
                                           fontWeight: FontWeight.w700,
@@ -356,7 +362,10 @@ class ParentHomeScreen extends ConsumerWidget {
                 bottom: 16,
                 left: 14,
                 right: 14,
-                child: _buildFloatingBottomBar(context),
+                child: const FamilyBottomNavigation(
+                  isParent: true,
+                  selected: FamilyNavDestination.home,
+                ),
               ),
             ],
           ),
@@ -366,12 +375,16 @@ class ParentHomeScreen extends ConsumerWidget {
   }
 
   // ── Metric Box in Hero Card ─────────────────────────────────────────
-  Widget _buildMetricBox(String label, String value) {
+  Widget _buildMetricBox(
+    BuildContext context,
+    String label,
+    String value,
+  ) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
         decoration: BoxDecoration(
-          color: _metricBg,
+          color: _colors(context).metricBg,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: const Color(0xFF093530)),
         ),
@@ -382,7 +395,7 @@ class ParentHomeScreen extends ConsumerWidget {
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Color(0xFF86A5A1),
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
@@ -393,8 +406,8 @@ class ParentHomeScreen extends ConsumerWidget {
               value,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: _colors(context).textPrimary,
                 fontSize: 14,
                 fontWeight: FontWeight.w800,
               ),
@@ -452,7 +465,7 @@ class ParentHomeScreen extends ConsumerWidget {
               margin: const EdgeInsets.only(bottom: 14),
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: _cardBg,
+                color: _colors(context).surface,
                 borderRadius: BorderRadius.circular(22),
                 border: Border.all(color: _cardBorder),
               ),
@@ -474,7 +487,7 @@ class ParentHomeScreen extends ConsumerWidget {
                             child: Center(
                               child: Text(
                                 initial,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: Color(0xFF042421),
                                   fontSize: 22,
                                   fontWeight: FontWeight.w900,
@@ -491,7 +504,7 @@ class ParentHomeScreen extends ConsumerWidget {
                               decoration: BoxDecoration(
                                 color: const Color(0xFF10B981),
                                 shape: BoxShape.circle,
-                                border: Border.all(color: _cardBg, width: 2.2),
+                                border: Border.all(color: _colors(context).surface, width: 2.2),
                               ),
                             ),
                           ),
@@ -504,8 +517,8 @@ class ParentHomeScreen extends ConsumerWidget {
                           children: [
                             Text(
                               childName,
-                              style: const TextStyle(
-                                color: Colors.white,
+                              style: TextStyle(
+                                color: _colors(context).textPrimary,
                                 fontSize: 17,
                                 fontWeight: FontWeight.w800,
                               ),
@@ -517,8 +530,8 @@ class ParentHomeScreen extends ConsumerWidget {
                                   : l10n.protectedDevice,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Color(0xFF8BA0B8),
+                              style: TextStyle(
+                                color: _colors(context).textSecondary,
                                 fontSize: 13,
                               ),
                             ),
@@ -577,6 +590,7 @@ class ParentHomeScreen extends ConsumerWidget {
                       // Rules button
                       Expanded(
                         child: _buildActionButton(
+                          context: context,
                           icon: Icons.tune_rounded,
                           label: l10n.rules,
                           isSolid: false,
@@ -588,6 +602,7 @@ class ParentHomeScreen extends ConsumerWidget {
                       // Location button
                       Expanded(
                         child: _buildActionButton(
+                          context: context,
                           icon: Icons.location_on_outlined,
                           label: l10n.location,
                           isSolid: false,
@@ -598,6 +613,7 @@ class ParentHomeScreen extends ConsumerWidget {
                       // Lessons button (Solid teal)
                       Expanded(
                         child: _buildActionButton(
+                          context: context,
                           icon: Icons.school_outlined,
                           label: l10n.lessons,
                           isSolid: true,
@@ -624,12 +640,13 @@ class ParentHomeScreen extends ConsumerWidget {
   }
 
   Widget _buildActionButton({
+    required BuildContext context,
     required IconData icon,
     required String label,
     required bool isSolid,
     required VoidCallback onTap,
   }) {
-    final foregroundColor = isSolid ? const Color(0xFF042421) : Colors.white;
+    final foregroundColor = isSolid ? const Color(0xFF042421) : _colors(context).textPrimary;
     final content = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -683,7 +700,7 @@ class ParentHomeScreen extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(26),
       decoration: BoxDecoration(
-        color: _cardBg,
+        color: _colors(context).surface,
         borderRadius: BorderRadius.circular(22),
         border: Border.all(color: _cardBorder),
       ),
@@ -695,7 +712,7 @@ class ParentHomeScreen extends ConsumerWidget {
               color: _tealAccent.withOpacity(0.12),
               shape: BoxShape.circle,
             ),
-            child: const Icon(
+            child: Icon(
               Icons.group_add_rounded,
               size: 36,
               color: _tealAccent,
@@ -704,8 +721,8 @@ class ParentHomeScreen extends ConsumerWidget {
           const SizedBox(height: 14),
           Text(
             l10n.noChildrenConnectedYet,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: _colors(context).textPrimary,
               fontWeight: FontWeight.w800,
               fontSize: 16,
             ),
@@ -714,12 +731,12 @@ class ParentHomeScreen extends ConsumerWidget {
           Text(
             l10n.noChildrenDescription,
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Color(0xFF8BA0B8), fontSize: 13),
+            style: TextStyle(color: _colors(context).textSecondary, fontSize: 13),
           ),
           const SizedBox(height: 18),
           ElevatedButton.icon(
             onPressed: () => context.push(AppRoutes.familySetup),
-            icon: const Icon(Icons.qr_code_rounded, size: 18),
+            icon: Icon(Icons.qr_code_rounded, size: 18),
             label: Text(l10n.pairChildDevice),
             style: ElevatedButton.styleFrom(
               backgroundColor: _tealAccent,
@@ -735,121 +752,6 @@ class ParentHomeScreen extends ConsumerWidget {
     );
   }
 
-  // ── Floating Bottom Navigation Bar ─────────────────────────────────
-  Widget _buildFloatingBottomBar(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0A1424),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: const Color(0xFF1E3554)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.4),
-            blurRadius: 18,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          // 1. Home (Selected)
-          _buildNavPill(
-            icon: Icons.home_outlined,
-            label: l10n.home,
-            isSelected: true,
-            onTap: () {},
-          ),
-          // 2. Control
-          _buildNavPill(
-            icon: Icons.grid_view_rounded,
-            label: l10n.control,
-            isSelected: false,
-            onTap: () => context.push(AppRoutes.parentApps),
-          ),
-          // 3. Location
-          _buildNavPill(
-            icon: Icons.location_on_outlined,
-            label: l10n.location,
-            isSelected: false,
-            onTap: () => context.push(AppRoutes.parentLocation),
-          ),
-          // 4. Requests
-          _buildNavPill(
-            icon: Icons.access_time_rounded,
-            label: l10n.requests,
-            isSelected: false,
-            onTap: () => context.push(AppRoutes.parentRequests),
-          ),
-          // 5. Alerts
-          _buildNavPill(
-            icon: Icons.notifications_none_rounded,
-            label: l10n.alerts,
-            isSelected: false,
-            onTap: () => context.push('/notifications'),
-          ),
-          // 6. Profile
-          _buildNavPill(
-            icon: Icons.person_rounded,
-            label: l10n.profile,
-            isSelected: false,
-            onTap: () => context.push(AppRoutes.profile),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNavPill({
-    required IconData icon,
-    required String label,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? const Color(0xFF0E3835)
-                : const Color(0xFFF1F5F9),
-            borderRadius: BorderRadius.circular(20),
-            border: isSelected
-                ? Border.all(color: _tealAccent.withOpacity(0.5))
-                : null,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                color: isSelected ? _tealAccent : const Color(0xFF475569),
-                size: 19,
-              ),
-              const SizedBox(height: 2),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    color: isSelected ? _tealAccent : const Color(0xFF475569),
-                    fontSize: 9.5,
-                    fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   // ── Unified Settings & Sign Out Modal Sheet ────────────────────────
   void _showSettingsSheet(BuildContext context, WidgetRef ref, dynamic user) {
     final l10n = AppLocalizations.of(context);
@@ -859,8 +761,8 @@ class ParentHomeScreen extends ConsumerWidget {
       isScrollControlled: true,
       builder: (context) => Container(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 30),
-        decoration: const BoxDecoration(
-          color: Color(0xFF0F1E33),
+        decoration: BoxDecoration(
+          color: _colors(context).surface,
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
           border: Border(top: BorderSide(color: Color(0xFF1E3554), width: 1.5)),
         ),
@@ -896,7 +798,7 @@ class ParentHomeScreen extends ConsumerWidget {
                               user!.displayName.isNotEmpty)
                           ? user.displayName[0].toUpperCase()
                           : 'P',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Color(0xFF042421),
                         fontSize: 22,
                         fontWeight: FontWeight.w900,
@@ -914,8 +816,8 @@ class ParentHomeScreen extends ConsumerWidget {
                                 user!.displayName.isNotEmpty
                             ? user.displayName
                             : l10n.parentAccount,
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: _colors(context).textPrimary,
                           fontSize: 17,
                           fontWeight: FontWeight.w800,
                         ),
@@ -925,8 +827,8 @@ class ParentHomeScreen extends ConsumerWidget {
                         user?.email != null && user!.email.isNotEmpty
                             ? user.email
                             : l10n.protectedParentPortal,
-                        style: const TextStyle(
-                          color: Color(0xFF8BA0B8),
+                        style: TextStyle(
+                          color: _colors(context).textSecondary,
                           fontSize: 12.5,
                         ),
                       ),
@@ -945,7 +847,7 @@ class ParentHomeScreen extends ConsumerWidget {
                   ),
                   child: Text(
                     l10n.parent.toUpperCase(),
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: _tealAccent,
                       fontSize: 10,
                       fontWeight: FontWeight.w900,
@@ -960,6 +862,7 @@ class ParentHomeScreen extends ConsumerWidget {
             const SizedBox(height: 8),
             // Setting items
             _buildSettingsTile(
+              context: context,
               icon: Icons.person_outline_rounded,
               title: l10n.myProfile,
               subtitle: l10n.settingsProfileSubtitle,
@@ -969,6 +872,7 @@ class ParentHomeScreen extends ConsumerWidget {
               },
             ),
             _buildSettingsTile(
+              context: context,
               icon: Icons.qr_code_scanner_rounded,
               title: l10n.pairChildDevice,
               subtitle: l10n.settingsPairSubtitle,
@@ -978,6 +882,7 @@ class ParentHomeScreen extends ConsumerWidget {
               },
             ),
             _buildSettingsTile(
+              context: context,
               icon: Icons.swap_horiz_rounded,
               title: l10n.switchRole,
               subtitle: l10n.settingsSwitchRoleSubtitle,
@@ -987,6 +892,7 @@ class ParentHomeScreen extends ConsumerWidget {
               },
             ),
             _buildSettingsTile(
+              context: context,
               icon: Icons.admin_panel_settings_outlined,
               title: l10n.devicePermissions,
               subtitle: l10n.settingsDevicePermissionsSubtitle,
@@ -999,6 +905,7 @@ class ParentHomeScreen extends ConsumerWidget {
               builder: (context, ref, _) {
                 final currentLang = ref.watch(currentLanguageProvider);
                 return _buildSettingsTile(
+                  context: context,
                   icon: Icons.language_rounded,
                   title: l10n.language,
                   subtitle: '${currentLang.nativeName}  ${currentLang.flag}',
@@ -1021,7 +928,7 @@ class ParentHomeScreen extends ConsumerWidget {
                     vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF14243B),
+                    color: _colors(context).surfaceHighlight,
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(color: _cardBorder),
                   ),
@@ -1048,8 +955,8 @@ class ParentHomeScreen extends ConsumerWidget {
                           children: [
                             Text(
                               l10n.darkNavyPalette,
-                              style: const TextStyle(
-                                color: Colors.white,
+                              style: TextStyle(
+                                color: _colors(context).textPrimary,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -1058,8 +965,8 @@ class ParentHomeScreen extends ConsumerWidget {
                               isDark
                                   ? l10n.darkNavyDescription
                                   : l10n.lightThemeEnabled,
-                              style: const TextStyle(
-                                color: Color(0xFF8BA0B8),
+                              style: TextStyle(
+                                color: _colors(context).textSecondary,
                                 fontSize: 11.5,
                               ),
                             ),
@@ -1093,22 +1000,22 @@ class ParentHomeScreen extends ConsumerWidget {
                     context.go(AppRoutes.login);
                   }
                 },
-                icon: const Icon(
+                icon: Icon(
                   Icons.logout_rounded,
                   size: 18,
-                  color: Colors.white,
+                  color: _colors(context).textPrimary,
                 ),
                 label: Text(
                   l10n.signOut,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: _colors(context).textPrimary,
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFDC2626),
-                  foregroundColor: Colors.white,
+                  foregroundColor: _colors(context).textPrimary,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
@@ -1124,6 +1031,7 @@ class ParentHomeScreen extends ConsumerWidget {
   }
 
   Widget _buildSettingsTile({
+    required BuildContext context,
     required IconData icon,
     required String title,
     required String subtitle,
@@ -1139,7 +1047,7 @@ class ParentHomeScreen extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: const Color(0xFF14243B),
+                color: _colors(context).surfaceHighlight,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: _cardBorder),
               ),
@@ -1152,8 +1060,8 @@ class ParentHomeScreen extends ConsumerWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: _colors(context).textPrimary,
                       fontSize: 14.5,
                       fontWeight: FontWeight.w700,
                     ),
@@ -1161,8 +1069,8 @@ class ParentHomeScreen extends ConsumerWidget {
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: const TextStyle(
-                      color: Color(0xFF8BA0B8),
+                    style: TextStyle(
+                      color: _colors(context).textSecondary,
                       fontSize: 12,
                     ),
                   ),

@@ -23,6 +23,7 @@ class AppRuleEditorSheet extends ConsumerStatefulWidget {
 class _AppRuleEditorSheetState extends ConsumerState<AppRuleEditorSheet> {
   late AppControlRule _selectedRuleType;
   int _dailyLimitMinutes = 60;
+  int _usageAlertThresholdPercent = 50;
   TimeOfDay _allowedStartTime = const TimeOfDay(hour: 9, minute: 0);
   TimeOfDay _allowedEndTime = const TimeOfDay(hour: 17, minute: 0);
   bool _isLoading = false;
@@ -31,8 +32,14 @@ class _AppRuleEditorSheetState extends ConsumerState<AppRuleEditorSheet> {
   void initState() {
     super.initState();
     _selectedRuleType = widget.appWithUsage.app.rule;
-    if (widget.appWithUsage.app.dailyLimitMinutes != null && widget.appWithUsage.app.dailyLimitMinutes! > 0) {
-      _dailyLimitMinutes = widget.appWithUsage.app.dailyLimitMinutes!.clamp(5, 480);
+    _usageAlertThresholdPercent =
+        widget.appWithUsage.app.usageAlertThresholdPercent;
+    if (widget.appWithUsage.app.dailyLimitMinutes != null &&
+        widget.appWithUsage.app.dailyLimitMinutes! > 0) {
+      _dailyLimitMinutes = widget.appWithUsage.app.dailyLimitMinutes!.clamp(
+        5,
+        480,
+      );
     } else {
       _dailyLimitMinutes = 60;
     }
@@ -134,37 +141,41 @@ class _AppRuleEditorSheetState extends ConsumerState<AppRuleEditorSheet> {
               ],
             ),
             const SizedBox(height: 24),
-            
+
             // Rule Type Selection
             Text(
               'Rule Type',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
-            
-            ...AppControlRule.values.map((ruleType) => _buildRuleTypeOption(ruleType)),
-            
+
+            ...AppControlRule.values.map(
+              (ruleType) => _buildRuleTypeOption(ruleType),
+            ),
+
             const SizedBox(height: 24),
-            
+
             // Rule-specific settings
             if (_selectedRuleType == AppControlRule.timeLimited) ...[
               _buildTimeLimitSettings(),
               const SizedBox(height: 24),
             ],
-            
+
             if (_selectedRuleType == AppControlRule.timeRestricted) ...[
               _buildTimeWindowSettings(),
               const SizedBox(height: 24),
             ],
-            
+
             // Action buttons
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+                    onPressed: _isLoading
+                        ? null
+                        : () => Navigator.of(context).pop(),
                     child: const Text('Cancel'),
                   ),
                 ),
@@ -199,8 +210,10 @@ class _AppRuleEditorSheetState extends ConsumerState<AppRuleEditorSheet> {
   Widget _buildRuleTypeOption(AppControlRule ruleType) {
     final isSelected = _selectedRuleType == ruleType;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final activeColor = isDark ? const Color(0xFF2DD4BF) : Theme.of(context).primaryColor;
-    
+    final activeColor = isDark
+        ? const Color(0xFF2DD4BF)
+        : Theme.of(context).primaryColor;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: InkWell(
@@ -210,19 +223,25 @@ class _AppRuleEditorSheetState extends ConsumerState<AppRuleEditorSheet> {
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             border: Border.all(
-              color: isSelected ? activeColor : (isDark ? const Color(0xFF1E3554) : Colors.grey[300]!),
+              color: isSelected
+                  ? activeColor
+                  : (isDark ? const Color(0xFF1E3554) : Colors.grey[300]!),
               width: isSelected ? 1.5 : 1,
             ),
             borderRadius: BorderRadius.circular(12),
             color: isSelected
-                ? (isDark ? const Color(0xFF063D39) : Theme.of(context).primaryColor.withOpacity(0.1))
+                ? (isDark
+                      ? const Color(0xFF063D39)
+                      : Theme.of(context).primaryColor.withOpacity(0.1))
                 : (isDark ? const Color(0xFF14243B) : null),
           ),
           child: Row(
             children: [
               Icon(
                 _getRuleTypeIcon(ruleType),
-                color: isSelected ? activeColor : (isDark ? const Color(0xFF8BA0B8) : Colors.grey[600]),
+                color: isSelected
+                    ? activeColor
+                    : (isDark ? const Color(0xFF8BA0B8) : Colors.grey[600]),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -233,25 +252,25 @@ class _AppRuleEditorSheetState extends ConsumerState<AppRuleEditorSheet> {
                       _getRuleTypeName(ruleType),
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
-                        color: isDark ? Colors.white : (isSelected ? activeColor : Colors.black87),
+                        color: isDark
+                            ? Colors.white
+                            : (isSelected ? activeColor : Colors.black87),
                       ),
                     ),
                     Text(
                       _getRuleTypeDescription(ruleType),
                       style: TextStyle(
                         fontSize: 12,
-                        color: isDark ? const Color(0xFF8BA0B8) : Colors.grey[600],
+                        color: isDark
+                            ? const Color(0xFF8BA0B8)
+                            : Colors.grey[600],
                       ),
                     ),
                   ],
                 ),
               ),
               if (isSelected)
-                Icon(
-                  Icons.check_circle,
-                  color: activeColor,
-                  size: 20,
-                ),
+                Icon(Icons.check_circle, color: activeColor, size: 20),
             ],
           ),
         ),
@@ -278,7 +297,9 @@ class _AppRuleEditorSheetState extends ConsumerState<AppRuleEditorSheet> {
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF14243B) : Colors.grey[50],
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: isDark ? const Color(0xFF1E3554) : Colors.grey[300]!),
+            border: Border.all(
+              color: isDark ? const Color(0xFF1E3554) : Colors.grey[300]!,
+            ),
           ),
           child: Column(
             children: [
@@ -287,11 +308,18 @@ class _AppRuleEditorSheetState extends ConsumerState<AppRuleEditorSheet> {
                 children: [
                   Text(
                     '${(_dailyLimitMinutes / 60).floor()}h ${_dailyLimitMinutes % 60}m',
-                    style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
                   ),
                   Text(
                     '$_dailyLimitMinutes minutes',
-                    style: TextStyle(color: isDark ? const Color(0xFF8BA0B8) : Colors.grey[600]),
+                    style: TextStyle(
+                      color: isDark
+                          ? const Color(0xFF8BA0B8)
+                          : Colors.grey[600],
+                    ),
                   ),
                 ],
               ),
@@ -301,8 +329,49 @@ class _AppRuleEditorSheetState extends ConsumerState<AppRuleEditorSheet> {
                 min: 5,
                 max: 480, // 8 hours
                 divisions: 95,
-                activeColor: isDark ? const Color(0xFF2DD4BF) : Theme.of(context).primaryColor,
-                onChanged: (value) => setState(() => _dailyLimitMinutes = value.round().clamp(5, 480)),
+                activeColor: isDark
+                    ? const Color(0xFF2DD4BF)
+                    : Theme.of(context).primaryColor,
+                onChanged: (value) => setState(
+                  () => _dailyLimitMinutes = value.round().clamp(5, 480),
+                ),
+              ),
+              const Divider(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Notify me at $_usageAlertThresholdPercent% usage',
+                      style: TextStyle(
+                        color: isDark
+                            ? const Color(0xFFCBD5E1)
+                            : Colors.grey[700],
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '$_usageAlertThresholdPercent%',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: isDark
+                          ? const Color(0xFF2DD4BF)
+                          : Theme.of(context).primaryColor,
+                    ),
+                  ),
+                ],
+              ),
+              Slider(
+                value: _usageAlertThresholdPercent.toDouble(),
+                min: 1,
+                max: 99,
+                divisions: 98,
+                activeColor: isDark
+                    ? const Color(0xFF2DD4BF)
+                    : Theme.of(context).primaryColor,
+                onChanged: (value) => setState(
+                  () =>
+                      _usageAlertThresholdPercent = value.round().clamp(1, 99),
+                ),
               ),
             ],
           ),
@@ -330,7 +399,9 @@ class _AppRuleEditorSheetState extends ConsumerState<AppRuleEditorSheet> {
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF14243B) : Colors.grey[50],
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: isDark ? const Color(0xFF1E3554) : Colors.grey[300]!),
+            border: Border.all(
+              color: isDark ? const Color(0xFF1E3554) : Colors.grey[300]!,
+            ),
           ),
           child: Column(
             children: [
@@ -344,22 +415,36 @@ class _AppRuleEditorSheetState extends ConsumerState<AppRuleEditorSheet> {
                           'Start Time',
                           style: TextStyle(
                             fontWeight: FontWeight.w600,
-                            color: isDark ? const Color(0xFF8BA0B8) : Colors.grey[700],
+                            color: isDark
+                                ? const Color(0xFF8BA0B8)
+                                : Colors.grey[700],
                           ),
                         ),
                         const SizedBox(height: 8),
                         InkWell(
                           onTap: _selectStartTime,
                           child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 12,
+                              horizontal: 16,
+                            ),
                             decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF0C1829) : Colors.white,
-                              border: Border.all(color: isDark ? const Color(0xFF1E3554) : Colors.grey[300]!),
+                              color: isDark
+                                  ? const Color(0xFF0C1829)
+                                  : Colors.white,
+                              border: Border.all(
+                                color: isDark
+                                    ? const Color(0xFF1E3554)
+                                    : Colors.grey[300]!,
+                              ),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
                               _allowedStartTime.format(context),
-                              style: TextStyle(fontSize: 16, color: isDark ? Colors.white : Colors.black87),
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: isDark ? Colors.white : Colors.black87,
+                              ),
                             ),
                           ),
                         ),
@@ -375,22 +460,36 @@ class _AppRuleEditorSheetState extends ConsumerState<AppRuleEditorSheet> {
                           'End Time',
                           style: TextStyle(
                             fontWeight: FontWeight.w600,
-                            color: isDark ? const Color(0xFF8BA0B8) : Colors.grey[700],
+                            color: isDark
+                                ? const Color(0xFF8BA0B8)
+                                : Colors.grey[700],
                           ),
                         ),
                         const SizedBox(height: 8),
                         InkWell(
                           onTap: _selectEndTime,
                           child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 12,
+                              horizontal: 16,
+                            ),
                             decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF0C1829) : Colors.white,
-                              border: Border.all(color: isDark ? const Color(0xFF1E3554) : Colors.grey[300]!),
+                              color: isDark
+                                  ? const Color(0xFF0C1829)
+                                  : Colors.white,
+                              border: Border.all(
+                                color: isDark
+                                    ? const Color(0xFF1E3554)
+                                    : Colors.grey[300]!,
+                              ),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
                               _allowedEndTime.format(context),
-                              style: TextStyle(fontSize: 16, color: isDark ? Colors.white : Colors.black87),
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: isDark ? Colors.white : Colors.black87,
+                              ),
                             ),
                           ),
                         ),
@@ -475,18 +574,32 @@ class _AppRuleEditorSheetState extends ConsumerState<AppRuleEditorSheet> {
     setState(() => _isLoading = true);
 
     try {
-      final startTimeStr = '${_allowedStartTime.hour.toString().padLeft(2, '0')}:${_allowedStartTime.minute.toString().padLeft(2, '0')}';
-      final endTimeStr = '${_allowedEndTime.hour.toString().padLeft(2, '0')}:${_allowedEndTime.minute.toString().padLeft(2, '0')}';
+      final startTimeStr =
+          '${_allowedStartTime.hour.toString().padLeft(2, '0')}:${_allowedStartTime.minute.toString().padLeft(2, '0')}';
+      final endTimeStr =
+          '${_allowedEndTime.hour.toString().padLeft(2, '0')}:${_allowedEndTime.minute.toString().padLeft(2, '0')}';
 
-      await ref.read(appRuleServiceProvider).updateAppRule(
-        familyId: widget.familyId,
-        childId: widget.childId,
-        packageName: widget.appWithUsage.app.packageName,
-        rule: _selectedRuleType,
-        dailyLimitMinutes: _selectedRuleType == AppControlRule.timeLimited ? _dailyLimitMinutes : null,
-        allowedFrom: _selectedRuleType == AppControlRule.timeRestricted ? startTimeStr : null,
-        allowedUntil: _selectedRuleType == AppControlRule.timeRestricted ? endTimeStr : null,
-      );
+      await ref
+          .read(appRuleServiceProvider)
+          .updateAppRule(
+            familyId: widget.familyId,
+            childId: widget.childId,
+            packageName: widget.appWithUsage.app.packageName,
+            rule: _selectedRuleType,
+            dailyLimitMinutes: _selectedRuleType == AppControlRule.timeLimited
+                ? _dailyLimitMinutes
+                : null,
+            usageAlertThresholdPercent:
+                _selectedRuleType == AppControlRule.timeLimited
+                ? _usageAlertThresholdPercent
+                : null,
+            allowedFrom: _selectedRuleType == AppControlRule.timeRestricted
+                ? startTimeStr
+                : null,
+            allowedUntil: _selectedRuleType == AppControlRule.timeRestricted
+                ? endTimeStr
+                : null,
+          );
 
       if (mounted) {
         Navigator.of(context).pop();

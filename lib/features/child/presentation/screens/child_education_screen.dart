@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../core/constants/app_routes.dart';
 import '../../../../core/models/educational_material_model.dart';
 import '../../../../core/providers/user_provider.dart';
 import '../../../../core/services/education_service.dart';
+import '../../../../core/widgets/family_bottom_navigation.dart';
 import '../../../../l10n/app_localizations.dart';
 import 'material_viewer_screen.dart';
 
@@ -67,7 +70,19 @@ class _ChildEducationScreenState extends ConsumerState<ChildEducationScreen>
 
     if (familyId.isEmpty || childId.isEmpty) {
       return Scaffold(
-        appBar: AppBar(title: Text(l10n.myLearning)),
+        appBar: AppBar(
+          title: Text(l10n.myLearning),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded),
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go(AppRoutes.childHome);
+              }
+            },
+          ),
+        ),
         body: const Center(
           child: Padding(
             padding: EdgeInsets.all(24),
@@ -76,6 +91,13 @@ class _ChildEducationScreenState extends ConsumerState<ChildEducationScreen>
               textAlign: TextAlign.center,
             ),
           ),
+        ),
+        bottomNavigationBar: FamilyBottomNavigation(
+          isParent: false,
+          selected: FamilyNavDestination.lessons,
+          familyId: user?.familyId,
+          childId: user?.uid,
+          childName: user?.displayName,
         ),
       );
     }
@@ -88,6 +110,16 @@ class _ChildEducationScreenState extends ConsumerState<ChildEducationScreen>
       backgroundColor: theme.colorScheme.surface,
       appBar: AppBar(
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go(AppRoutes.childHome);
+            }
+          },
+        ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -195,6 +227,13 @@ class _ChildEducationScreenState extends ConsumerState<ChildEducationScreen>
             ],
           );
         },
+      ),
+      bottomNavigationBar: FamilyBottomNavigation(
+        isParent: false,
+        selected: FamilyNavDestination.lessons,
+        familyId: familyId,
+        childId: childId,
+        childName: childName,
       ),
     );
   }

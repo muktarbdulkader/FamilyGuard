@@ -7,6 +7,8 @@ import '../../../../core/services/location_service.dart';
 import '../../../../core/services/geocoding_service.dart';
 import '../../../../core/providers/user_provider.dart';
 import '../../../../core/providers/family_provider.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/family_bottom_navigation.dart';
 import '../../../../l10n/app_localizations.dart';
 
 /// Family Location Screen — shows child locations without requiring a Maps API key.
@@ -21,6 +23,8 @@ class FamilyMapScreen extends ConsumerStatefulWidget {
 }
 
 class _FamilyMapScreenState extends ConsumerState<FamilyMapScreen> {
+  AppColors get _colors => AppColors.of(context);
+
   List<FamilyLocation> _locations = [];
   bool _isLoading = true;
   String? _error;
@@ -156,21 +160,25 @@ class _FamilyMapScreenState extends ConsumerState<FamilyMapScreen> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: _colors.background,
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF0F172A),
+        backgroundColor: _colors.surface,
+        foregroundColor: _colors.textPrimary,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               l10n.familyLocations,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+              style: TextStyle(
+                color: _colors.textPrimary,
+                fontWeight: FontWeight.bold,
+                fontSize: 17,
+              ),
             ),
             Text(
               l10n.liveGpsTracking,
-              style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+              style: TextStyle(fontSize: 12, color: _colors.textSecondary),
             ),
           ],
         ),
@@ -202,20 +210,24 @@ class _FamilyMapScreenState extends ConsumerState<FamilyMapScreen> {
         ],
       ),
       body: _buildBody(),
+      bottomNavigationBar: const FamilyBottomNavigation(
+        isParent: true,
+        selected: FamilyNavDestination.location,
+      ),
     );
   }
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(color: Color(0xFF4F46E5)),
-            SizedBox(height: 16),
+            CircularProgressIndicator(color: _colors.primary),
+            const SizedBox(height: 16),
             Text(
               'Loading family locations…',
-              style: TextStyle(color: Color(0xFF64748B)),
+              style: TextStyle(color: _colors.textSecondary),
             ),
           ],
         ),
@@ -229,21 +241,25 @@ class _FamilyMapScreenState extends ConsumerState<FamilyMapScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
+              Icon(
                 Icons.location_off_rounded,
                 size: 64,
-                color: Color(0xFFCBD5E1),
+                color: _colors.textMuted,
               ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'Location Unavailable',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: _colors.textPrimary,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
                 _error!,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                style: TextStyle(color: _colors.textSecondary, fontSize: 13),
               ),
               const SizedBox(height: 20),
               ElevatedButton.icon(
@@ -258,7 +274,7 @@ class _FamilyMapScreenState extends ConsumerState<FamilyMapScreen> {
                 icon: const Icon(Icons.refresh_rounded),
                 label: const Text('Retry'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF4F46E5),
+                  backgroundColor: _colors.primary,
                   foregroundColor: Colors.white,
                 ),
               ),
@@ -280,25 +296,22 @@ class _FamilyMapScreenState extends ConsumerState<FamilyMapScreen> {
           margin: const EdgeInsets.only(bottom: 16),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: const Color(0xFF4F46E5).withOpacity(0.08),
+            color: _colors.primary.withOpacity(0.08),
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFF4F46E5).withOpacity(0.2)),
+            border: Border.all(color: _colors.primary.withOpacity(0.2)),
           ),
           child: Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.info_outline_rounded,
-                color: Color(0xFF4F46E5),
+                color: _colors.primary,
                 size: 20,
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   'Tap a card to open the location in your maps app.',
-                  style: TextStyle(
-                    color: const Color(0xFF4F46E5).withOpacity(0.9),
-                    fontSize: 13,
-                  ),
+                  style: TextStyle(color: _colors.primary, fontSize: 13),
                 ),
               ),
             ],
@@ -307,7 +320,11 @@ class _FamilyMapScreenState extends ConsumerState<FamilyMapScreen> {
 
         // Location cards
         ..._locations.map(
-          (loc) => _LocationCard(location: loc, onTap: () => _openInMaps(loc)),
+          (loc) => _LocationCard(
+            location: loc,
+            colors: _colors,
+            onTap: () => _openInMaps(loc),
+          ),
         ),
       ],
     );
@@ -323,27 +340,31 @@ class _FamilyMapScreenState extends ConsumerState<FamilyMapScreen> {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: const Color(0xFFF59E0B).withOpacity(0.1),
+                color: _colors.warning.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.location_searching_rounded,
                 size: 56,
-                color: Color(0xFFF59E0B),
+                color: _colors.warning,
               ),
             ),
             const SizedBox(height: 20),
-            const Text(
+            Text(
               'No Locations Yet',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: _colors.textPrimary,
+              ),
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Family members need to enable location sharing in the companion app. '
               'Locations will appear here automatically once shared.',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: Color(0xFF64748B),
+                color: _colors.textSecondary,
                 fontSize: 13,
                 height: 1.5,
               ),
@@ -359,9 +380,14 @@ class _FamilyMapScreenState extends ConsumerState<FamilyMapScreen> {
 
 class _LocationCard extends StatelessWidget {
   final FamilyLocation location;
+  final AppColors colors;
   final VoidCallback onTap;
 
-  const _LocationCard({required this.location, required this.onTap});
+  const _LocationCard({
+    required this.location,
+    required this.colors,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -378,12 +404,12 @@ class _LocationCard extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: colors.surface,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: isStale
-                ? const Color(0xFFFCA5A5)
-                : const Color(0xFF34D399).withOpacity(0.4),
+                ? colors.error.withOpacity(0.45)
+                : colors.success.withOpacity(0.4),
             width: 1.5,
           ),
           boxShadow: [
@@ -406,8 +432,8 @@ class _LocationCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: isStale
-                          ? [const Color(0xFF94A3B8), const Color(0xFF64748B)]
-                          : [const Color(0xFF3B82F6), const Color(0xFF6366F1)],
+                          ? [colors.textMuted, colors.textSecondary]
+                          : [colors.primary, colors.accent],
                     ),
                     borderRadius: BorderRadius.circular(14),
                   ),
@@ -429,7 +455,8 @@ class _LocationCard extends StatelessWidget {
                     children: [
                       Text(
                         displayName,
-                        style: const TextStyle(
+                        style: TextStyle(
+                          color: colors.textPrimary,
                           fontWeight: FontWeight.bold,
                           fontSize: 15,
                         ),
@@ -443,21 +470,21 @@ class _LocationCard extends StatelessWidget {
                             width: 8,
                             height: 8,
                             decoration: BoxDecoration(
-                              color: isStale
-                                  ? const Color(0xFFEF4444)
-                                  : const Color(0xFF10B981),
+                              color: isStale ? colors.error : colors.success,
                               shape: BoxShape.circle,
                             ),
                           ),
                           const SizedBox(width: 6),
-                          Text(
-                                'GPS updated $timeAgo',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: isStale
-                                  ? const Color(0xFFEF4444)
-                                  : const Color(0xFF10B981),
-                              fontWeight: FontWeight.w500,
+                          Flexible(
+                            child: Text(
+                              'GPS updated $timeAgo',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isStale ? colors.error : colors.success,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ),
                         ],
@@ -469,30 +496,32 @@ class _LocationCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF4F46E5).withOpacity(0.1),
+                    color: colors.primary.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.open_in_new_rounded,
                     size: 18,
-                    color: Color(0xFF4F46E5),
+                    color: colors.primary,
                   ),
                 ),
               ],
             ),
 
             const SizedBox(height: 14),
-            const Divider(height: 1),
+            Divider(height: 1, color: colors.border),
             const SizedBox(height: 12),
 
             // Coordinates
             _InfoRow(
+              colors: colors,
               icon: Icons.my_location_rounded,
               label: 'Latitude',
               value: location.latitude.toStringAsFixed(6),
             ),
             const SizedBox(height: 6),
             _InfoRow(
+              colors: colors,
               icon: Icons.explore_rounded,
               label: 'Longitude',
               value: location.longitude.toStringAsFixed(6),
@@ -500,6 +529,7 @@ class _LocationCard extends StatelessWidget {
             if (location.accuracy != null) ...[
               const SizedBox(height: 6),
               _InfoRow(
+                colors: colors,
                 icon: Icons.gps_fixed_rounded,
                 label: 'Accuracy',
                 value: '±${location.accuracy!.toInt()} m',
@@ -520,6 +550,7 @@ class _LocationCard extends StatelessWidget {
                 return Padding(
                   padding: const EdgeInsets.only(top: 6),
                   child: _InfoRow(
+                    colors: colors,
                     icon: Icons.location_city_rounded,
                     label: 'City / Area',
                     value: place,
@@ -536,23 +567,19 @@ class _LocationCard extends StatelessWidget {
                   vertical: 9,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFEF2F2),
+                  color: colors.error.withOpacity(colors.isDark ? 0.14 : 0.08),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFFECACA)),
+                  border: Border.all(color: colors.error.withOpacity(0.35)),
                 ),
-                child: const Row(
+                child: Row(
                   children: [
-                    Icon(
-                      Icons.wifi_off_rounded,
-                      size: 16,
-                      color: Color(0xFFB91C1C),
-                    ),
-                    SizedBox(width: 8),
+                    Icon(Icons.wifi_off_rounded, size: 16, color: colors.error),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'Child device is offline. This is the last reported location.',
                         style: TextStyle(
-                          color: Color(0xFF991B1B),
+                          color: colors.error,
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
@@ -573,7 +600,7 @@ class _LocationCard extends StatelessWidget {
                 icon: const Icon(Icons.map_rounded, size: 18),
                 label: const Text('Open in Maps'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF4F46E5),
+                  backgroundColor: colors.primary,
                   foregroundColor: Colors.white,
                   elevation: 0,
                   padding: const EdgeInsets.symmetric(vertical: 12),
@@ -604,11 +631,13 @@ class _LocationCard extends StatelessWidget {
 }
 
 class _InfoRow extends StatelessWidget {
+  final AppColors colors;
   final IconData icon;
   final String label;
   final String value;
 
   const _InfoRow({
+    required this.colors,
     required this.icon,
     required this.label,
     required this.value,
@@ -618,16 +647,20 @@ class _InfoRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 16, color: const Color(0xFF94A3B8)),
+        Icon(icon, size: 16, color: colors.textSecondary),
         const SizedBox(width: 8),
         Text(
           '$label: ',
-          style: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
+          style: TextStyle(fontSize: 13, color: colors.textSecondary),
         ),
         Expanded(
           child: Text(
             value,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: colors.textPrimary,
+            ),
             overflow: TextOverflow.ellipsis,
           ),
         ),

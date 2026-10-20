@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../../../core/constants/app_routes.dart';
 import '../../../../core/models/location_model.dart';
 import '../../../../core/services/location_service.dart';
 
@@ -17,10 +18,12 @@ class LocationPermissionScreen extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<LocationPermissionScreen> createState() => _LocationPermissionScreenState();
+  ConsumerState<LocationPermissionScreen> createState() =>
+      _LocationPermissionScreenState();
 }
 
-class _LocationPermissionScreenState extends ConsumerState<LocationPermissionScreen> {
+class _LocationPermissionScreenState
+    extends ConsumerState<LocationPermissionScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
   bool _isLoading = false;
@@ -46,7 +49,13 @@ class _LocationPermissionScreenState extends ConsumerState<LocationPermissionScr
         title: const Text('Location Sharing Setup'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go(AppRoutes.childHome);
+            }
+          },
         ),
       ),
       body: Column(
@@ -59,7 +68,7 @@ class _LocationPermissionScreenState extends ConsumerState<LocationPermissionScr
               Theme.of(context).primaryColor,
             ),
           ),
-          
+
           // Page content
           Expanded(
             child: PageView(
@@ -77,7 +86,7 @@ class _LocationPermissionScreenState extends ConsumerState<LocationPermissionScr
               ],
             ),
           ),
-          
+
           // Navigation buttons
           Container(
             padding: const EdgeInsets.all(16),
@@ -90,9 +99,9 @@ class _LocationPermissionScreenState extends ConsumerState<LocationPermissionScr
                   )
                 else
                   const Spacer(),
-                
+
                 const Spacer(),
-                
+
                 ElevatedButton(
                   onPressed: _canProceed() ? _nextPage : null,
                   child: Text(_currentPage == 3 ? 'Complete' : 'Next'),
@@ -140,18 +149,17 @@ class _LocationPermissionScreenState extends ConsumerState<LocationPermissionScr
 
   Future<void> _requestLocationPermission() async {
     setState(() => _isLoading = true);
-    
+
     try {
       final info = await LocationService().requestLocationPermission();
-      
+
       setState(() {
         _permissionInfo = info;
         _isLoading = false;
       });
-      
     } catch (e) {
       setState(() => _isLoading = false);
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -175,8 +183,10 @@ class _LocationPermissionScreenState extends ConsumerState<LocationPermissionScr
     if (!mounted) return;
     if (widget.onComplete != null) {
       widget.onComplete!();
-    } else {
+    } else if (context.canPop()) {
       context.pop(true);
+    } else {
+      context.go(AppRoutes.childHome);
     }
   }
 }
@@ -195,26 +205,23 @@ class _DisclosurePage extends StatelessWidget {
             color: Theme.of(context).primaryColor,
           ),
           const SizedBox(height: 24),
-          
+
           const Text(
             'Family Location Sharing',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           const Text(
             'Location sharing helps your family stay connected and ensures safety by allowing parents to see where family members are located.',
             style: TextStyle(fontSize: 16),
             textAlign: TextAlign.center,
           ),
-          
+
           const SizedBox(height: 32),
-          
+
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -250,9 +257,9 @@ class _DisclosurePage extends StatelessWidget {
               ],
             ),
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -308,45 +315,43 @@ class _PermissionExplanationPage extends StatelessWidget {
             color: Theme.of(context).primaryColor,
           ),
           const SizedBox(height: 24),
-          
+
           const Text(
             'Location Permissions',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           const Text(
             'To share your location with your family, we need permission to access your device\'s location services.',
             style: TextStyle(fontSize: 16),
             textAlign: TextAlign.center,
           ),
-          
+
           const SizedBox(height: 32),
-          
+
           _PermissionCard(
             icon: Icons.location_on,
             title: 'Location Access',
             description: 'Allows the app to determine your current location',
             isRequired: true,
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           _PermissionCard(
             icon: Icons.my_location,
             title: 'Background Location',
-            description: 'Allows location sharing even when the app is not open',
+            description:
+                'Allows location sharing even when the app is not open',
             isRequired: false,
             subtitle: 'Optional - for automatic updates',
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           _PermissionCard(
             icon: Icons.battery_saver,
             title: 'Battery Optimization',
@@ -354,9 +359,9 @@ class _PermissionExplanationPage extends StatelessWidget {
             isRequired: false,
             subtitle: 'Recommended for best experience',
           ),
-          
+
           const SizedBox(height: 32),
-          
+
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -426,11 +431,7 @@ class _PermissionCard extends StatelessWidget {
               color: Theme.of(context).primaryColor.withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(
-              icon,
-              color: Theme.of(context).primaryColor,
-              size: 24,
-            ),
+            child: Icon(icon, color: Theme.of(context).primaryColor, size: 24),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -472,10 +473,7 @@ class _PermissionCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   description,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey.shade600,
-                  ),
+                  style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
                 ),
                 if (subtitle != null) ...[
                   const SizedBox(height: 4),
@@ -516,33 +514,26 @@ class _PermissionRequestPage extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           if (permissionInfo?.canShareLocation == true)
-            Icon(
-              Icons.check_circle,
-              size: 80,
-              color: Colors.green.shade600,
-            )
+            Icon(Icons.check_circle, size: 80, color: Colors.green.shade600)
           else
             Icon(
               Icons.location_disabled,
               size: 80,
               color: Colors.orange.shade600,
             ),
-          
+
           const SizedBox(height: 24),
-          
+
           Text(
             permissionInfo?.canShareLocation == true
                 ? 'Permissions Granted!'
                 : 'Grant Location Permission',
-            style: const TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           if (permissionInfo?.canShareLocation == true)
             const Text(
               'Great! Location sharing is now available. You can proceed to complete the setup.',
@@ -555,33 +546,37 @@ class _PermissionRequestPage extends StatelessWidget {
               style: TextStyle(fontSize: 16),
               textAlign: TextAlign.center,
             ),
-          
+
           const SizedBox(height: 32),
-          
+
           if (permissionInfo != null) ...[
             _PermissionStatusCard(
               title: 'Location Access',
               status: _getPermissionStatus(permissionInfo!.status),
               isGranted: permissionInfo!.canShareLocation,
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             if (permissionInfo!.canShareLocation)
               _PermissionStatusCard(
                 title: 'Background Location',
-                status: permissionInfo!.status == LocationPermissionStatus.backgroundAllowed
+                status:
+                    permissionInfo!.status ==
+                        LocationPermissionStatus.backgroundAllowed
                     ? 'Granted'
                     : 'Foreground Only',
                 isGranted: true,
-                subtitle: permissionInfo!.status != LocationPermissionStatus.backgroundAllowed
+                subtitle:
+                    permissionInfo!.status !=
+                        LocationPermissionStatus.backgroundAllowed
                     ? 'You can still share location when the app is open'
                     : null,
               ),
           ],
-          
+
           const SizedBox(height: 32),
-          
+
           if (permissionInfo?.canShareLocation != true) ...[
             SizedBox(
               width: double.infinity,
@@ -602,9 +597,9 @@ class _PermissionRequestPage extends StatelessWidget {
                       ),
               ),
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             TextButton(
               onPressed: () async {
                 await Geolocator.openLocationSettings();
@@ -612,7 +607,7 @@ class _PermissionRequestPage extends StatelessWidget {
               child: const Text('Open Location Settings'),
             ),
           ],
-          
+
           if (permissionInfo?.denialReason != null) ...[
             const SizedBox(height: 16),
             Container(
@@ -702,10 +697,7 @@ class _PermissionStatusCard extends StatelessWidget {
                 ),
                 Text(
                   status,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey.shade600,
-                  ),
+                  style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
                 ),
                 if (subtitle != null) ...[
                   const SizedBox(height: 4),
@@ -739,32 +731,25 @@ class _SetupCompletePage extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.celebration,
-            size: 80,
-            color: Colors.green.shade600,
-          ),
+          Icon(Icons.celebration, size: 80, color: Colors.green.shade600),
           const SizedBox(height: 24),
-          
+
           const Text(
             'Setup Complete!',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
           ),
-          
+
           const SizedBox(height: 16),
-          
+
           const Text(
             'Location sharing is now configured. Your family members will be able to see your location when sharing is enabled.',
             style: TextStyle(fontSize: 16),
             textAlign: TextAlign.center,
           ),
-          
+
           const SizedBox(height: 32),
-          
+
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -800,9 +785,9 @@ class _SetupCompletePage extends StatelessWidget {
               ],
             ),
           ),
-          
+
           const SizedBox(height: 32),
-          
+
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
@@ -810,10 +795,7 @@ class _SetupCompletePage extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.all(16),
               ),
-              child: const Text(
-                'Finish Setup',
-                style: TextStyle(fontSize: 16),
-              ),
+              child: const Text('Finish Setup', style: TextStyle(fontSize: 16)),
             ),
           ),
         ],

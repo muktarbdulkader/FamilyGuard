@@ -7,6 +7,9 @@ class AppInfo {
   final String name;
   final AppControlRule rule;
   final int? dailyLimitMinutes;
+  final int usageAlertThresholdPercent;
+  final int dailyLimitBonusMinutes;
+  final String? dailyLimitBonusDate;
   final String? allowedFrom; // HH:mm format
   final String? allowedUntil; // HH:mm format
   final DateTime detectedAt;
@@ -21,6 +24,9 @@ class AppInfo {
     required this.name,
     required this.rule,
     this.dailyLimitMinutes,
+    this.usageAlertThresholdPercent = 50,
+    this.dailyLimitBonusMinutes = 0,
+    this.dailyLimitBonusDate,
     this.allowedFrom,
     this.allowedUntil,
     required this.detectedAt,
@@ -36,14 +42,26 @@ class AppInfo {
     final data = (doc.data() as Map<String, dynamic>?) ?? {};
     final pkg = (data['packageName'] ?? doc.id).toString();
     final appName = (data['name'] ?? data['appName'] ?? pkg).toString();
-    
+
     return AppInfo(
       packageName: pkg,
       name: appName.isNotEmpty ? appName : pkg,
       rule: _parseRule(data['rule'] ?? data['type']),
       dailyLimitMinutes: (data['dailyLimitMinutes'] as num?)?.toInt(),
-      allowedFrom: data['allowedFrom'] as String? ?? (data['allowedStartTime'] as String?),
-      allowedUntil: data['allowedUntil'] as String? ?? (data['allowedEndTime'] as String?),
+      usageAlertThresholdPercent:
+          ((data['usageAlertThresholdPercent'] as num?)?.toInt() ?? 50).clamp(
+            1,
+            99,
+          ),
+      dailyLimitBonusMinutes:
+          (data['dailyLimitBonusMinutes'] as num?)?.toInt() ?? 0,
+      dailyLimitBonusDate: data['dailyLimitBonusDate'] as String?,
+      allowedFrom:
+          data['allowedFrom'] as String? ??
+          (data['allowedStartTime'] as String?),
+      allowedUntil:
+          data['allowedUntil'] as String? ??
+          (data['allowedEndTime'] as String?),
       detectedAt: _parseTimestamp(data['detectedAt'] ?? data['installedDate']),
       updatedAt: _parseTimestamp(data['updatedAt'] ?? data['lastUpdated']),
       isAvailable: data['isAvailable'] as bool? ?? true,
@@ -98,6 +116,9 @@ class AppInfo {
       'rule': rule.name,
       'type': rule.name.toUpperCase(),
       'dailyLimitMinutes': dailyLimitMinutes,
+      'usageAlertThresholdPercent': usageAlertThresholdPercent,
+      'dailyLimitBonusMinutes': dailyLimitBonusMinutes,
+      'dailyLimitBonusDate': dailyLimitBonusDate,
       'allowedFrom': allowedFrom,
       'allowedUntil': allowedUntil,
       'detectedAt': Timestamp.fromDate(detectedAt),
@@ -138,6 +159,9 @@ class AppInfo {
     String? name,
     AppControlRule? rule,
     int? dailyLimitMinutes,
+    int? usageAlertThresholdPercent,
+    int? dailyLimitBonusMinutes,
+    String? dailyLimitBonusDate,
     String? allowedFrom,
     String? allowedUntil,
     DateTime? detectedAt,
@@ -152,6 +176,11 @@ class AppInfo {
       name: name ?? this.name,
       rule: rule ?? this.rule,
       dailyLimitMinutes: dailyLimitMinutes ?? this.dailyLimitMinutes,
+      usageAlertThresholdPercent:
+          usageAlertThresholdPercent ?? this.usageAlertThresholdPercent,
+      dailyLimitBonusMinutes:
+          dailyLimitBonusMinutes ?? this.dailyLimitBonusMinutes,
+      dailyLimitBonusDate: dailyLimitBonusDate ?? this.dailyLimitBonusDate,
       allowedFrom: allowedFrom ?? this.allowedFrom,
       allowedUntil: allowedUntil ?? this.allowedUntil,
       detectedAt: detectedAt ?? this.detectedAt,
@@ -165,26 +194,16 @@ class AppInfo {
 
   /// Mark app as unavailable (uninstalled)
   AppInfo markUnavailable() {
-    return copyWith(
-      isAvailable: false,
-      updatedAt: DateTime.now(),
-    );
+    return copyWith(isAvailable: false, updatedAt: DateTime.now());
   }
 
   /// Mark app as available again (reinstalled)
   AppInfo markAvailable() {
-    return copyWith(
-      isAvailable: true,
-      updatedAt: DateTime.now(),
-    );
+    return copyWith(isAvailable: true, updatedAt: DateTime.now());
   }
 
   /// Update app metadata (name, icon, version)
-  AppInfo updateMetadata({
-    String? name,
-    String? iconBase64,
-    String? version,
-  }) {
+  AppInfo updateMetadata({String? name, String? iconBase64, String? version}) {
     return copyWith(
       name: name ?? this.name,
       iconBase64: iconBase64 ?? this.iconBase64,
@@ -199,14 +218,29 @@ class AppInfo {
   /// Check if app has daily limit
   bool get hasDailyLimit => dailyLimitMinutes != null && dailyLimitMinutes! > 0;
 
+  int effectiveDailyLimit(DateTime localTime) {
+    final baseLimit = dailyLimitMinutes ?? 0;
+    final bonusApplies =
+        dailyLimitBonusDate == _localDateString(localTime) &&
+        dailyLimitBonusMinutes > 0;
+    return baseLimit + (bonusApplies ? dailyLimitBonusMinutes : 0);
+  }
+
+  static String _localDateString(DateTime value) =>
+      '${value.year.toString().padLeft(4, '0')}-'
+      '${value.month.toString().padLeft(2, '0')}-'
+      '${value.day.toString().padLeft(2, '0')}';
+
   /// Check if app is currently allowed based on time restrictions
   bool isAllowedAtTime(DateTime time) {
     if (!hasTimeRestrictions) return true;
-    
-    final timeStr = '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
-    
+
+    final timeStr =
+        '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+
     // Simple time comparison (doesn't handle overnight restrictions)
-    return timeStr.compareTo(allowedFrom!) >= 0 && timeStr.compareTo(allowedUntil!) <= 0;
+    return timeStr.compareTo(allowedFrom!) >= 0 &&
+        timeStr.compareTo(allowedUntil!) <= 0;
   }
 
   /// Get display name for UI
@@ -232,16 +266,16 @@ class AppInfo {
 enum AppControlRule {
   /// Always allow the app
   allow,
-  
+
   /// Always block the app
   block,
-  
+
   /// Ask parent for permission each time
   ask,
-  
+
   /// Allow with time restrictions
   timeRestricted,
-  
+
   /// Allow with daily time limit
   timeLimited,
 }

@@ -41,7 +41,7 @@ class FamilySelector extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 8),
-        
+
         if (families.length == 1) ...[
           // Single family - show as card
           _FamilyCard(
@@ -67,7 +67,9 @@ class FamilySelector extends StatelessWidget {
                 dropdownColor: isDark ? const Color(0xFF132238) : Colors.white,
                 hint: Text(
                   'Select a family',
-                  style: TextStyle(color: isDark ? const Color(0xFF8BA0B8) : Colors.grey[600]),
+                  style: TextStyle(
+                    color: isDark ? const Color(0xFF8BA0B8) : Colors.grey[600],
+                  ),
                 ),
                 isExpanded: true,
                 icon: Icon(
@@ -82,7 +84,9 @@ class FamilySelector extends StatelessWidget {
                         Icon(
                           Icons.home,
                           size: 20,
-                          color: isDark ? const Color(0xFF2DD4BF) : Colors.blue[600],
+                          color: isDark
+                              ? const Color(0xFF2DD4BF)
+                              : Colors.blue[600],
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -101,7 +105,9 @@ class FamilySelector extends StatelessWidget {
                                 '${family.childIds.length} children',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: isDark ? const Color(0xFF8BA0B8) : Colors.grey[600],
+                                  color: isDark
+                                      ? const Color(0xFF8BA0B8)
+                                      : Colors.grey[600],
                                 ),
                               ),
                             ],
@@ -153,9 +159,7 @@ class _FamilyCard extends StatelessWidget {
         ? const Color(0xFF063D39)
         : (isSelected ? Colors.blue[100]! : Colors.grey[100]!);
 
-    final iconColor = isDark
-        ? const Color(0xFF2DD4BF)
-        : Colors.blue[700]!;
+    final iconColor = isDark ? const Color(0xFF2DD4BF) : Colors.blue[700]!;
 
     return GestureDetector(
       onTap: onTap,
@@ -165,80 +169,104 @@ class _FamilyCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: cardBg,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: borderColor,
-            width: isSelected ? 1.5 : 1,
-          ),
+          border: Border.all(color: borderColor, width: isSelected ? 1.5 : 1),
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: iconBg,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                Icons.home_rounded,
-                color: iconColor,
-                size: 22,
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    family.name,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 15.5,
-                      color: isDark ? Colors.white : (isSelected ? Colors.blue[800] : Colors.black87),
-                    ),
+            Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: iconBg,
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  const SizedBox(height: 3),
-                  Row(
+                  child: Icon(Icons.home_rounded, color: iconColor, size: 22),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(
-                        Icons.people_outline,
-                        size: 14,
-                        color: isDark ? const Color(0xFF8BA0B8) : Colors.grey[600],
-                      ),
-                      const SizedBox(width: 4),
                       Text(
-                        '${family.childIds.length} children',
+                        family.name,
                         style: TextStyle(
-                          color: isDark ? const Color(0xFF8BA0B8) : Colors.grey[600],
-                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15.5,
+                          color: isDark
+                              ? Colors.white
+                              : (isSelected
+                                    ? Colors.blue[800]
+                                    : Colors.black87),
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(width: 14),
-                      Icon(
-                        Icons.calendar_today_outlined,
-                        size: 13,
-                        color: isDark ? const Color(0xFF8BA0B8) : Colors.grey[600],
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Created ${_formatDate(family.createdAt)}',
-                        style: TextStyle(
-                          color: isDark ? const Color(0xFF8BA0B8) : Colors.grey[600],
-                          fontSize: 12,
-                        ),
+                      const SizedBox(height: 3),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.people_outline,
+                            size: 14,
+                            color: isDark
+                                ? const Color(0xFF8BA0B8)
+                                : Colors.grey[600],
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              '${family.childIds.length} children',
+                              style: TextStyle(
+                                color: isDark
+                                    ? const Color(0xFF8BA0B8)
+                                    : Colors.grey[600],
+                                fontSize: 12,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
+                ),
+                if (isSelected) ...[
+                  const SizedBox(width: 8),
+                  Icon(
+                    Icons.check_circle,
+                    color: isDark ? const Color(0xFF2DD4BF) : Colors.blue[600],
+                    size: 20,
+                  ),
                 ],
-              ),
+              ],
             ),
-            if (isSelected)
-              Icon(
-                Icons.check_circle,
-                color: isDark ? const Color(0xFF2DD4BF) : Colors.blue[600],
-                size: 20,
-              ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Icon(
+                  Icons.calendar_today_outlined,
+                  size: 13,
+                  color: isDark ? const Color(0xFF8BA0B8) : Colors.grey[600],
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    'Created ${_formatDate(family.createdAt)}',
+                    style: TextStyle(
+                      color: isDark
+                          ? const Color(0xFF8BA0B8)
+                          : Colors.grey[600],
+                      fontSize: 12,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -248,7 +276,7 @@ class _FamilyCard extends StatelessWidget {
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final difference = now.difference(date);
-    
+
     if (difference.inDays < 1) {
       return 'today';
     } else if (difference.inDays < 7) {
