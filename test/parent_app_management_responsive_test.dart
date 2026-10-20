@@ -135,4 +135,5 @@ void main() {
     expect(find.text('Location'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
+
 }

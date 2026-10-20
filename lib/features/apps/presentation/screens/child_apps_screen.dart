@@ -1,8 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../../../../core/constants/app_routes.dart';
 import '../../../../core/services/app_scanner_service.dart';
 import '../../../../core/providers/user_provider.dart';
+import '../../../../core/widgets/family_bottom_navigation.dart';
 import '../../../../l10n/app_localizations.dart';
 
 /// Child apps screen showing installed apps and their rules
@@ -181,8 +184,20 @@ class _ChildAppsScreenState extends ConsumerState<ChildAppsScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final user = ref.watch(currentUserDataProvider).value;
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go(AppRoutes.childHome);
+            }
+          },
+        ),
         title: Text(
           l10n.apps,
           style: const TextStyle(
@@ -388,6 +403,13 @@ class _ChildAppsScreenState extends ConsumerState<ChildAppsScreen> {
               backgroundColor: const Color(0xFF4F46E5),
               child: const Icon(Icons.refresh, color: Colors.white),
             ),
+      bottomNavigationBar: FamilyBottomNavigation(
+        isParent: false,
+        selected: FamilyNavDestination.apps,
+        familyId: user?.familyId,
+        childId: user?.uid,
+        childName: user?.displayName,
+      ),
     );
   }
 

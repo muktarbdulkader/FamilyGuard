@@ -69,4 +69,65 @@ void main() {
 
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('child selection callback and selected card follow the tapped child', (
+    tester,
+  ) async {
+    final now = DateTime(2025);
+    final firstChild = ChildModel(
+      id: 'child-1',
+      displayName: 'Ava',
+      email: 'ava@example.com',
+      familyId: 'family-id',
+      joinedAt: now,
+      lastActiveAt: now,
+    );
+    final secondChild = ChildModel(
+      id: 'child-2',
+      displayName: 'Noah',
+      email: 'noah@example.com',
+      familyId: 'family-id',
+      joinedAt: now,
+      lastActiveAt: now,
+    );
+    var selectedChild = firstChild;
+    ChildModel? callbackChild;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: StatefulBuilder(
+            builder: (context, setState) => ChildSelector(
+              children: [firstChild, secondChild],
+              selectedChild: selectedChild,
+              onChildSelected: (child) {
+                callbackChild = child;
+                setState(() => selectedChild = child);
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Noah'));
+    await tester.pumpAndSettle();
+
+    expect(callbackChild?.id, secondChild.id);
+    expect(selectedChild.id, secondChild.id);
+
+    final selectedCard = tester.widget<Container>(
+      find
+          .ancestor(
+            of: find.text('Noah'),
+            matching: find.byType(Container),
+          )
+          .first,
+    );
+    expect(
+      (selectedCard.decoration! as BoxDecoration).color,
+      Colors.green[50],
+    );
+    expect(tester.takeException(), isNull);
+  });
 }
