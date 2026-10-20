@@ -1,3 +1,7 @@
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -94,6 +98,26 @@ class LocaleNotifier extends StateNotifier<Locale> {
       await prefs.setString(_kLegacyLocaleKey, locale.languageCode);
     } catch (e) {
       debugPrint('Locale preference save error: $e');
+    }
+
+    String? userId;
+    try {
+      userId = FirebaseAuth.instance.currentUser?.uid;
+    } on FirebaseException catch (error) {
+      debugPrint('Preferred locale auth lookup error: $error');
+    }
+    if (userId != null) {
+      unawaited(_savePreferredLocale(userId, locale.languageCode));
+    }
+  }
+
+  Future<void> _savePreferredLocale(String userId, String languageCode) async {
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(userId).update({
+        'preferredLocale': languageCode,
+      });
+    } catch (e) {
+      debugPrint('Preferred locale sync error: $e');
     }
   }
 }

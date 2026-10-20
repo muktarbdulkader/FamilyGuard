@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_study_app/features/chat/presentation/widgets/chat_home_card.dart';
 import '../../../../core/constants/app_routes.dart';
 import '../../../../core/providers/auth_provider.dart';
 import '../../../../core/providers/user_provider.dart';
@@ -285,7 +286,9 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                                   Container(
                                     padding: const EdgeInsets.all(8),
                                     decoration: BoxDecoration(
-                                      color: _colors.textPrimary.withOpacity(0.2),
+                                      color: _colors.textPrimary.withOpacity(
+                                        0.2,
+                                      ),
                                       borderRadius: BorderRadius.circular(10),
                                     ),
                                     child: Icon(
@@ -316,9 +319,8 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                                               ? 'Tap to enable "Display over other apps".'
                                               : 'Tap to enable Location sharing for parents.',
                                           style: TextStyle(
-                                            color: _colors.textPrimary.withOpacity(
-                                              0.9,
-                                            ),
+                                            color: _colors.textPrimary
+                                                .withOpacity(0.9),
                                             fontSize: 11.5,
                                           ),
                                         ),
@@ -394,6 +396,14 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                     ),
                   ),
 
+                  if (user?.hasFamily == true)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                        child: const ChatHomeCard(),
+                      ),
+                    ),
+
                   // 4. Learning Header & Card
                   if (user?.hasFamily == true && user?.familyId != null)
                     SliverToBoxAdapter(
@@ -445,8 +455,7 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
                           if (user?.hasFamily != true)
                             Flexible(
                               child: InkWell(
-                                onTap: () =>
-                                    context.push(AppRoutes.familyJoin),
+                                onTap: () => context.push(AppRoutes.familyJoin),
                                 borderRadius: BorderRadius.circular(8),
                                 child: const Padding(
                                   padding: EdgeInsets.symmetric(
@@ -832,7 +841,9 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
     required bool isSolid,
     required VoidCallback onTap,
   }) {
-    final foregroundColor = isSolid ? const Color(0xFF042421) : _colors.textPrimary;
+    final foregroundColor = isSolid
+        ? const Color(0xFF042421)
+        : _colors.textPrimary;
     final content = Column(
       mainAxisSize: MainAxisSize.min,
       children: [

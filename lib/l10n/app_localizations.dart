@@ -1091,6 +1091,156 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No notifications yet'**
   String get noNotificationsYet;
+
+  /// No description provided for @chat.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat'**
+  String get chat;
+
+  /// No description provided for @conversations.
+  ///
+  /// In en, this message translates to:
+  /// **'Conversations'**
+  String get conversations;
+
+  /// No description provided for @noConversations.
+  ///
+  /// In en, this message translates to:
+  /// **'No conversations yet'**
+  String get noConversations;
+
+  /// No description provided for @noLinkedContacts.
+  ///
+  /// In en, this message translates to:
+  /// **'No linked family members are available to chat with.'**
+  String get noLinkedContacts;
+
+  /// No description provided for @startConversation.
+  ///
+  /// In en, this message translates to:
+  /// **'Start a conversation'**
+  String get startConversation;
+
+  /// No description provided for @noMessagesYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No messages yet'**
+  String get noMessagesYet;
+
+  /// No description provided for @typeMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Type a message'**
+  String get typeMessage;
+
+  /// No description provided for @sending.
+  ///
+  /// In en, this message translates to:
+  /// **'Sending...'**
+  String get sending;
+
+  /// No description provided for @sent.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent'**
+  String get sent;
+
+  /// No description provided for @read.
+  ///
+  /// In en, this message translates to:
+  /// **'Read'**
+  String get read;
+
+  /// No description provided for @unread.
+  ///
+  /// In en, this message translates to:
+  /// **'Unread'**
+  String get unread;
+
+  /// No description provided for @loadingMessages.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading messages...'**
+  String get loadingMessages;
+
+  /// No description provided for @noInternetConnection.
+  ///
+  /// In en, this message translates to:
+  /// **'No internet connection'**
+  String get noInternetConnection;
+
+  /// No description provided for @messageFailedToSend.
+  ///
+  /// In en, this message translates to:
+  /// **'Message failed to send'**
+  String get messageFailedToSend;
+
+  /// No description provided for @retrySendMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry sending'**
+  String get retrySendMessage;
+
+  /// No description provided for @today.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get today;
+
+  /// No description provided for @yesterday.
+  ///
+  /// In en, this message translates to:
+  /// **'Yesterday'**
+  String get yesterday;
+
+  /// No description provided for @chatPrivacyNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Messages are shared only with the linked family members in this conversation.'**
+  String get chatPrivacyNotice;
+
+  /// No description provided for @chatListLoadError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load conversations.'**
+  String get chatListLoadError;
+
+  /// No description provided for @chatMessagesLoadError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load messages.'**
+  String get chatMessagesLoadError;
+
+  /// No description provided for @chatSendError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not send this message.'**
+  String get chatSendError;
+
+  /// No description provided for @chatTryAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get chatTryAgain;
+
+  /// No description provided for @chatOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Open chat'**
+  String get chatOpen;
+
+  /// No description provided for @chatLatestMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Latest message'**
+  String get chatLatestMessage;
+
+  /// No description provided for @chatUnreadCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} unread'**
+  String chatUnreadCount(int count);
 }
 
 class _AppLocalizationsDelegate

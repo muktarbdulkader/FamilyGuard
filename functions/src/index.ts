@@ -1720,6 +1720,318 @@ exports.logRuleEnforcement = functions.https.onCall(async (data, context) => {
   }
 });
 
+function isActiveChatRelationship(
+  familyId: string,
+  familyData: FirebaseFirestore.DocumentData,
+  parentId: string,
+  childId: string,
+  childData: FirebaseFirestore.DocumentData
+): boolean {
+  const parentIds = Array.isArray(familyData.parentIds)
+    ? familyData.parentIds
+    : [familyData.parentId].filter(Boolean);
+  const childIds = Array.isArray(familyData.childIds)
+    ? familyData.childIds
+    : Array.isArray(familyData.childrenIds)
+    ? familyData.childrenIds
+    : [];
+  return parentIds.includes(parentId) &&
+    childIds.includes(childId) &&
+    childData.role === 'child' &&
+    childData.familyId === familyId;
+}
+
+function chatNotificationCopy(
+  locale: string,
+  senderName: string
+): { title: string; body: string } {
+  switch (locale) {
+    case 'om':
+      return {
+        title: `Ergaa haaraa: ${senderName}`,
+        body: 'Ergaa kee dubbisuuf FamilyGuard bani.',
+      };
+    case 'am':
+      return {
+        title: `አዲስ መልዕክት ከ${senderName}`,
+        body: 'መልዕክትዎን ለማንበብ FamilyGuardን ይክፈቱ።',
+      };
+    case 'ar':
+      return {
+        title: `رسالة جديدة من ${senderName}`,
+        body: 'افتح FamilyGuard لقراءة رسالتك.',
+      };
+    default:
+      return {
+        title: `New message from ${senderName}`,
+        body: 'Open FamilyGuard to read your message.',
+      };
+  }
+}
+
+export const onChatMessageCreated = functions
+  .runWith({ failurePolicy: true })
+  .firestore
+  .document('conversations/{conversationId}/messages/{messageId}')
+  .onCreate(async (messageSnapshot, context) => {
+    const message = messageSnapshot.data();
+    const { conversationId, messageId } = context.params;
+    const conversationRef = db.collection('conversations').doc(conversationId);
+    const messageRef = conversationRef.collection('messages').doc(messageId);
+    const processedRef = conversationRef
+      .collection('processedMessages')
+      .doc(messageId);
+    try {
+      const notificationDetails = await db.runTransaction(async (transaction) => {
+        const [conversationDoc, messageDoc, processedDoc] = await Promise.all([
+          transaction.get(conversationRef),
+          transaction.get(messageRef),
+          transaction.get(processedRef),
+        ]);
+        if (!conversationDoc.exists || !messageDoc.exists) return null;
+
+        if (processedDoc.exists) {
+          const processed = processedDoc.data() ?? {};
+          if (processed.notificationStatus !== 'pending') return null;
+          if ((messageDoc.data() ?? {}).readAt != null) {
+            transaction.update(processedRef, { notificationStatus: 'complete' });
+            return null;
+          }
+          return {
+            recipientId: String(processed.recipientId ?? ''),
+            senderId: String(processed.senderId ?? ''),
+            familyId: String(processed.familyId ?? ''),
+            senderName: String(processed.senderName ?? ''),
+            locale: String(processed.locale ?? 'en'),
+          };
+        }
+
+        const conversation = conversationDoc.data() ?? {};
+        const currentMessage = messageDoc.data() ?? message;
+        const familyId = String(conversation.familyId ?? '');
+        const parentId = String(conversation.parentId ?? '');
+        const childId = String(conversation.childId ?? '');
+        const senderId = String(currentMessage.senderId ?? '');
+        const recipientId = String(currentMessage.recipientId ?? '');
+        const isAlreadyRead = currentMessage.readAt != null;
+        const familyDoc = await transaction.get(
+          db.collection('families').doc(familyId)
+        );
+        const childUserDoc = await transaction.get(
+          db.collection('users').doc(childId)
+        );
+        const senderDoc = await transaction.get(
+          db.collection('users').doc(senderId)
+        );
+        const recipientDoc = await transaction.get(
+          db.collection('users').doc(recipientId)
+        );
+        const familyData = familyDoc.data() ?? {};
+        const childData = childUserDoc.data() ?? {};
+        const participants = [parentId, childId];
+        const isParticipantPair =
+          participants.includes(senderId) &&
+          participants.includes(recipientId) &&
+          senderId !== recipientId;
+        const isValidMessage =
+          currentMessage.familyId === familyId &&
+          currentMessage.conversationId === conversationId &&
+          conversation.participantIds?.length === 2 &&
+          conversation.participantIds.includes(senderId) &&
+          conversation.participantIds.includes(recipientId) &&
+          isParticipantPair;
+        const isActive =
+          familyDoc.exists &&
+          childUserDoc.exists &&
+          isActiveChatRelationship(
+            familyId,
+            familyData,
+            parentId,
+            childId,
+            childData
+          );
+
+        if (!isValidMessage || !isActive) {
+          console.error(
+            'Ignoring chat message for an invalid or revoked relationship.',
+            { conversationId, messageId }
+          );
+          return null;
+        }
+
+        const counts = {
+          ...((conversation.unreadCounts ?? {}) as Record<string, number>),
+        };
+        if (!isAlreadyRead) {
+          counts[recipientId] =
+            Number(conversation.unreadCounts?.[recipientId] ?? 0) + 1;
+        }
+        const latestTimestamp = conversation.lastMessageAt as
+          | FirebaseFirestore.Timestamp
+          | undefined;
+        const messageTimestamp = currentMessage.createdAt as
+          | FirebaseFirestore.Timestamp
+          | undefined;
+        const isLatestMessage =
+          !latestTimestamp ||
+          !messageTimestamp ||
+          messageTimestamp.toMillis() >= latestTimestamp.toMillis();
+        transaction.update(conversationRef, {
+          ...(isLatestMessage
+            ? {
+                lastMessage: String(currentMessage.text ?? '').slice(0, 4000),
+                lastMessageAt:
+                  messageTimestamp ?? FieldValue.serverTimestamp(),
+                lastSenderId: senderId,
+                updatedAt:
+                  messageTimestamp ?? FieldValue.serverTimestamp(),
+              }
+            : {}),
+          unreadCounts: counts,
+        });
+        const senderData = senderDoc.data() ?? {};
+        const recipientData = recipientDoc.data() ?? {};
+        const senderName =
+          String(senderData.displayName ?? '').trim() ||
+          (senderId === childId ? 'Child' : 'Parent');
+        const locale = String(recipientData.preferredLocale ?? 'en');
+        transaction.create(processedRef, {
+          processedAt: FieldValue.serverTimestamp(),
+          notificationStatus: isAlreadyRead ? 'complete' : 'pending',
+          recipientId,
+          senderId,
+          familyId,
+          senderName,
+          locale,
+        });
+
+        if (isAlreadyRead) return null;
+        return {
+          recipientId,
+          senderId,
+          familyId,
+          senderName,
+          locale,
+        };
+      });
+
+      if (!notificationDetails) return;
+      const details = notificationDetails;
+      const tokens = await db.collection('fcm_tokens')
+        .where('userId', '==', details.recipientId)
+        .where('isActive', '==', true)
+        .get();
+      if (tokens.empty) {
+        await processedRef.update({ notificationStatus: 'complete' });
+        return;
+      }
+
+      const copy = chatNotificationCopy(details.locale, details.senderName);
+      const payload = {
+        notification: copy,
+        data: {
+          type: 'chat_message',
+          familyId: details.familyId,
+          conversationId,
+          senderId: details.senderId,
+          recipientId: details.recipientId,
+        },
+      };
+      const tokenList = tokens.docs
+        .map((doc) => String(doc.data().token ?? ''))
+        .filter((token) => token.length > 0);
+      if (tokenList.length > 0) {
+        const result = await messaging.sendMulticast({
+          ...payload,
+          tokens: tokenList,
+        });
+        console.log(
+          `Chat notification for ${messageId}: ${result.successCount} sent, ${result.failureCount} failed.`
+        );
+      }
+      await processedRef.update({ notificationStatus: 'complete' });
+    } catch (error) {
+      console.error('Failed to process a chat message notification.', {
+        conversationId,
+        messageId,
+        error,
+      });
+      throw error;
+    }
+  });
+
+export const onChatMessageRead = functions
+  .runWith({ failurePolicy: true })
+  .firestore
+  .document('conversations/{conversationId}/messages/{messageId}')
+  .onUpdate(async (change, context) => {
+    const before = change.before.data();
+    const after = change.after.data();
+    if (before.readAt != null || after.readAt == null) return;
+
+    const { conversationId, messageId } = context.params;
+    const conversationRef = db.collection('conversations').doc(conversationId);
+    const processedRef = conversationRef
+      .collection('processedReads')
+      .doc(messageId);
+
+    try {
+      await db.runTransaction(async (transaction) => {
+        const [conversationDoc, processedDoc] = await Promise.all([
+          transaction.get(conversationRef),
+          transaction.get(processedRef),
+        ]);
+        if (!conversationDoc.exists || processedDoc.exists) return;
+
+        const conversation = conversationDoc.data() ?? {};
+        const familyId = String(conversation.familyId ?? '');
+        const parentId = String(conversation.parentId ?? '');
+        const childId = String(conversation.childId ?? '');
+        const familyDoc = await transaction.get(
+          db.collection('families').doc(familyId)
+        );
+        const childUserDoc = await transaction.get(
+          db.collection('users').doc(childId)
+        );
+        const familyData = familyDoc.data() ?? {};
+        const childData = childUserDoc.data() ?? {};
+        if (
+          !familyDoc.exists ||
+          !childUserDoc.exists ||
+          !isActiveChatRelationship(
+            familyId,
+            familyData,
+            parentId,
+            childId,
+            childData
+          )
+        ) {
+          return;
+        }
+
+        const recipientId = String(after.recipientId ?? '');
+        const unreadCounts = {
+          ...((conversation.unreadCounts ?? {}) as Record<string, number>),
+          [recipientId]: Math.max(
+            0,
+            Number(conversation.unreadCounts?.[recipientId] ?? 0) - 1
+          ),
+        };
+        transaction.update(conversationRef, { unreadCounts });
+        transaction.create(processedRef, {
+          processedAt: FieldValue.serverTimestamp(),
+        });
+      });
+    } catch (error) {
+      console.error('Failed to update chat unread count.', {
+        conversationId,
+        messageId,
+        error,
+      });
+      throw error;
+    }
+  });
+
 // ============================================================================
 // RULES HELPER FUNCTIONS
 // ============================================================================

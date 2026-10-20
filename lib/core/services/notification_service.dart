@@ -21,11 +21,11 @@ class NotificationService {
   // Singleton instance getter
   static NotificationService get instance => _instance;
 
-  final FirebaseMessaging _messaging = FirebaseMessaging.instance;
-  final FlutterLocalNotificationsPlugin _localNotifications =
+  late final FirebaseMessaging _messaging = FirebaseMessaging.instance;
+  late final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  late final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  late final FirebaseAuth _auth = FirebaseAuth.instance;
 
   StreamSubscription<RemoteMessage>? _foregroundSubscription;
   StreamSubscription<String>? _tokenRefreshSubscription;
@@ -34,7 +34,12 @@ class NotificationService {
   String? _listeningFamilyId;
   String? _listeningChildId;
   final Set<String> _shownNotificationIds = {};
+  String? _activeChatConversationId;
   bool _isInitialized = false;
+
+  void setActiveChatConversation(String? conversationId) {
+    _activeChatConversationId = conversationId;
+  }
 
   // Notification channels
   static const String _urgentChannelId = 'urgent_notifications';
@@ -277,6 +282,10 @@ class NotificationService {
   }
 
   Future<void> _handleForegroundMessage(RemoteMessage message) async {
+    if (message.data['type'] == 'chat_message' &&
+        message.data['conversationId'] == _activeChatConversationId) {
+      return;
+    }
     final notification = message.notification;
     final android = message.notification?.android;
 
@@ -334,6 +343,21 @@ class NotificationService {
     final childName = (data['childName'] ?? 'Child').toString();
     final requestId = (data['requestId'] ?? '').toString();
     final packageName = (data['packageName'] ?? '').toString();
+
+    if (rawType == 'chat_message') {
+      final familyId = (data['familyId'] ?? '').toString();
+      final senderId = (data['senderId'] ?? '').toString();
+      if (familyId.isNotEmpty && senderId.isNotEmpty) {
+        final target = Uri(
+          path:
+              '${AppRoutes.chat}/${Uri.encodeComponent(familyId)}/${Uri.encodeComponent(senderId)}',
+        );
+        context.push(target.toString());
+      } else {
+        context.push(AppRoutes.chat);
+      }
+      return;
+    }
 
     if (rawType == 'appApproved' ||
         rawType == 'app_approved' ||

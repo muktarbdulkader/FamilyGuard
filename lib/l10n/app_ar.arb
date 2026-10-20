@@ -164,5 +164,37 @@
   "aboutSmartGuardSubtitle": "كيف تحافظ الحدود الرقمية الصحية على أمانك",
   "noChildrenLinkedYet": "لا يوجد أطفال مرتبطون حتى الآن",
   "noPendingRequests": "لا توجد طلبات معلقة",
-  "noNotificationsYet": "لا توجد إشعارات جديدة"
+  "noNotificationsYet": "لا توجد إشعارات جديدة",
+  "chat": "المحادثة",
+  "conversations": "المحادثات",
+  "noConversations": "لا توجد محادثات بعد",
+  "noLinkedContacts": "لا يوجد أفراد عائلة مرتبطون للدردشة معهم.",
+  "startConversation": "ابدأ محادثة",
+  "noMessagesYet": "لا توجد رسائل بعد",
+  "typeMessage": "اكتب رسالة",
+  "sending": "جار الإرسال...",
+  "sent": "تم الإرسال",
+  "read": "مقروءة",
+  "unread": "غير مقروءة",
+  "loadingMessages": "جار تحميل الرسائل...",
+  "noInternetConnection": "لا يوجد اتصال بالإنترنت",
+  "messageFailedToSend": "فشل إرسال الرسالة",
+  "retrySendMessage": "إعادة إرسال الرسالة",
+  "today": "اليوم",
+  "yesterday": "أمس",
+  "chatPrivacyNotice": "تتم مشاركة الرسائل فقط مع أفراد العائلة المرتبطين في هذه المحادثة.",
+  "chatListLoadError": "تعذر تحميل المحادثات.",
+  "chatMessagesLoadError": "تعذر تحميل الرسائل.",
+  "chatSendError": "تعذر إرسال هذه الرسالة.",
+  "chatTryAgain": "حاول مرة أخرى",
+  "chatOpen": "افتح المحادثة",
+  "chatLatestMessage": "آخر رسالة",
+  "chatUnreadCount": "{count} غير مقروءة",
+  "@chatUnreadCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

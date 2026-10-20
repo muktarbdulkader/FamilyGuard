@@ -164,5 +164,37 @@
   "aboutSmartGuardSubtitle": "ጤናማ የዲጂታል ገደቦች እርስዎን እንዴት እንደሚጠብቁ",
   "noChildrenLinkedYet": "እስካሁን የተገናኘ ልጅ የለም",
   "noPendingRequests": "በመጠባበቅ ላይ ያለ ጥያቄ የለም",
-  "noNotificationsYet": "ምንም ማሳወቂያ የለም"
+  "noNotificationsYet": "ምንም አዲስ ማሳወቂያ የለም",
+  "chat": "ውይይት",
+  "conversations": "ውይይቶች",
+  "noConversations": "እስካሁን ውይይት የለም",
+  "noLinkedContacts": "ለመወያየት የተገናኙ የቤተሰብ አባላት የሉም።",
+  "startConversation": "ውይይት ይጀምሩ",
+  "noMessagesYet": "እስካሁን መልዕክት የለም",
+  "typeMessage": "መልዕክት ይጻፉ",
+  "sending": "በመላክ ላይ...",
+  "sent": "ተልኳል",
+  "read": "ተነብቧል",
+  "unread": "ያልተነበበ",
+  "loadingMessages": "መልዕክቶችን በመጫን ላይ...",
+  "noInternetConnection": "የኢንተርኔት ግንኙነት የለም",
+  "messageFailedToSend": "መልዕክቱን መላክ አልተሳካም",
+  "retrySendMessage": "መላክን እንደገና ይሞክሩ",
+  "today": "ዛሬ",
+  "yesterday": "ትናንት",
+  "chatPrivacyNotice": "መልዕክቶች በዚህ ውይይት ከተገናኙ የቤተሰብ አባላት ጋር ብቻ ይጋራሉ።",
+  "chatListLoadError": "ውይይቶችን መጫን አልተቻለም።",
+  "chatMessagesLoadError": "መልዕክቶችን መጫን አልተቻለም።",
+  "chatSendError": "ይህን መልዕክት መላክ አልተቻለም።",
+  "chatTryAgain": "እንደገና ይሞክሩ",
+  "chatOpen": "ውይይት ክፈት",
+  "chatLatestMessage": "የቅርብ ጊዜ መልዕክት",
+  "chatUnreadCount": "{count} ያልተነበቡ",
+  "@chatUnreadCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

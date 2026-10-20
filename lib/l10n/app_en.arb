@@ -171,5 +171,37 @@
   "aboutSmartGuardSubtitle": "How healthy digital limits keep you safe",
   "noChildrenLinkedYet": "No children linked yet",
   "noPendingRequests": "No pending requests",
-  "noNotificationsYet": "No notifications yet"
+  "noNotificationsYet": "No notifications yet",
+  "chat": "Chat",
+  "conversations": "Conversations",
+  "noConversations": "No conversations yet",
+  "noLinkedContacts": "No linked family members are available to chat with.",
+  "startConversation": "Start a conversation",
+  "noMessagesYet": "No messages yet",
+  "typeMessage": "Type a message",
+  "sending": "Sending...",
+  "sent": "Sent",
+  "read": "Read",
+  "unread": "Unread",
+  "loadingMessages": "Loading messages...",
+  "noInternetConnection": "No internet connection",
+  "messageFailedToSend": "Message failed to send",
+  "retrySendMessage": "Retry sending",
+  "today": "Today",
+  "yesterday": "Yesterday",
+  "chatPrivacyNotice": "Messages are shared only with the linked family members in this conversation.",
+  "chatListLoadError": "Could not load conversations.",
+  "chatMessagesLoadError": "Could not load messages.",
+  "chatSendError": "Could not send this message.",
+  "chatTryAgain": "Try again",
+  "chatOpen": "Open chat",
+  "chatLatestMessage": "Latest message",
+  "chatUnreadCount": "{count} unread",
+  "@chatUnreadCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

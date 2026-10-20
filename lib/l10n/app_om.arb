@@ -164,5 +164,37 @@
   "aboutSmartGuardSubtitle": "Daangaan dijitaalaa nageenya keessan akkamitti eega",
   "noChildrenLinkedYet": "Ijoolleen walqunnamsiifaman hin jiran",
   "noPendingRequests": "Gaaffiin eegamu hin jiru",
-  "noNotificationsYet": "Beeksisni haaraan hin jiru"
+  "noNotificationsYet": "Beeksisni haaraan hin jiru",
+  "chat": "Waliin haasa'i",
+  "conversations": "Haasa'ota",
+  "noConversations": "Ammaaf haasaan hin jiru",
+  "noLinkedContacts": "Miseensonni maatii walqunnaman haasa'uuf hin jiran.",
+  "startConversation": "Haasa'uu jalqabi",
+  "noMessagesYet": "Ergaan ammaaf hin jiru",
+  "typeMessage": "Ergaa barreessi",
+  "sending": "Ergaa ergaa jira...",
+  "sent": "Ergameera",
+  "read": "Dubbifameera",
+  "unread": "Hin dubbifamne",
+  "loadingMessages": "Ergaawwan fe'aa jira...",
+  "noInternetConnection": "Intarneetiin hin jiru",
+  "messageFailedToSend": "Ergaa erguun hin milkoofne",
+  "retrySendMessage": "Erguu irra deebi'i",
+  "today": "Har'a",
+  "yesterday": "Kaleessa",
+  "chatPrivacyNotice": "Ergaawwan miseensota maatii walqunnaman haasa'a kana keessa jiraniif qofa qoodamu.",
+  "chatListLoadError": "Haasa'ota fe'uun hin danda'amne.",
+  "chatMessagesLoadError": "Ergaawwan fe'uun hin danda'amne.",
+  "chatSendError": "Ergaa kana erguun hin danda'amne.",
+  "chatTryAgain": "Irra deebi'i",
+  "chatOpen": "Haasa'a bani",
+  "chatLatestMessage": "Ergaa dhumaa",
+  "chatUnreadCount": "{count} hin dubbifamne",
+  "@chatUnreadCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

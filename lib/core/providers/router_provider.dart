@@ -20,6 +20,8 @@ import '../../features/family/presentation/screens/pairing/qr_code_screen.dart';
 import '../../features/requests/presentation/screens/app_requests_screen.dart';
 import '../../features/parent/presentation/screens/parent_education_screen.dart';
 import '../../features/child/presentation/screens/child_education_screen.dart';
+import '../../features/chat/presentation/screens/chat_inbox_screen.dart';
+import '../../features/chat/presentation/screens/chat_conversation_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/profile/presentation/pages/language_settings_page.dart';
 import '../constants/app_routes.dart';
@@ -152,6 +154,21 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.childApps,
         name: 'child-apps',
         builder: (context, state) => const ChildAppsScreen(),
+      ),
+
+      GoRoute(
+        path: AppRoutes.chat,
+        name: 'chat-inbox',
+        builder: (context, state) => const ChatInboxScreen(),
+      ),
+
+      GoRoute(
+        path: '${AppRoutes.chat}/:familyId/:otherUserId',
+        name: 'chat-conversation',
+        builder: (context, state) => ChatConversationScreen(
+          familyId: state.pathParameters['familyId']!,
+          otherUserId: state.pathParameters['otherUserId']!,
+        ),
       ),
 
       // Parent app management route

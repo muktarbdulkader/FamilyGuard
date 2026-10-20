@@ -509,4 +509,82 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get noNotificationsYet => 'لا توجد إشعارات جديدة';
+
+  @override
+  String get chat => 'المحادثة';
+
+  @override
+  String get conversations => 'المحادثات';
+
+  @override
+  String get noConversations => 'لا توجد محادثات بعد';
+
+  @override
+  String get noLinkedContacts => 'لا يوجد أفراد عائلة مرتبطون للدردشة معهم.';
+
+  @override
+  String get startConversation => 'ابدأ محادثة';
+
+  @override
+  String get noMessagesYet => 'لا توجد رسائل بعد';
+
+  @override
+  String get typeMessage => 'اكتب رسالة';
+
+  @override
+  String get sending => 'جار الإرسال...';
+
+  @override
+  String get sent => 'تم الإرسال';
+
+  @override
+  String get read => 'مقروءة';
+
+  @override
+  String get unread => 'غير مقروءة';
+
+  @override
+  String get loadingMessages => 'جار تحميل الرسائل...';
+
+  @override
+  String get noInternetConnection => 'لا يوجد اتصال بالإنترنت';
+
+  @override
+  String get messageFailedToSend => 'فشل إرسال الرسالة';
+
+  @override
+  String get retrySendMessage => 'إعادة إرسال الرسالة';
+
+  @override
+  String get today => 'اليوم';
+
+  @override
+  String get yesterday => 'أمس';
+
+  @override
+  String get chatPrivacyNotice =>
+      'تتم مشاركة الرسائل فقط مع أفراد العائلة المرتبطين في هذه المحادثة.';
+
+  @override
+  String get chatListLoadError => 'تعذر تحميل المحادثات.';
+
+  @override
+  String get chatMessagesLoadError => 'تعذر تحميل الرسائل.';
+
+  @override
+  String get chatSendError => 'تعذر إرسال هذه الرسالة.';
+
+  @override
+  String get chatTryAgain => 'حاول مرة أخرى';
+
+  @override
+  String get chatOpen => 'افتح المحادثة';
+
+  @override
+  String get chatLatestMessage => 'آخر رسالة';
+
+  @override
+  String chatUnreadCount(int count) {
+    return '$count غير مقروءة';
+  }
 }

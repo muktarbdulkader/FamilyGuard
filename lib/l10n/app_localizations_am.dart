@@ -506,5 +506,83 @@ class AppLocalizationsAm extends AppLocalizations {
   String get noPendingRequests => 'በመጠባበቅ ላይ ያለ ጥያቄ የለም';
 
   @override
-  String get noNotificationsYet => 'ምንም ማሳወቂያ የለም';
+  String get noNotificationsYet => 'ምንም አዲስ ማሳወቂያ የለም';
+
+  @override
+  String get chat => 'ውይይት';
+
+  @override
+  String get conversations => 'ውይይቶች';
+
+  @override
+  String get noConversations => 'እስካሁን ውይይት የለም';
+
+  @override
+  String get noLinkedContacts => 'ለመወያየት የተገናኙ የቤተሰብ አባላት የሉም።';
+
+  @override
+  String get startConversation => 'ውይይት ይጀምሩ';
+
+  @override
+  String get noMessagesYet => 'እስካሁን መልዕክት የለም';
+
+  @override
+  String get typeMessage => 'መልዕክት ይጻፉ';
+
+  @override
+  String get sending => 'በመላክ ላይ...';
+
+  @override
+  String get sent => 'ተልኳል';
+
+  @override
+  String get read => 'ተነብቧል';
+
+  @override
+  String get unread => 'ያልተነበበ';
+
+  @override
+  String get loadingMessages => 'መልዕክቶችን በመጫን ላይ...';
+
+  @override
+  String get noInternetConnection => 'የኢንተርኔት ግንኙነት የለም';
+
+  @override
+  String get messageFailedToSend => 'መልዕክቱን መላክ አልተሳካም';
+
+  @override
+  String get retrySendMessage => 'መላክን እንደገና ይሞክሩ';
+
+  @override
+  String get today => 'ዛሬ';
+
+  @override
+  String get yesterday => 'ትናንት';
+
+  @override
+  String get chatPrivacyNotice =>
+      'መልዕክቶች በዚህ ውይይት ከተገናኙ የቤተሰብ አባላት ጋር ብቻ ይጋራሉ።';
+
+  @override
+  String get chatListLoadError => 'ውይይቶችን መጫን አልተቻለም።';
+
+  @override
+  String get chatMessagesLoadError => 'መልዕክቶችን መጫን አልተቻለም።';
+
+  @override
+  String get chatSendError => 'ይህን መልዕክት መላክ አልተቻለም።';
+
+  @override
+  String get chatTryAgain => 'እንደገና ይሞክሩ';
+
+  @override
+  String get chatOpen => 'ውይይት ክፈት';
+
+  @override
+  String get chatLatestMessage => 'የቅርብ ጊዜ መልዕክት';
+
+  @override
+  String chatUnreadCount(int count) {
+    return '$count ያልተነበቡ';
+  }
 }

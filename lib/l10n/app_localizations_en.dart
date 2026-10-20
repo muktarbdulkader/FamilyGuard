@@ -512,4 +512,83 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noNotificationsYet => 'No notifications yet';
+
+  @override
+  String get chat => 'Chat';
+
+  @override
+  String get conversations => 'Conversations';
+
+  @override
+  String get noConversations => 'No conversations yet';
+
+  @override
+  String get noLinkedContacts =>
+      'No linked family members are available to chat with.';
+
+  @override
+  String get startConversation => 'Start a conversation';
+
+  @override
+  String get noMessagesYet => 'No messages yet';
+
+  @override
+  String get typeMessage => 'Type a message';
+
+  @override
+  String get sending => 'Sending...';
+
+  @override
+  String get sent => 'Sent';
+
+  @override
+  String get read => 'Read';
+
+  @override
+  String get unread => 'Unread';
+
+  @override
+  String get loadingMessages => 'Loading messages...';
+
+  @override
+  String get noInternetConnection => 'No internet connection';
+
+  @override
+  String get messageFailedToSend => 'Message failed to send';
+
+  @override
+  String get retrySendMessage => 'Retry sending';
+
+  @override
+  String get today => 'Today';
+
+  @override
+  String get yesterday => 'Yesterday';
+
+  @override
+  String get chatPrivacyNotice =>
+      'Messages are shared only with the linked family members in this conversation.';
+
+  @override
+  String get chatListLoadError => 'Could not load conversations.';
+
+  @override
+  String get chatMessagesLoadError => 'Could not load messages.';
+
+  @override
+  String get chatSendError => 'Could not send this message.';
+
+  @override
+  String get chatTryAgain => 'Try again';
+
+  @override
+  String get chatOpen => 'Open chat';
+
+  @override
+  String get chatLatestMessage => 'Latest message';
+
+  @override
+  String chatUnreadCount(int count) {
+    return '$count unread';
+  }
 }

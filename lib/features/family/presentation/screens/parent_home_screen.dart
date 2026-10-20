@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_study_app/features/chat/presentation/widgets/chat_home_card.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/constants/app_routes.dart';
 import '../../../../core/models/family_model.dart';
@@ -234,7 +235,10 @@ class ParentHomeScreen extends ConsumerWidget {
                         decoration: BoxDecoration(
                           color: _colors(context).heroBg,
                           borderRadius: BorderRadius.circular(22),
-                          border: Border.all(color: _colors(context).heroBorder, width: 1.2),
+                          border: Border.all(
+                            color: _colors(context).heroBorder,
+                            width: 1.2,
+                          ),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -281,6 +285,13 @@ class ParentHomeScreen extends ConsumerWidget {
                           ],
                         ),
                       ),
+                    ),
+                  ),
+
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                      child: const ChatHomeCard(),
                     ),
                   ),
 
@@ -375,11 +386,7 @@ class ParentHomeScreen extends ConsumerWidget {
   }
 
   // ── Metric Box in Hero Card ─────────────────────────────────────────
-  Widget _buildMetricBox(
-    BuildContext context,
-    String label,
-    String value,
-  ) {
+  Widget _buildMetricBox(BuildContext context, String label, String value) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
@@ -504,7 +511,10 @@ class ParentHomeScreen extends ConsumerWidget {
                               decoration: BoxDecoration(
                                 color: const Color(0xFF10B981),
                                 shape: BoxShape.circle,
-                                border: Border.all(color: _colors(context).surface, width: 2.2),
+                                border: Border.all(
+                                  color: _colors(context).surface,
+                                  width: 2.2,
+                                ),
                               ),
                             ),
                           ),
@@ -646,7 +656,9 @@ class ParentHomeScreen extends ConsumerWidget {
     required bool isSolid,
     required VoidCallback onTap,
   }) {
-    final foregroundColor = isSolid ? const Color(0xFF042421) : _colors(context).textPrimary;
+    final foregroundColor = isSolid
+        ? const Color(0xFF042421)
+        : _colors(context).textPrimary;
     final content = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -712,11 +724,7 @@ class ParentHomeScreen extends ConsumerWidget {
               color: _tealAccent.withOpacity(0.12),
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              Icons.group_add_rounded,
-              size: 36,
-              color: _tealAccent,
-            ),
+            child: Icon(Icons.group_add_rounded, size: 36, color: _tealAccent),
           ),
           const SizedBox(height: 14),
           Text(
@@ -731,7 +739,10 @@ class ParentHomeScreen extends ConsumerWidget {
           Text(
             l10n.noChildrenDescription,
             textAlign: TextAlign.center,
-            style: TextStyle(color: _colors(context).textSecondary, fontSize: 13),
+            style: TextStyle(
+              color: _colors(context).textSecondary,
+              fontSize: 13,
+            ),
           ),
           const SizedBox(height: 18),
           ElevatedButton.icon(

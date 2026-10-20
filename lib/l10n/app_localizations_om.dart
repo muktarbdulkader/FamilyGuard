@@ -518,4 +518,83 @@ class AppLocalizationsOm extends AppLocalizations {
 
   @override
   String get noNotificationsYet => 'Beeksisni haaraan hin jiru';
+
+  @override
+  String get chat => 'Waliin haasa\'i';
+
+  @override
+  String get conversations => 'Haasa\'ota';
+
+  @override
+  String get noConversations => 'Ammaaf haasaan hin jiru';
+
+  @override
+  String get noLinkedContacts =>
+      'Miseensonni maatii walqunnaman haasa\'uuf hin jiran.';
+
+  @override
+  String get startConversation => 'Haasa\'uu jalqabi';
+
+  @override
+  String get noMessagesYet => 'Ergaan ammaaf hin jiru';
+
+  @override
+  String get typeMessage => 'Ergaa barreessi';
+
+  @override
+  String get sending => 'Ergaa ergaa jira...';
+
+  @override
+  String get sent => 'Ergameera';
+
+  @override
+  String get read => 'Dubbifameera';
+
+  @override
+  String get unread => 'Hin dubbifamne';
+
+  @override
+  String get loadingMessages => 'Ergaawwan fe\'aa jira...';
+
+  @override
+  String get noInternetConnection => 'Intarneetiin hin jiru';
+
+  @override
+  String get messageFailedToSend => 'Ergaa erguun hin milkoofne';
+
+  @override
+  String get retrySendMessage => 'Erguu irra deebi\'i';
+
+  @override
+  String get today => 'Har\'a';
+
+  @override
+  String get yesterday => 'Kaleessa';
+
+  @override
+  String get chatPrivacyNotice =>
+      'Ergaawwan miseensota maatii walqunnaman haasa\'a kana keessa jiraniif qofa qoodamu.';
+
+  @override
+  String get chatListLoadError => 'Haasa\'ota fe\'uun hin danda\'amne.';
+
+  @override
+  String get chatMessagesLoadError => 'Ergaawwan fe\'uun hin danda\'amne.';
+
+  @override
+  String get chatSendError => 'Ergaa kana erguun hin danda\'amne.';
+
+  @override
+  String get chatTryAgain => 'Irra deebi\'i';
+
+  @override
+  String get chatOpen => 'Haasa\'a bani';
+
+  @override
+  String get chatLatestMessage => 'Ergaa dhumaa';
+
+  @override
+  String chatUnreadCount(int count) {
+    return '$count hin dubbifamne';
+  }
 }

@@ -13,13 +13,36 @@ service cloud.firestore {
       return /databases/$(database)/documents/users/$(userId);
     }
 
+    function familyHasParent(familyData, parentId) {
+      return (
+        'parentIds' in familyData
+        && familyData.parentIds is list
+        && familyData.parentIds.hasAny([parentId])
+      )
+        || (
+          'parentId' in familyData
+          && familyData.parentId == parentId
+        );
+    }
+
+    function familyHasChild(familyData, childId) {
+      return (
+        'childIds' in familyData
+        && familyData.childIds is list
+        && familyData.childIds.hasAny([childId])
+      )
+        || (
+          !('childIds' in familyData)
+          && 'childrenIds' in familyData
+          && familyData.childrenIds is list
+          && familyData.childrenIds.hasAny([childId])
+        );
+    }
+
     function isFamilyParent(familyId) {
       return isSignedIn()
         && exists(familyPath(familyId))
-        && (
-          get(familyPath(familyId)).data.get('parentIds', []).hasAny([request.auth.uid])
-          || get(familyPath(familyId)).data.get('parentId', '') == request.auth.uid
-        );
+        && familyHasParent(get(familyPath(familyId)).data, request.auth.uid);
     }
 
     function isFamilyChild(familyId, childId) {
@@ -33,7 +56,7 @@ service cloud.firestore {
           )
           || (
             exists(familyPath(familyId))
-            && get(familyPath(familyId)).data.get('childIds', []).hasAny([childId])
+            && familyHasChild(get(familyPath(familyId)).data, childId)
           )
         );
     }
@@ -44,6 +67,35 @@ service cloud.firestore {
           isSignedIn()
           && isFamilyChild(familyId, request.auth.uid)
         );
+    }
+
+    function isLinkedParentOfChild(familyId, parentId, childId) {
+      return isSignedIn()
+      && exists(familyPath(familyId))
+      && familyHasParent(get(familyPath(familyId)).data, parentId)
+      && (
+        exists(userPath(childId))
+        && get(userPath(childId)).data.get('role', '') == 'child'
+        && get(userPath(childId)).data.get('familyId', '') == familyId
+        && familyHasChild(get(familyPath(familyId)).data, childId)
+      );
+    }
+
+    function isActiveChatParticipant(familyId, parentId, childId) {
+      return isLinkedParentOfChild(familyId, parentId, childId)
+        && (
+          request.auth.uid == parentId
+          || request.auth.uid == childId
+        );
+    }
+
+    function canReadChatConversation(conversation) {
+      return isActiveChatParticipant(
+        conversation.get('familyId', ''),
+        conversation.get('parentId', ''),
+        conversation.get('childId', '')
+      )
+        && conversation.get('participantIds', []).hasAny([request.auth.uid]);
     }
 
     function childAppPolicyIsDefault() {
@@ -81,6 +133,38 @@ service cloud.firestore {
             resource.data.get('familyId', '') != ''
             && isFamilyParent(resource.data.get('familyId', ''))
           )
+          || (
+            isSignedIn()
+            && exists(userPath(request.auth.uid))
+            && get(userPath(request.auth.uid)).data.get('role', '') == 'child'
+            && get(userPath(request.auth.uid)).data.get('familyId', '') != ''
+            && get(
+              familyPath(
+                get(userPath(request.auth.uid)).data.get('familyId', '')
+              )
+            ).data
+              .get(
+                'childIds',
+                get(
+                  familyPath(
+                    get(userPath(request.auth.uid)).data.get('familyId', '')
+                  )
+                ).data.get('childrenIds', [])
+              )
+              .hasAny([request.auth.uid])
+            && (
+              get(
+                familyPath(
+                  get(userPath(request.auth.uid)).data.get('familyId', '')
+                )
+              ).data.get('parentIds', []).hasAny([userId])
+              || get(
+                familyPath(
+                  get(userPath(request.auth.uid)).data.get('familyId', '')
+                )
+              ).data.get('parentId', '') == userId
+            )
+          )
         );
       allow create: if isSignedIn()
         && request.auth.uid == userId
@@ -98,7 +182,12 @@ service cloud.firestore {
     }
 
     match /families/{familyId} {
-      allow read: if isFamilyMember(familyId);
+      allow get: if isFamilyMember(familyId);
+      allow list: if isSignedIn()
+        && (
+          familyHasParent(resource.data, request.auth.uid)
+          || isFamilyChild(familyId, request.auth.uid)
+        );
       allow create: if isSignedIn()
         && request.resource.data.get('parentIds', []).hasAny([request.auth.uid]);
       allow update, delete: if isFamilyParent(familyId);
@@ -300,6 +389,79 @@ service cloud.firestore {
         && request.resource.data.get('userId', '') == request.auth.uid;
       allow delete: if isSignedIn()
         && resource.data.get('userId', '') == request.auth.uid;
+    }
+
+    match /conversations/{conversationId} {
+      allow get, list: if canReadChatConversation(resource.data);
+      allow create: if request.resource.data.keys().hasOnly([
+          'familyId',
+          'parentId',
+          'childId',
+          'participantIds',
+          'createdAt',
+          'updatedAt'
+        ])
+        && request.resource.data.get('familyId', '') is string
+        && request.resource.data.get('parentId', '') is string
+        && request.resource.data.get('childId', '') is string
+        && request.resource.data.get('participantIds', [])
+          == [
+            request.resource.data.get('parentId', ''),
+            request.resource.data.get('childId', '')
+          ]
+        && request.resource.data.get('createdAt', null) == request.time
+        && request.resource.data.get('updatedAt', null) == request.time
+        && isActiveChatParticipant(
+          request.resource.data.get('familyId', ''),
+          request.resource.data.get('parentId', ''),
+          request.resource.data.get('childId', '')
+        );
+      allow update, delete: if false;
+
+      match /messages/{messageId} {
+        function conversation() {
+          return get(
+            /databases/$(database)/documents/conversations/$(conversationId)
+          ).data;
+        }
+
+        allow read: if canReadChatConversation(conversation());
+        allow create: if canReadChatConversation(conversation())
+          && request.resource.data.keys().hasOnly([
+            'messageId',
+            'conversationId',
+            'familyId',
+            'senderId',
+            'recipientId',
+            'text',
+            'createdAt',
+            'readAt'
+          ])
+          && request.resource.data.get('messageId', '') == messageId
+          && request.resource.data.get('conversationId', '') == conversationId
+          && request.resource.data.get('familyId', '')
+            == conversation().get('familyId', '')
+          && request.resource.data.get('senderId', '') == request.auth.uid
+          && request.resource.data.get('recipientId', '')
+            in conversation().get('participantIds', [])
+          && request.resource.data.get('recipientId', '') != request.auth.uid
+          && request.resource.data.get('text', '') is string
+          && request.resource.data.get('text', '').size() > 0
+          && request.resource.data.get('text', '').size() <= 4000
+          && request.resource.data.get('createdAt', null) == request.time
+          && request.resource.data.get('readAt', null) == null;
+        allow update: if canReadChatConversation(conversation())
+          && request.auth.uid == resource.data.get('recipientId', '')
+          && resource.data.get('readAt', null) == null
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['readAt'])
+          && request.resource.data.get('readAt', null) == request.time;
+        allow delete: if false;
+      }
+
+      match /{serverOnlyCollection}/{serverOnlyDocument} {
+        allow read, write: if false;
+      }
     }
 
     match /device_status/{statusId} {
