@@ -8,16 +8,15 @@ import '../../../../core/providers/auth_provider.dart';
 class LocationSettingsScreen extends ConsumerStatefulWidget {
   final String familyId;
 
-  const LocationSettingsScreen({
-    super.key,
-    required this.familyId,
-  });
+  const LocationSettingsScreen({super.key, required this.familyId});
 
   @override
-  ConsumerState<LocationSettingsScreen> createState() => _LocationSettingsScreenState();
+  ConsumerState<LocationSettingsScreen> createState() =>
+      _LocationSettingsScreenState();
 }
 
-class _LocationSettingsScreenState extends ConsumerState<LocationSettingsScreen> {
+class _LocationSettingsScreenState
+    extends ConsumerState<LocationSettingsScreen> {
   LocationSharingSettings? _settings;
   LocationPermissionInfo? _permissionInfo;
   bool _isLoading = true;
@@ -31,20 +30,22 @@ class _LocationSettingsScreenState extends ConsumerState<LocationSettingsScreen>
 
   Future<void> _loadSettings() async {
     setState(() => _isLoading = true);
-    
+
     try {
-      final settings = await LocationService().getFamilyLocationSettings(widget.familyId);
+      final settings = await LocationService().getFamilyLocationSettings(
+        widget.familyId,
+      );
       final permissionInfo = await LocationService().checkLocationPermission();
-      
+
       setState(() {
-        _settings = settings ?? LocationSharingSettings(familyId: widget.familyId);
+        _settings =
+            settings ?? LocationSharingSettings(familyId: widget.familyId);
         _permissionInfo = permissionInfo;
         _isLoading = false;
       });
-      
     } catch (e) {
       setState(() => _isLoading = false);
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -94,15 +95,15 @@ class _LocationSettingsScreenState extends ConsumerState<LocationSettingsScreen>
                     ),
                     const SizedBox(height: 24),
                   ],
-                  
+
                   _ChildLocationStatus(
                     settings: _settings!,
                     permissionInfo: _permissionInfo,
                     onPermissionSetup: _setupPermissions,
                   ),
-                  
+
                   const SizedBox(height: 24),
-                  
+
                   _LocationPrivacyInfo(),
                 ],
               ),
@@ -114,7 +115,7 @@ class _LocationSettingsScreenState extends ConsumerState<LocationSettingsScreen>
     final result = await context.push<bool>(
       '/location/permissions/${widget.familyId}',
     );
-    
+
     if (result == true) {
       await _loadSettings();
     }
@@ -122,21 +123,21 @@ class _LocationSettingsScreenState extends ConsumerState<LocationSettingsScreen>
 
   Future<void> _saveSettings() async {
     if (_settings == null) return;
-    
+
     setState(() => _isSaving = true);
-    
+
     try {
       final authState = ref.read(authProvider);
       if (authState.user == null) return;
 
       // Get family data to find children
       // In a real implementation, you'd get this from family provider
-      final childIds = <String>[]; // TODO: Get actual child IDs from family
-      
+      final childIds = <String>[]; //
+
       final success = await LocationService().enableLocationSharing(
         familyId: widget.familyId,
-        childIds: _settings!.enabledForChildren.isNotEmpty 
-            ? _settings!.enabledForChildren 
+        childIds: _settings!.enabledForChildren.isNotEmpty
+            ? _settings!.enabledForChildren
             : childIds,
         updateInterval: _settings!.updateInterval,
         minimumDistance: _settings!.minimumDistance,
@@ -155,7 +156,6 @@ class _LocationSettingsScreenState extends ConsumerState<LocationSettingsScreen>
       } else {
         throw Exception('Failed to save settings');
       }
-      
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -187,63 +187,66 @@ class _ParentLocationControls extends StatelessWidget {
       children: [
         const Text(
           'Family Location Sharing',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
-        
+
         const SizedBox(height: 16),
-        
+
         Card(
           child: Column(
             children: [
               SwitchListTile(
                 title: const Text('Enable Location Sharing'),
-                subtitle: const Text('Allow family members to share their locations'),
+                subtitle: const Text(
+                  'Allow family members to share their locations',
+                ),
                 value: settings.isEnabled,
                 onChanged: (value) {
                   onSettingsChanged(settings.copyWith(isEnabled: value));
                 },
               ),
-              
+
               if (settings.isEnabled) ...[
                 const Divider(height: 1),
-                
+
                 ListTile(
                   title: const Text('Update Frequency'),
-                  subtitle: Text('Every ${settings.updateInterval.inMinutes} minutes'),
+                  subtitle: Text(
+                    'Every ${settings.updateInterval.inMinutes} minutes',
+                  ),
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                   onTap: () => _showUpdateIntervalPicker(context),
                 ),
-                
+
                 const Divider(height: 1),
-                
+
                 ListTile(
                   title: const Text('Minimum Distance'),
                   subtitle: Text('${settings.minimumDistance.toInt()} meters'),
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                   onTap: () => _showDistancePicker(context),
                 ),
-                
+
                 const Divider(height: 1),
-                
+
                 SwitchListTile(
                   title: const Text('Foreground Only'),
                   subtitle: const Text('Only share location when app is open'),
                   value: settings.shareOnlyWhenAppOpen,
                   onChanged: (value) {
-                    onSettingsChanged(settings.copyWith(shareOnlyWhenAppOpen: value));
+                    onSettingsChanged(
+                      settings.copyWith(shareOnlyWhenAppOpen: value),
+                    );
                   },
                 ),
               ],
             ],
           ),
         ),
-        
+
         if (settings.isEnabled) ...[
           const SizedBox(height: 16),
-          
+
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -270,10 +273,7 @@ class _ParentLocationControls extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   'Family members with location sharing enabled will have their locations visible to parents. All family members can see their own sharing status.',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.blue.shade700,
-                  ),
+                  style: TextStyle(fontSize: 14, color: Colors.blue.shade700),
                 ),
               ],
             ),
@@ -351,14 +351,11 @@ class _ChildLocationStatus extends StatelessWidget {
       children: [
         const Text(
           'Your Location Sharing Status',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
-        
+
         const SizedBox(height: 16),
-        
+
         Card(
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -400,50 +397,55 @@ class _ChildLocationStatus extends StatelessWidget {
                     ),
                   ],
                 ),
-                
+
                 if (settings.isEnabled) ...[
                   const SizedBox(height: 16),
                   const Divider(),
                   const SizedBox(height: 16),
-                  
+
                   _StatusRow(
                     icon: Icons.family_restroom,
                     title: 'Family Sharing',
                     status: 'Enabled',
                     isPositive: true,
                   ),
-                  
+
                   const SizedBox(height: 8),
-                  
+
                   _StatusRow(
                     icon: Icons.security,
                     title: 'Location Permission',
                     status: _getPermissionStatusText(),
                     isPositive: _canShareLocation(),
                   ),
-                  
+
                   const SizedBox(height: 8),
-                  
+
                   _StatusRow(
                     icon: Icons.update,
                     title: 'Update Frequency',
-                    status: 'Every ${settings.updateInterval.inMinutes} minutes',
+                    status:
+                        'Every ${settings.updateInterval.inMinutes} minutes',
                     isPositive: true,
                   ),
-                  
+
                   const SizedBox(height: 8),
-                  
+
                   _StatusRow(
-                    icon: settings.shareOnlyWhenAppOpen ? Icons.phone_android : Icons.my_location,
+                    icon: settings.shareOnlyWhenAppOpen
+                        ? Icons.phone_android
+                        : Icons.my_location,
                     title: 'Sharing Mode',
-                    status: settings.shareOnlyWhenAppOpen ? 'Foreground Only' : 'Background Enabled',
+                    status: settings.shareOnlyWhenAppOpen
+                        ? 'Foreground Only'
+                        : 'Background Enabled',
                     isPositive: true,
                   ),
                 ],
-                
+
                 if (!_canShareLocation() && settings.isEnabled) ...[
                   const SizedBox(height: 16),
-                  
+
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -456,10 +458,10 @@ class _ChildLocationStatus extends StatelessWidget {
             ),
           ),
         ),
-        
+
         if (LocationService().isLocationSharingActive) ...[
           const SizedBox(height: 16),
-          
+
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(16),
@@ -482,10 +484,7 @@ class _ChildLocationStatus extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   'Your location is being shared with your family',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.green.shade600,
-                  ),
+                  style: TextStyle(fontSize: 12, color: Colors.green.shade600),
                 ),
               ],
             ),
@@ -521,7 +520,7 @@ class _ChildLocationStatus extends StatelessWidget {
 
   String _getPermissionStatusText() {
     if (permissionInfo == null) return 'Checking...';
-    
+
     switch (permissionInfo!.status) {
       case LocationPermissionStatus.notRequested:
         return 'Not Requested';
@@ -558,12 +557,7 @@ class _StatusRow extends StatelessWidget {
           color: isPositive ? Colors.green.shade600 : Colors.orange.shade600,
         ),
         const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            title,
-            style: const TextStyle(fontSize: 14),
-          ),
-        ),
+        Expanded(child: Text(title, style: const TextStyle(fontSize: 14))),
         Text(
           status,
           style: TextStyle(
@@ -585,14 +579,11 @@ class _LocationPrivacyInfo extends StatelessWidget {
       children: [
         const Text(
           'Privacy & Security',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
-        
+
         const SizedBox(height: 16),
-        
+
         Card(
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -612,37 +603,37 @@ class _LocationPrivacyInfo extends StatelessWidget {
                     ),
                   ],
                 ),
-                
+
                 const SizedBox(height: 12),
-                
+
                 const _PrivacyPoint(
                   icon: Icons.family_restroom,
                   text: 'Only shared within your family group',
                 ),
-                
+
                 const SizedBox(height: 8),
-                
+
                 const _PrivacyPoint(
                   icon: Icons.lock,
                   text: 'Encrypted and securely stored',
                 ),
-                
+
                 const SizedBox(height: 8),
-                
+
                 const _PrivacyPoint(
                   icon: Icons.timer,
                   text: 'Automatically deleted after 30 days',
                 ),
-                
+
                 const SizedBox(height: 8),
-                
+
                 const _PrivacyPoint(
                   icon: Icons.control_camera,
                   text: 'You can disable sharing anytime',
                 ),
-                
+
                 const SizedBox(height: 16),
-                
+
                 TextButton(
                   onPressed: () {
                     // TODO: Open privacy policy
@@ -662,27 +653,15 @@ class _PrivacyPoint extends StatelessWidget {
   final IconData icon;
   final String text;
 
-  const _PrivacyPoint({
-    required this.icon,
-    required this.text,
-  });
+  const _PrivacyPoint({required this.icon, required this.text});
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(
-          icon,
-          size: 16,
-          color: Colors.blue.shade600,
-        ),
+        Icon(icon, size: 16, color: Colors.blue.shade600),
         const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            text,
-            style: const TextStyle(fontSize: 14),
-          ),
-        ),
+        Expanded(child: Text(text, style: const TextStyle(fontSize: 14))),
       ],
     );
   }

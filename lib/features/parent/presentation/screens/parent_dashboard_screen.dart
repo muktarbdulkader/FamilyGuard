@@ -57,7 +57,8 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
     super.dispose();
   }
 
-  /// Auto-select first family + first child so tabs are immediately usable
+  /// Auto-select first family + first child so tabs are immediately usable.
+  /// Also guard against stale child selections that belong to another family.
   void _maybeAutoSelect(
     List<FamilyModel> families,
     FamilyModel? selectedFamily,
@@ -67,12 +68,37 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
     if (_autoSelectDone) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      if (selectedFamily == null && families.isNotEmpty) {
+
+      final selectedFamilyId = selectedFamily?.id;
+      FamilyModel? activeFamily = selectedFamily;
+      if (selectedFamilyId != null) {
+        activeFamily = null;
+        for (final family in families) {
+          if (family.id == selectedFamilyId) {
+            activeFamily = family;
+            break;
+          }
+        }
+      }
+      if (activeFamily == null && families.isNotEmpty) {
         ref.read(selectedFamilyProvider.notifier).state = families.first;
       }
-      if (selectedChild == null && children.isNotEmpty) {
+
+      final selectedChildId = selectedChild?.id;
+      ChildModel? activeChild = selectedChild;
+      if (selectedChildId != null) {
+        activeChild = null;
+        for (final child in children) {
+          if (child.id == selectedChildId) {
+            activeChild = child;
+            break;
+          }
+        }
+      }
+      if (activeChild == null && children.isNotEmpty) {
         ref.read(selectedChildProvider.notifier).state = children.first;
       }
+
       _autoSelectDone = true;
     });
   }
@@ -92,8 +118,29 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
       });
     });
 
+    final children = childrenAsync.maybeWhen(
+      data: (items) => items,
+      orElse: () => <ChildModel>[],
+    );
+    final activeSelectedChild = selectedFamily != null && children.isNotEmpty
+        ? children.firstWhere(
+            (child) => child.id == selectedChild?.id,
+            orElse: () => children.first,
+          )
+        : selectedChild;
+
+    if (selectedFamily != null &&
+        activeSelectedChild != null &&
+        selectedChild?.id != activeSelectedChild.id) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ref.read(selectedChildProvider.notifier).state = activeSelectedChild;
+        }
+      });
+    }
+
     final effectiveFamilyId = selectedFamily?.id ?? '';
-    final effectiveChildId = selectedChild?.id ?? '';
+    final effectiveChildId = activeSelectedChild?.id ?? '';
     final hasSelection =
         effectiveFamilyId.isNotEmpty && effectiveChildId.isNotEmpty;
 
@@ -274,9 +321,13 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                                 actionLabel: 'Invite Child',
                               );
                             }
+                            final visibleSelectedChild = children.firstWhere(
+                              (child) => child.id == selectedChild?.id,
+                              orElse: () => children.first,
+                            );
                             return ChildSelector(
                               children: children,
-                              selectedChild: selectedChild ?? children.first,
+                              selectedChild: visibleSelectedChild,
                               onChildSelected: (child) {
                                 ref.read(selectedChildProvider.notifier).state =
                                     child;
@@ -362,7 +413,7 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                       ? _buildUsageTab(
                           familyId: effectiveFamilyId,
                           childId: effectiveChildId,
-                          child: selectedChild,
+                          child: activeSelectedChild,
                         )
                       : _buildNoSelectionPrompt(
                           icon: Icons.bar_chart_rounded,
@@ -376,7 +427,7 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                   _buildLocationTab(
                     familyId: effectiveFamilyId,
                     childId: effectiveChildId,
-                    child: selectedChild,
+                    child: activeSelectedChild,
                   ),
                 ],
               ),
