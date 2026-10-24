@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../models/user_model.dart';
@@ -6,15 +7,22 @@ import '../models/user_model.dart';
 /// Production Firebase Authentication service
 /// Handles all authentication operations with proper error handling
 class AuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  FirebaseAuth get _auth => Firebase.apps.isNotEmpty ? FirebaseAuth.instance : throw StateError('Firebase is not initialized');
+  FirebaseFirestore get _firestore => Firebase.apps.isNotEmpty ? FirebaseFirestore.instance : throw StateError('Firebase is not initialized');
+  GoogleSignIn get _googleSignIn => GoogleSignIn();
+
+  bool get isFirebaseInitialized => Firebase.apps.isNotEmpty;
 
   /// Current Firebase user stream
-  Stream<User?> get authStateChanges => _auth.authStateChanges();
+  Stream<User?> get authStateChanges {
+    if (!isFirebaseInitialized) {
+      return const Stream.empty();
+    }
+    return _auth.authStateChanges();
+  }
 
   /// Current Firebase user
-  User? get currentFirebaseUser => _auth.currentUser;
+  User? get currentFirebaseUser => isFirebaseInitialized ? _auth.currentUser : null;
 
   /// Register new user with email and password
   Future<AuthResult> registerWithEmailAndPassword({
@@ -22,6 +30,10 @@ class AuthService {
     required String password,
     required String displayName,
   }) async {
+    if (!isFirebaseInitialized) {
+      return AuthResult.failure('Firebase is not initialized');
+    }
+
     try {
       // Validate input
       if (email.trim().isEmpty) {
@@ -75,6 +87,10 @@ class AuthService {
     required String email,
     required String password,
   }) async {
+    if (!isFirebaseInitialized) {
+      return AuthResult.failure('Firebase is not initialized');
+    }
+
     try {
       // Validate input
       if (email.trim().isEmpty) {
@@ -111,6 +127,10 @@ class AuthService {
 
   /// Sign in with Google Account
   Future<AuthResult> signInWithGoogle() async {
+    if (!isFirebaseInitialized) {
+      return AuthResult.failure('Firebase is not initialized');
+    }
+
     try {
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
@@ -155,6 +175,10 @@ class AuthService {
 
   /// Sign out current user
   Future<void> signOut() async {
+    if (!isFirebaseInitialized) {
+      return;
+    }
+
     try {
       await _googleSignIn.signOut();
     } catch (_) {}
@@ -168,6 +192,10 @@ class AuthService {
 
   /// Get user data from Firestore
   Future<UserModel?> getUserData(String uid) async {
+    if (!isFirebaseInitialized) {
+      return null;
+    }
+
     try {
       final doc = await _firestore.collection('users').doc(uid).get();
       
@@ -187,6 +215,10 @@ class AuthService {
     required String uid,
     required UserRole role,
   }) async {
+    if (!isFirebaseInitialized) {
+      return AuthResult.failure('Firebase is not initialized');
+    }
+
     try {
       if (role == UserRole.none) {
         return AuthResult.failure('Please select a valid role');
