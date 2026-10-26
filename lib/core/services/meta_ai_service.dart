@@ -526,6 +526,13 @@ class MetaAiService {
         modelName = _activeModel == MetaModelChoice.museSparkOpen
             ? 'accounts/fireworks/models/llama-guard-3-8b'
             : 'accounts/fireworks/models/llama-v3p3-70b-instruct';
+      } else if (_apiKey != null && (_apiKey!.startsWith('tgp_') || _apiKey!.startsWith('key_') || (_partnerEndpoint != null && _partnerEndpoint!.contains('together')))) {
+        if (_partnerEndpoint == null || _partnerEndpoint!.isEmpty) {
+          endpoint = 'https://api.together.xyz/v1/chat/completions';
+        }
+        modelName = _activeModel == MetaModelChoice.museSparkOpen
+            ? 'meta-llama/Llama-Guard-3-8B'
+            : 'meta-llama/Llama-3.3-70B-Instruct-Turbo';
       }
 
       final uri = Uri.parse(endpoint);
