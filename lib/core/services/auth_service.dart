@@ -169,7 +169,13 @@ class AuthService {
     } on FirebaseAuthException catch (e) {
       return AuthResult.failure(_getAuthErrorMessage(e));
     } catch (e) {
-      return AuthResult.failure('Google sign-in error: ${e.toString()}');
+      final errStr = e.toString();
+      if (errStr.contains('10') || errStr.contains('sign_in_failed')) {
+        return AuthResult.failure(
+          'Google Sign-In needs SHA-1 added in Firebase Console. You can sign in immediately with your Email and Password above!',
+        );
+      }
+      return AuthResult.failure('Google sign-in error: $errStr');
     }
   }
 

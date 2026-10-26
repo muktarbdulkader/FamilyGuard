@@ -56,36 +56,43 @@ class MetaGuardianHomeCard extends ConsumerWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(7),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [_tealAccent, _aiPurple],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
+                    Flexible(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(7),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [_tealAccent, _aiPurple],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(10),
                             ),
-                            borderRadius: BorderRadius.circular(10),
+                            child: const Icon(
+                              Icons.auto_awesome,
+                              color: Colors.white,
+                              size: 16,
+                            ),
                           ),
-                          child: const Icon(
-                            Icons.auto_awesome,
-                            color: Colors.white,
-                            size: 16,
+                          const SizedBox(width: 8),
+                          const Flexible(
+                            child: Text(
+                              'META AI GUARDIAN',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.6,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'META AI GUARDIAN',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 0.6,
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
+                    const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
@@ -142,19 +149,30 @@ class MetaGuardianHomeCard extends ConsumerWidget {
                 ),
                 const SizedBox(height: 14),
 
-                // Features chip row
+                // Features chip row (Flexible and Scrollable to prevent RenderFlex overflow)
                 Row(
                   children: [
-                    _buildChip(Icons.psychology_rounded, 'Muse Spark'),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _buildChip(Icons.psychology_rounded, 'Llama 3.2'),
+                            const SizedBox(width: 6),
+                            _buildChip(Icons.shield_outlined, 'Llama Guard'),
+                            const SizedBox(width: 6),
+                            _buildChip(Icons.auto_awesome, 'Copilot'),
+                          ],
+                        ),
+                      ),
+                    ),
                     const SizedBox(width: 6),
-                    _buildChip(Icons.center_focus_strong, 'SAM 3.1 Shield'),
-                    const SizedBox(width: 6),
-                    _buildChip(Icons.mic, 'Muse Voice'),
-                    const Spacer(),
                     const Icon(
                       Icons.arrow_forward_rounded,
                       color: _tealAccent,
-                      size: 20,
+                      size: 18,
                     ),
                   ],
                 ),
