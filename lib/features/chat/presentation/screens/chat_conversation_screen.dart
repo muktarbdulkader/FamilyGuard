@@ -260,7 +260,20 @@ class _ChatConversationScreenState
       ),
       error: (error, _) => Scaffold(
         appBar: AppBar(title: Text(l10n.chat)),
-        body: Center(child: Text(l10n.chatListLoadError)),
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(l10n.chatListLoadError),
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                onPressed: () => ref.refresh(currentUserDataProvider),
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: Text(l10n.chatTryAgain),
+              ),
+            ],
+          ),
+        ),
       ),
       data: (user) {
         if (user == null ||
@@ -510,9 +523,14 @@ class _ChatConversationScreenState
                         style: TextStyle(color: theme.colorScheme.error),
                       ),
                     ),
-                    TextButton(
+                    FilledButton.tonalIcon(
+                      style: FilledButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      ),
+                      icon: const Icon(Icons.refresh_rounded, size: 16),
+                      label: Text(l10n.retrySendMessage),
                       onPressed: _isSending ? null : () => _sendMessage(user),
-                      child: Text(l10n.retrySendMessage),
                     ),
                   ],
                 ),

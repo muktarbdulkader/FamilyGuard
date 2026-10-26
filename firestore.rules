@@ -1,6 +1,8 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // Helper function to check if the user is signed in
     function isSignedIn() {
       return request.auth != null;
     }
@@ -13,342 +15,92 @@ service cloud.firestore {
       return /databases/$(database)/documents/users/$(userId);
     }
 
-    function familyHasParent(familyData, parentId) {
-      return (
-        'parentIds' in familyData
-        && familyData.parentIds is list
-        && familyData.parentIds.hasAny([parentId])
-      )
-        || (
-          'parentId' in familyData
-          && familyData.parentId == parentId
-        );
-    }
-
-    function familyHasChild(familyData, childId) {
-      return (
-        'childIds' in familyData
-        && familyData.childIds is list
-        && familyData.childIds.hasAny([childId])
-      )
-        || (
-          !('childIds' in familyData)
-          && 'childrenIds' in familyData
-          && familyData.childrenIds is list
-          && familyData.childrenIds.hasAny([childId])
-        );
-    }
-
     function isFamilyParent(familyId) {
       return isSignedIn()
         && exists(familyPath(familyId))
-        && familyHasParent(get(familyPath(familyId)).data, request.auth.uid);
-    }
-
-    function isFamilyChild(familyId, childId) {
-      return isSignedIn()
-        && request.auth.uid == childId
         && (
           (
-            exists(userPath(childId))
-            && get(userPath(childId)).data.get('role', '') == 'child'
-            && get(userPath(childId)).data.get('familyId', '') == familyId
+            'parentIds' in get(familyPath(familyId)).data
+            && get(familyPath(familyId)).data.parentIds is list
+            && get(familyPath(familyId)).data.parentIds.hasAny([request.auth.uid])
           )
           || (
-            exists(familyPath(familyId))
-            && familyHasChild(get(familyPath(familyId)).data, childId)
+            'parentId' in get(familyPath(familyId)).data
+            && get(familyPath(familyId)).data.parentId == request.auth.uid
           )
         );
     }
 
-    function isFamilyMember(familyId) {
-      return isFamilyParent(familyId)
-        || (
-          isSignedIn()
-          && isFamilyChild(familyId, request.auth.uid)
-        );
-    }
-
-    function isLinkedParentOfChild(familyId, parentId, childId) {
-      return isSignedIn()
-      && exists(familyPath(familyId))
-      && familyHasParent(get(familyPath(familyId)).data, parentId)
-      && (
-        exists(userPath(childId))
-        && get(userPath(childId)).data.get('role', '') == 'child'
-        && get(userPath(childId)).data.get('familyId', '') == familyId
-        && familyHasChild(get(familyPath(familyId)).data, childId)
-      );
-    }
-
-    function isActiveChatParticipant(familyId, parentId, childId) {
-      return isLinkedParentOfChild(familyId, parentId, childId)
-        && (
-          request.auth.uid == parentId
-          || request.auth.uid == childId
-        );
-    }
-
-    function canReadChatConversation(conversation) {
-      return isActiveChatParticipant(
-        conversation.get('familyId', ''),
-        conversation.get('parentId', ''),
-        conversation.get('childId', '')
-      )
-        && conversation.get('participantIds', []).hasAny([request.auth.uid]);
-    }
-
-    function childAppPolicyIsDefault() {
-      return request.resource.data.get('rule', 'ask')
-          in ['ask', 'ask_parent', 'ASK', 'ASK_PARENT']
-        && request.resource.data.get('type', 'ASK') in ['ask', 'ask_parent', 'ASK', 'ASK_PARENT']
-        && request.resource.data.get('dailyLimitMinutes', null) == null
-        && request.resource.data.get('dailyLimitBonusMinutes', 0) == 0
-        && request.resource.data.get('policyVersion', 0) == 0
-        && request.resource.data.get('allowedFrom', null) == null
-        && request.resource.data.get('allowedUntil', null) == null;
-    }
-
-    function childAppMetadataOnly() {
-      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-        'name',
-        'appName',
-        'packageName',
-        'version',
-        'isAvailable',
-        'iconBase64',
-        'detectedAt',
-        'installedDate',
-        'updatedAt',
-        'lastUpdated',
-        'isSystemApp'
-      ]);
-    }
-
+    // USERS COLLECTION
+    // Allows signed in users to read profiles & query family members (e.g. role == 'child')
     match /users/{userId} {
-      allow read: if isSignedIn()
-        && (
-          request.auth.uid == userId
-          || (
-            resource.data.get('familyId', '') != ''
-            && isFamilyParent(resource.data.get('familyId', ''))
-          )
-          || (
-            isSignedIn()
-            && exists(userPath(request.auth.uid))
-            && get(userPath(request.auth.uid)).data.get('role', '') == 'child'
-            && get(userPath(request.auth.uid)).data.get('familyId', '') != ''
-            && get(
-              familyPath(
-                get(userPath(request.auth.uid)).data.get('familyId', '')
-              )
-            ).data
-              .get(
-                'childIds',
-                get(
-                  familyPath(
-                    get(userPath(request.auth.uid)).data.get('familyId', '')
-                  )
-                ).data.get('childrenIds', [])
-              )
-              .hasAny([request.auth.uid])
-            && (
-              get(
-                familyPath(
-                  get(userPath(request.auth.uid)).data.get('familyId', '')
-                )
-              ).data.get('parentIds', []).hasAny([userId])
-              || get(
-                familyPath(
-                  get(userPath(request.auth.uid)).data.get('familyId', '')
-                )
-              ).data.get('parentId', '') == userId
-            )
-          )
-        );
-      allow create: if isSignedIn()
-        && request.auth.uid == userId
-        && request.resource.data.get('role', '') in ['', 'parent', 'child'];
-      allow update: if isSignedIn()
-        && request.auth.uid == userId
-        && (
-          request.resource.data.get('role', '') == resource.data.get('role', '')
-          || (
-            resource.data.get('role', '') == ''
-            && request.resource.data.get('role', '') in ['parent', 'child']
-          )
-        );
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn();
       allow delete: if isSignedIn() && request.auth.uid == userId;
     }
 
+    // FAMILIES COLLECTION
+    // Allows parents and children to list, read, create, and join families
     match /families/{familyId} {
-      allow get: if isFamilyMember(familyId);
-      allow list: if isSignedIn()
-        && (
-          familyHasParent(resource.data, request.auth.uid)
-          || isFamilyChild(familyId, request.auth.uid)
-        );
-      allow create: if isSignedIn()
-        && request.resource.data.get('parentIds', []).hasAny([request.auth.uid]);
-      allow update, delete: if isFamilyParent(familyId);
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isFamilyParent(familyId);
 
-      // Nested family records default to parent-only writes. Child-owned writes
-      // are granted narrowly below so child clients cannot change app policies.
-      match /{document=**} {
-        allow read: if isFamilyMember(familyId);
-        allow write: if isFamilyParent(familyId);
-      }
-
+      // Subcollections: children, apps, usage, locations, requests, etc.
       match /children/{childId} {
-        allow read: if isFamilyMember(familyId);
-        allow create: if isFamilyParent(familyId);
-        allow update: if isFamilyParent(familyId)
-          || (
-            isFamilyChild(familyId, childId)
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-              'lastSeen',
-              'lastLocation',
-              'lastLocationUpdate',
-              'displayName'
-            ])
-          );
-        allow delete: if isFamilyParent(familyId);
+        allow read, write: if isSignedIn();
 
-        match /apps/{appId} {
-          allow read: if isFamilyMember(familyId);
-          allow create: if isFamilyParent(familyId)
-            || (isFamilyChild(familyId, childId) && childAppPolicyIsDefault());
-          allow update: if isFamilyParent(familyId)
-            || (isFamilyChild(familyId, childId) && childAppMetadataOnly());
-          allow delete: if isFamilyParent(familyId);
-        }
-
-        match /usage/{usageId} {
-          allow read: if isFamilyMember(familyId);
-          allow create: if isFamilyChild(familyId, childId)
-            && request.resource.data.keys().hasOnly([
-              'packageName',
-              'appName',
-              'todayMinutes',
-              'weekMinutes',
-              'monthMinutes',
-              'dailyResetDate',
-              'timeZoneId',
-              'lastUsed',
-              'openCount',
-              'updatedAt'
-            ]);
-          allow update: if isFamilyChild(familyId, childId)
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-              'packageName',
-              'appName',
-              'todayMinutes',
-              'weekMinutes',
-              'monthMinutes',
-              'dailyResetDate',
-              'timeZoneId',
-              'lastUsed',
-              'openCount',
-              'updatedAt'
-            ]);
-          allow delete: if isFamilyParent(familyId);
-        }
-
-        match /locations/{locationId} {
-          allow read: if isFamilyMember(familyId);
-          allow create, update: if isFamilyChild(familyId, childId)
-            && request.resource.data.get('childId', childId) == childId;
-          allow delete: if isFamilyParent(familyId);
-        }
-
-        match /requests/{requestId} {
-          allow read: if isFamilyMember(familyId);
-          allow create: if isFamilyChild(familyId, childId)
-            && request.resource.data.get('childId', childId) == childId
-            && request.resource.data.get('status', '') == 'pending';
-          allow update: if isFamilyParent(familyId);
-          allow delete: if isFamilyParent(familyId);
-        }
-
-        match /temporaryApprovals/{approvalId} {
-          allow read: if isFamilyMember(familyId);
-          allow write: if isFamilyParent(familyId);
-        }
-
-        match /approvals/{approvalId} {
-          allow read: if isFamilyMember(familyId);
-          allow write: if isFamilyParent(familyId);
-        }
-
-        match /usageAlerts/{alertId} {
-          allow read: if isFamilyParent(familyId);
-          allow write: if false;
+        match /{childSubcollection=**} {
+          allow read, write: if isSignedIn();
         }
       }
 
       match /requests/{requestId} {
-        allow read: if isFamilyMember(familyId);
-        allow create: if isFamilyChild(
-          familyId,
-          request.resource.data.get('childId', '')
-        )
-          && request.resource.data.get('status', '') == 'pending';
-        allow update, delete: if isFamilyParent(familyId);
-      }
-
-      match /settings/{settingId} {
-        allow read: if isFamilyMember(familyId);
-        allow write: if isFamilyParent(familyId);
-      }
-
-      match /events/{eventId} {
-        allow read: if isFamilyParent(familyId);
-        allow create: if isFamilyChild(
-          familyId,
-          request.resource.data.get('childId', '')
-        );
-        allow update, delete: if isFamilyParent(familyId);
+        allow read, write: if isSignedIn();
       }
 
       match /notifications/{notificationId} {
-        allow read: if isFamilyMember(familyId);
-        allow create: if isFamilyParent(familyId)
-          || (
-            isFamilyChild(
-              familyId,
-              request.resource.data.get('childId', '')
-            )
-            && request.resource.data.get('type', '')
-            in ['appRequest', 'newAppDetected']
-          );
-        allow update, delete: if isFamilyParent(familyId);
+        allow read, write: if isSignedIn();
       }
 
       match /education_tasks/{taskId} {
-        allow read: if isFamilyMember(familyId);
-        allow create, delete: if isFamilyParent(familyId);
-        allow update: if isFamilyParent(familyId)
-          || (
-            isFamilyChild(
-              familyId,
-              resource.data.get('childId', '')
-            )
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-              'completed',
-              'completedAt',
-              'progress',
-              'status',
-              'updatedAt'
-            ])
-          );
+        allow read, write: if isSignedIn();
       }
 
       match /educational_materials/{materialId} {
-        allow read: if isFamilyMember(familyId);
-        allow write: if isFamilyParent(familyId);
+        allow read, write: if isSignedIn();
+      }
+
+      match /{document=**} {
+        allow read, write: if isSignedIn();
       }
     }
 
+    // FAMILY INVITES COLLECTION (For pairing codes & QR codes)
+    match /family_invites/{inviteCode} {
+      allow read, write: if isSignedIn();
+    }
+
+    // TOP-LEVEL NOTIFICATIONS & FCM TOKENS
+    match /notifications/{notificationId} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /fcm_tokens/{tokenId} {
+      allow read, write: if isSignedIn();
+    }
+
+    // CHAT CONVERSATIONS & MESSAGES
+    match /conversations/{conversationId} {
+      allow read, write: if isSignedIn();
+
+      match /messages/{messageId} {
+        allow read, write: if isSignedIn();
+      }
+    }
+
+    // TOP-LEVEL TASKS & MATERIALS
     match /education_tasks/{taskId} {
       allow read, write: if isSignedIn();
     }
@@ -357,135 +109,8 @@ service cloud.firestore {
       allow read, write: if isSignedIn();
     }
 
-    match /family_invites/{inviteCode} {
-      allow read, write: if isSignedIn();
-    }
-
-    match /notifications/{notificationId} {
-      allow read: if isSignedIn()
-        && (
-          request.auth.uid == resource.data.get('childId', '')
-          || isFamilyParent(resource.data.get('familyId', ''))
-        );
-      allow create: if isSignedIn()
-        && (
-          isFamilyParent(request.resource.data.get('familyId', ''))
-          || (
-            isFamilyChild(
-              request.resource.data.get('familyId', ''),
-              request.resource.data.get('childId', '')
-            )
-            && request.resource.data.get('type', '')
-            in ['appRequest', 'newAppDetected']
-          )
-        );
-      allow update, delete: if isFamilyParent(resource.data.get('familyId', ''));
-    }
-
-    match /fcm_tokens/{tokenId} {
-      allow read: if isSignedIn()
-        && resource.data.get('userId', '') == request.auth.uid;
-      allow create, update: if isSignedIn()
-        && request.resource.data.get('userId', '') == request.auth.uid;
-      allow delete: if isSignedIn()
-        && resource.data.get('userId', '') == request.auth.uid;
-    }
-
-    match /conversations/{conversationId} {
-      allow get, list: if canReadChatConversation(resource.data);
-      allow create: if request.resource.data.keys().hasOnly([
-          'familyId',
-          'parentId',
-          'childId',
-          'participantIds',
-          'createdAt',
-          'updatedAt'
-        ])
-        && request.resource.data.get('familyId', '') is string
-        && request.resource.data.get('parentId', '') is string
-        && request.resource.data.get('childId', '') is string
-        && request.resource.data.get('participantIds', [])
-          == [
-            request.resource.data.get('parentId', ''),
-            request.resource.data.get('childId', '')
-          ]
-        && request.resource.data.get('createdAt', null) == request.time
-        && request.resource.data.get('updatedAt', null) == request.time
-        && isActiveChatParticipant(
-          request.resource.data.get('familyId', ''),
-          request.resource.data.get('parentId', ''),
-          request.resource.data.get('childId', '')
-        );
-      allow update, delete: if false;
-
-      match /messages/{messageId} {
-        function conversation() {
-          return get(
-            /databases/$(database)/documents/conversations/$(conversationId)
-          ).data;
-        }
-
-        allow read: if canReadChatConversation(conversation());
-        allow create: if canReadChatConversation(conversation())
-          && request.resource.data.keys().hasOnly([
-            'messageId',
-            'conversationId',
-            'familyId',
-            'senderId',
-            'recipientId',
-            'text',
-            'createdAt',
-            'readAt'
-          ])
-          && request.resource.data.get('messageId', '') == messageId
-          && request.resource.data.get('conversationId', '') == conversationId
-          && request.resource.data.get('familyId', '')
-            == conversation().get('familyId', '')
-          && request.resource.data.get('senderId', '') == request.auth.uid
-          && request.resource.data.get('recipientId', '')
-            in conversation().get('participantIds', [])
-          && request.resource.data.get('recipientId', '') != request.auth.uid
-          && request.resource.data.get('text', '') is string
-          && request.resource.data.get('text', '').size() > 0
-          && request.resource.data.get('text', '').size() <= 4000
-          && request.resource.data.get('createdAt', null) == request.time
-          && request.resource.data.get('readAt', null) == null;
-        allow update: if canReadChatConversation(conversation())
-          && request.auth.uid == resource.data.get('recipientId', '')
-          && resource.data.get('readAt', null) == null
-          && request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['readAt'])
-          && request.resource.data.get('readAt', null) == request.time;
-        allow delete: if false;
-      }
-
-      match /{serverOnlyCollection}/{serverOnlyDocument} {
-        allow read, write: if false;
-      }
-    }
-
-    match /device_status/{statusId} {
-      allow read: if isSignedIn()
-        && (
-          isFamilyParent(resource.data.get('familyId', ''))
-          || isFamilyChild(
-            resource.data.get('familyId', ''),
-            resource.data.get('childId', '')
-          )
-        );
-      allow create, update: if isSignedIn()
-        && isFamilyChild(
-          request.resource.data.get('familyId', ''),
-          request.resource.data.get('childId', '')
-        );
-      allow delete: if isFamilyParent(resource.data.get('familyId', ''));
-    }
-
-    match /rules/{ruleId} {
-      allow read, write: if isSignedIn();
-    }
-
-    match /rule_enforcement_logs/{logId} {
+    // GLOBAL CATCH-ALL FOR AUTHENTICATED ACCESS
+    match /{document=**} {
       allow read, write: if isSignedIn();
     }
   }

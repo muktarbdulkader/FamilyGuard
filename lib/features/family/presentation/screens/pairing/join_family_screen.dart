@@ -43,12 +43,16 @@ class _JoinFamilyScreenState extends ConsumerState<JoinFamilyScreen>
     super.dispose();
   }
 
+  String? _lastAttemptedCode;
+
   Future<void> _joinFamily(String inviteCode) async {
+    final sanitizedCode = inviteCode.trim();
+    _lastAttemptedCode = sanitizedCode;
     final userData = ref.read(currentUserDataProvider);
     final user = userData.value;
     if (user == null) {
       setState(() {
-        _errorMessage = 'User not authenticated';
+        _errorMessage = 'User not authenticated. Please log in first.';
       });
       return;
     }
@@ -60,7 +64,7 @@ class _JoinFamilyScreenState extends ConsumerState<JoinFamilyScreen>
 
     try {
       final familyId = await _familyService.joinFamily(
-        inviteCode: inviteCode,
+        inviteCode: sanitizedCode,
         childId: user.id,
       );
 
@@ -100,11 +104,16 @@ class _JoinFamilyScreenState extends ConsumerState<JoinFamilyScreen>
       }
     } on FamilyException catch (e) {
       setState(() {
-        _errorMessage = e.message;
+        _errorMessage = e.message.contains('permission-denied')
+            ? 'Firebase permission issue. Please update your Firestore Security Rules and tap Retry.'
+            : e.message;
       });
     } catch (e) {
+      final errStr = e.toString();
       setState(() {
-        _errorMessage = 'Failed to join family. Please verify the code.';
+        _errorMessage = errStr.contains('permission-denied')
+            ? 'Firebase permission issue. Please update your Firestore Security Rules and tap Retry.'
+            : 'Failed to join family. Please verify the code.';
       });
     } finally {
       if (mounted) {
@@ -241,6 +250,7 @@ class _JoinFamilyScreenState extends ConsumerState<JoinFamilyScreen>
                       border: Border.all(color: const Color(0xFFFCA5A5)),
                     ),
                     child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         const Icon(Icons.error_outline_rounded, color: Color(0xFFDC2626), size: 20),
                         const SizedBox(width: 10),
@@ -250,6 +260,20 @@ class _JoinFamilyScreenState extends ConsumerState<JoinFamilyScreen>
                             style: const TextStyle(color: Color(0xFFDC2626), fontSize: 13),
                           ),
                         ),
+                        if (_lastAttemptedCode != null && _lastAttemptedCode!.isNotEmpty) ...[
+                          const SizedBox(width: 8),
+                          TextButton.icon(
+                            style: TextButton.styleFrom(
+                              foregroundColor: const Color(0xFFDC2626),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            icon: const Icon(Icons.refresh_rounded, size: 16),
+                            label: const Text('Retry', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                            onPressed: _isLoading ? null : () => _joinFamily(_lastAttemptedCode!),
+                          ),
+                        ],
                       ],
                     ),
                   ),

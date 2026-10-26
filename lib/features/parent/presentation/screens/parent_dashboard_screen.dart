@@ -279,6 +279,7 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                         error: (error, stack) => _ErrorSelector(
                           title: 'Error loading families',
                           error: error.toString(),
+                          onRetry: () => ref.refresh(userFamiliesProvider),
                         ),
                         data: (families) {
                           if (families.isEmpty) {
@@ -311,6 +312,7 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                           error: (error, stack) => _ErrorSelector(
                             title: 'Error loading children',
                             error: error.toString(),
+                            onRetry: () => ref.refresh(familyChildrenProvider),
                           ),
                           data: (children) {
                             if (children.isEmpty) {
@@ -2688,12 +2690,18 @@ class _LoadingSelector extends StatelessWidget {
 class _ErrorSelector extends StatelessWidget {
   final String title;
   final String error;
+  final VoidCallback? onRetry;
 
-  const _ErrorSelector({required this.title, required this.error});
+  const _ErrorSelector({required this.title, required this.error, this.onRetry});
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isPermissionDenied = error.contains('permission-denied');
+    final displayError = isPermissionDenied
+        ? 'Firebase permission issue. Please update your Firestore Security Rules and tap Retry.'
+        : error;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -2723,7 +2731,7 @@ class _ErrorSelector extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  error,
+                  displayError,
                   style: TextStyle(
                     fontSize: 12,
                     color: isDark ? const Color(0xFFFCA5A5) : Colors.red[600],
@@ -2732,6 +2740,21 @@ class _ErrorSelector extends StatelessWidget {
               ],
             ),
           ),
+          if (onRetry != null) ...[
+            const SizedBox(width: 8),
+            ElevatedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh, size: 16),
+              label: const Text('Retry', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isDark ? const Color(0xFFEF4444) : Colors.red[700],
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+          ],
         ],
       ),
     );

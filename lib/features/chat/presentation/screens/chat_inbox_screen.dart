@@ -45,6 +45,8 @@ class ChatInboxScreen extends ConsumerWidget {
           icon: Icons.error_outline_rounded,
           message: l10n.chatListLoadError,
           color: colors.error,
+          onRetry: () => ref.refresh(currentUserDataProvider),
+          retryLabel: l10n.chatTryAgain,
         ),
         data: (user) {
           if (user == null) {
@@ -52,6 +54,8 @@ class ChatInboxScreen extends ConsumerWidget {
               icon: Icons.lock_outline_rounded,
               message: l10n.noLinkedContacts,
               color: colors.onSurfaceVariant,
+              onRetry: () => ref.refresh(currentUserDataProvider),
+              retryLabel: l10n.chatTryAgain,
             );
           }
 
@@ -61,6 +65,8 @@ class ChatInboxScreen extends ConsumerWidget {
               icon: Icons.error_outline_rounded,
               message: l10n.chatListLoadError,
               color: colors.error,
+              onRetry: () => ref.refresh(chatContactsProvider),
+              retryLabel: l10n.chatTryAgain,
             ),
             data: (contacts) {
               if (contacts.isEmpty) {
@@ -68,6 +74,8 @@ class ChatInboxScreen extends ConsumerWidget {
                   icon: Icons.forum_outlined,
                   message: l10n.noLinkedContacts,
                   color: colors.onSurfaceVariant,
+                  onRetry: () => ref.refresh(chatContactsProvider),
+                  retryLabel: l10n.chatTryAgain,
                 );
               }
               return conversationsAsync.when(
@@ -76,6 +84,8 @@ class ChatInboxScreen extends ConsumerWidget {
                   icon: Icons.error_outline_rounded,
                   message: l10n.chatListLoadError,
                   color: colors.error,
+                  onRetry: () => ref.refresh(chatConversationsProvider),
+                  retryLabel: l10n.chatTryAgain,
                 ),
                 data: (conversations) {
                   final byId = {
@@ -311,11 +321,15 @@ class _MessageState extends StatelessWidget {
     required this.icon,
     required this.message,
     required this.color,
+    this.onRetry,
+    this.retryLabel,
   });
 
   final IconData icon;
   final String message;
   final Color color;
+  final VoidCallback? onRetry;
+  final String? retryLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -328,6 +342,14 @@ class _MessageState extends StatelessWidget {
             Icon(icon, size: 46, color: color),
             const SizedBox(height: 14),
             Text(message, textAlign: TextAlign.center),
+            if (onRetry != null) ...[
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: Text(retryLabel ?? 'Retry'),
+              ),
+            ],
           ],
         ),
       ),
