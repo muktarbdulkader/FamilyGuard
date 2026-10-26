@@ -94,6 +94,25 @@ class MetaAiGuardianNotifier extends StateNotifier<MetaAiGuardianState> {
     await _service.setApiKey(key);
   }
 
+  int _currentExecutionId = 0;
+
+  /// Stop currently running agent evaluation
+  void stopAgent() {
+    _currentExecutionId++;
+    if (state.isLoading) {
+      final stoppedMsg = AiGuardianMessage(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        sender: 'ai',
+        text: '⏹️ Agent evaluation stopped by parent.',
+        timestamp: DateTime.now(),
+      );
+      state = state.copyWith(
+        isLoading: false,
+        messages: [...state.messages, stoppedMsg],
+      );
+    }
+  }
+
   /// Run Autonomous Agent with Child Context
   Future<void> triggerAgent({
     required String childName,
@@ -101,6 +120,7 @@ class MetaAiGuardianNotifier extends StateNotifier<MetaAiGuardianState> {
     String contextInfo = 'Active on device for 3h 15m. Homework due tonight.',
     required String prompt,
   }) async {
+    final executionId = ++_currentExecutionId;
     final userMsg = AiGuardianMessage(
       id: DateTime.now().microsecondsSinceEpoch.toString(),
       sender: 'user',
@@ -117,6 +137,9 @@ class MetaAiGuardianNotifier extends StateNotifier<MetaAiGuardianState> {
         recentActivityContext: contextInfo,
         promptOrTrigger: prompt,
       );
+
+      // Discard result if user stopped this evaluation
+      if (executionId != _currentExecutionId) return;
 
       final newPending = result.toolActions
           .where((action) => action.requiresParentConfirmation && !action.isExecuted)
@@ -138,6 +161,7 @@ class MetaAiGuardianNotifier extends StateNotifier<MetaAiGuardianState> {
         messages: finalMessages,
       );
     } catch (e) {
+      if (executionId != _currentExecutionId) return;
       state = state.copyWith(isLoading: false, errorMessage: e.toString());
     }
   }

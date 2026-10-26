@@ -159,7 +159,7 @@ class MetaAiService {
     required String promptOrTrigger,
     bool simulateIfNoKey = true,
   }) async {
-    // If real API key is present and configured, hit live endpoint
+    // If real API key is present and configured, hit live endpoint with timeout
     if (_apiKey != null && _apiKey!.isNotEmpty) {
       try {
         return await _executeRemoteAgent(
@@ -173,8 +173,22 @@ class MetaAiService {
       }
     }
 
-    // High-fidelity Intelligent Agentic Execution with dynamic Chain-of-Thought
-    await Future.delayed(const Duration(milliseconds: 600));
+    return _executeLocalTelemetryAgent(
+      childName: childName,
+      childAge: childAge,
+      recentActivityContext: recentActivityContext,
+      promptOrTrigger: promptOrTrigger,
+    );
+  }
+
+  /// High-fidelity Intelligent Agentic Execution with dynamic Chain-of-Thought
+  Future<AgentReasoningResult> _executeLocalTelemetryAgent({
+    required String childName,
+    required int childAge,
+    required String recentActivityContext,
+    required String promptOrTrigger,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 500));
 
     final lower = promptOrTrigger.toLowerCase();
     final isAskingUsageOrTime = lower.contains('how many') ||
@@ -509,7 +523,7 @@ class MetaAiService {
     required String promptOrTrigger,
   }) async {
     final client = HttpClient();
-    client.connectionTimeout = const Duration(seconds: 12);
+    client.connectionTimeout = const Duration(seconds: 5);
     try {
       String endpoint = (_partnerEndpoint != null && _partnerEndpoint!.isNotEmpty)
           ? _partnerEndpoint!
@@ -536,7 +550,7 @@ class MetaAiService {
       }
 
       final uri = Uri.parse(endpoint);
-      final request = await client.postUrl(uri);
+      final request = await client.postUrl(uri).timeout(const Duration(seconds: 5));
       request.headers.set('Content-Type', 'application/json');
       request.headers.set('Authorization', 'Bearer $_apiKey');
 
@@ -566,7 +580,7 @@ Return a STRICT JSON object with these keys:
       });
 
       request.write(body);
-      final response = await request.close();
+      final response = await request.close().timeout(const Duration(seconds: 6));
       if (response.statusCode == 200) {
         final respString = await response.transform(utf8.decoder).join();
         final jsonResp = jsonDecode(respString);
@@ -597,13 +611,12 @@ Return a STRICT JSON object with these keys:
       client.close();
     }
 
-    // Graceful fallback to dynamic intelligent agent
-    return runFamilyGuardianAgent(
+    // Graceful fallback to dynamic local telemetry agent (never recurses)
+    return _executeLocalTelemetryAgent(
       childName: childName,
       childAge: childAge,
       recentActivityContext: recentActivityContext,
       promptOrTrigger: promptOrTrigger,
-      simulateIfNoKey: true,
     );
   }
 }

@@ -367,15 +367,44 @@ class _MetaGuardianAiScreenState extends ConsumerState<MetaGuardianAiScreen>
                     child: Row(
                       children: [
                         const SizedBox(
-                          width: 18,
-                          height: 18,
+                          width: 16,
+                          height: 16,
                           child: CircularProgressIndicator(strokeWidth: 2, color: _tealAccent),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: Text(
                             'Meta AI is evaluating child telemetry & formulating safety response...',
-                            style: TextStyle(color: textSecondary, fontSize: 12),
+                            style: TextStyle(color: textSecondary, fontSize: 11.5),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        GestureDetector(
+                          onTap: () {
+                            ref.read(metaAiGuardianProvider.notifier).stopAgent();
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.redAccent.withValues(alpha: 0.14),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.redAccent.withValues(alpha: 0.45)),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.stop_rounded, color: Colors.redAccent, size: 14),
+                                SizedBox(width: 3),
+                                Text(
+                                  'Stop',
+                                  style: TextStyle(
+                                    color: Colors.redAccent,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ],
@@ -451,41 +480,44 @@ class _MetaGuardianAiScreenState extends ConsumerState<MetaGuardianAiScreen>
                 ),
                 const SizedBox(width: 8),
                 Container(
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [_tealAccent, _aiPurple],
+                      colors: state.isLoading
+                          ? [Colors.redAccent, Colors.deepOrangeAccent]
+                          : [_tealAccent, _aiPurple],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
                     shape: BoxShape.circle,
                   ),
                   child: IconButton(
-                    icon: state.isLoading
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                          )
-                        : const Icon(Icons.send_rounded, color: Colors.white, size: 19),
-                    onPressed: state.isLoading
-                        ? null
-                        : () {
-                            final text = _promptController.text.trim();
-                            if (text.isNotEmpty) {
-                              final usageMap = ref.read(childAppUsageProvider(selectedChild?.id ?? '')).asData?.value ?? {};
-                              final usageSummary = usageMap.isNotEmpty
-                                  ? usageMap.values.map((u) => '${u.appName}: ${u.todayMinutes}m (${u.openCount} opens)').join(', ')
-                                  : 'Active on device today';
+                    tooltip: state.isLoading ? 'Stop' : 'Send',
+                    icon: Icon(
+                      state.isLoading ? Icons.stop_rounded : Icons.send_rounded,
+                      color: Colors.white,
+                      size: 19,
+                    ),
+                    onPressed: () {
+                      if (state.isLoading) {
+                        ref.read(metaAiGuardianProvider.notifier).stopAgent();
+                        return;
+                      }
+                      final text = _promptController.text.trim();
+                      if (text.isNotEmpty) {
+                        final usageMap = ref.read(childAppUsageProvider(selectedChild?.id ?? '')).asData?.value ?? {};
+                        final usageSummary = usageMap.isNotEmpty
+                            ? usageMap.values.map((u) => '${u.appName}: ${u.todayMinutes}m (${u.openCount} opens)').join(', ')
+                            : 'Active on device today';
 
-                              ref.read(metaAiGuardianProvider.notifier).triggerAgent(
-                                    childName: childName,
-                                    contextInfo: 'Live Firestore Telemetry: $usageSummary',
-                                    prompt: text,
-                                  );
-                              _promptController.clear();
-                              _scrollToBottom();
-                            }
-                          },
+                        ref.read(metaAiGuardianProvider.notifier).triggerAgent(
+                              childName: childName,
+                              contextInfo: 'Live Firestore Telemetry: $usageSummary',
+                              prompt: text,
+                            );
+                        _promptController.clear();
+                        _scrollToBottom();
+                      }
+                    },
                   ),
                 ),
               ],
