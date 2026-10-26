@@ -4,12 +4,13 @@
 
 ![Flutter](https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white)
 ![Firebase](https://img.shields.io/badge/Firebase-039BE5?style=for-the-badge&logo=Firebase&logoColor=white)
+![Meta Llama](https://img.shields.io/badge/Meta_Llama-3.2_%26_Llama_Guard-0466C8?style=for-the-badge&logo=meta&logoColor=white)
 ![Android](https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)
 
-**A comprehensive, enterprise-grade parental control solution built with Flutter and Firebase**
+**A comprehensive, enterprise-grade parental control solution built with Flutter, Firebase, and Meta Llama AI**
 
-[Features](#features) • [Installation](#installation) • [Architecture](#architecture) • [Security](#security) • [Contributing](#contributing)
+[Features](#features) • [Meta AI Integration](#-meta-ai--llama-integration) • [Installation](#installation) • [Architecture](#architecture) • [Security](#security) • [Contributing](#contributing)
 
 </div>
 
@@ -17,9 +18,10 @@
 
 ## 🎯 Overview
 
-FamilyGuard is a sophisticated parental control application that provides parents with comprehensive tools to monitor and manage their children's device usage. Built with Flutter for cross-platform compatibility and Firebase for robust backend infrastructure, it offers real-time monitoring, intelligent rule enforcement, and secure family management.
+FamilyGuard is a sophisticated parental control application that provides parents with comprehensive tools to monitor and manage their children's device usage. Built with Flutter for cross-platform compatibility, Firebase for robust backend infrastructure, and Meta's Llama models for intelligent safety moderation, it offers real-time monitoring, intelligent rule enforcement, and secure family management.
 
 ### ✨ Key Highlights
+- 🧠 **Meta AI & Llama Intelligence**: Context-aware app request reasoning, automated safety summaries, and Llama Guard child safety protection
 - 🔒 **Enterprise-grade security** with zero-trust architecture
 - ⚡ **Real-time synchronization** across all family devices
 - 🛡️ **Advanced rule engine** with intelligent enforcement
@@ -41,10 +43,11 @@ FamilyGuard is a sophisticated parental control application that provides parent
 - **⏳ Scheduled Access**: Define time windows when apps are allowed
 - **🔔 Smart Notifications**: Instant alerts for policy violations and requests
 
-#### Family Management
+#### Family Management & AI Insights
+- **🤖 AI Request Reasoning**: Meta Llama-powered evaluation of child access requests with context recommendations
+- **📈 AI Weekly Digests**: Automated digital wellness reports summarizing screen habits and study milestones
 - **👥 Multi-child Support**: Manage multiple children with individual profiles
 - **📊 Comprehensive Dashboard**: Centralized view of all family activities
-- **📈 Usage Reports**: Weekly and monthly analytics with insights
 - **🎯 Custom Rules**: Create personalized rules for each child
 - **🔄 Bulk Actions**: Apply rules across multiple devices/children
 
@@ -58,7 +61,7 @@ FamilyGuard is a sophisticated parental control application that provides parent
 
 #### Transparency & Communication
 - **📱 Clear Status Display**: Understanding of current rules and restrictions
-- **🙋‍♂️ Request System**: Ask parents for additional time or app access
+- **🙋‍♂️ Request System**: Ask parents for additional time or app access with smart justification
 - **⏰ Time Awareness**: Real-time display of remaining usage time
 - **🎯 Goal Tracking**: Visualize progress toward healthy usage habits
 
@@ -66,6 +69,27 @@ FamilyGuard is a sophisticated parental control application that provides parent
 - **📚 Digital Wellness**: Learn about healthy device usage
 - **🏆 Achievement System**: Rewards for following guidelines
 - **📊 Personal Analytics**: Understand their own usage patterns
+
+---
+
+## 🧠 Meta AI & Llama Integration
+
+FamilyGuard leverages Meta’s open-weight AI models to move beyond traditional, punitive parental controls into an intelligent, empathetic family wellness companion.
+
+### 1. 🛡️ Llama Guard — Child Protection & Content Moderation
+Child interactions and access request messages are evaluated using Meta's **Llama Guard** safety taxonomy:
+- **Zero-Tolerance Hazard Detection**: Automatically identifies risks such as cyberbullying, self-harm, hate speech, and predatory language in communication channels.
+- **Privacy-Preserving Alerts**: Instead of exposing children's private diaries or harmless chats to parents, Llama Guard flags only high-confidence risk vectors, preserving family trust while maintaining strict safety.
+
+### 2. 💡 Llama 3 / 3.2 — Context-Aware Request Reasoning
+When a child asks for additional screen time or unblocking an app, Meta Llama analyzes the context:
+- **Intelligent Justification Analysis**: Differentiates between educational needs (*"I need 30 minutes on YouTube to finish my biology project"*) and recreational use (*"I'm bored"*).
+- **Smart Recommendations for Parents**: Delivers actionable advice on parent push notifications (e.g., *"Recommended: Approve 30m. Activity aligns with school hours and study goals."*).
+- **Weekly Digital Wellness Digests**: Automatically summarizes weekly usage patterns into friendly, constructive insights for parents and kids.
+
+### 3. 🔐 Why Open-Source Meta AI Matters for Families
+- **COPPA & Privacy First**: With Meta's open weights, sensitive child telemetry and family conversations never need to be sent to closed proprietary cloud providers.
+- **Edge Deployment Ready**: Designed to run seamlessly on the edge using lightweight models (Llama 3.2 1B/3B), enabling offline safety analysis directly on the device.
 
 ---
 
@@ -77,8 +101,11 @@ FamilyGuard is a sophisticated parental control application that provides parent
 graph TD
     A[Flutter Frontend] --> B[Firebase Auth]
     A --> C[Cloud Firestore]
-    A --> D[Cloud Functions]
+    A --> D[Cloud Functions / Backend API]
     A --> E[Firebase Messaging]
+    
+    D --> AI1[Meta Llama Guard - Content Safety]
+    D --> AI2[Meta Llama 3 / 3.2 - Request Reasoning & Digests]
     
     F[Android Native] --> G[Usage Stats API]
     F --> H[Device Admin API]
@@ -87,7 +114,7 @@ graph TD
     
     B --> K[User Management]
     C --> L[Real-time Database]
-    D --> M[Business Logic]
+    D --> M[Business Logic & AI Rules]
     E --> N[Push Notifications]
 ```
 
@@ -99,10 +126,11 @@ graph TD
 - **🧭 GoRouter**: Type-safe, declarative routing
 - **📱 Platform Channels**: Native Android integration
 
-#### Backend (Firebase)
+#### Backend & AI Infrastructure
 - **🔐 Authentication**: Multi-factor authentication with role-based access
 - **📊 Firestore**: NoSQL database with real-time synchronization
 - **☁️ Cloud Functions**: Serverless business logic and validation
+- **🧠 Meta Llama Integration**: Llama Guard safety classification and Llama 3.2 reasoning engines
 - **📡 FCM**: Cross-platform push notifications
 - **📈 Analytics**: Usage tracking and performance monitoring
 
