@@ -23,6 +23,7 @@ import '../../features/child/presentation/screens/child_education_screen.dart';
 import '../../features/chat/presentation/screens/chat_inbox_screen.dart';
 import '../../features/chat/presentation/screens/chat_conversation_screen.dart';
 import '../../features/parent/presentation/screens/meta_guardian_ai_screen.dart';
+import '../../features/parent/presentation/screens/smart_screen_time_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/profile/presentation/pages/language_settings_page.dart';
 import '../constants/app_routes.dart';
@@ -237,6 +238,20 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.parentEducation,
         name: 'parent-education',
         builder: (context, state) => const ParentEducationScreen(),
+      ),
+
+      // Smart Screen Time Route
+      GoRoute(
+        path: '${AppRoutes.smartScreenTime}/:childId/:childName',
+        name: 'smart-screen-time',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return SmartScreenTimeScreen(
+            familyId: extra?['familyId'] ?? '',
+            childId: state.pathParameters['childId']!,
+            childName: state.pathParameters['childName']!,
+          );
+        },
       ),
 
       // Meta AI Guardian Route (Meta Global AI Developer Hackathon)

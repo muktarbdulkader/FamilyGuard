@@ -641,6 +641,19 @@ class ParentHomeScreen extends ConsumerWidget {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 10),
+                  // Schedule button — full width
+                  _buildActionButton(
+                    context: context,
+                    icon: Icons.timer_rounded,
+                    label: 'Screen Time',
+                    isSolid: false,
+                    isFullWidth: true,
+                    onTap: () => context.push(
+                      '${AppRoutes.smartScreenTime}/$childId/$childName',
+                      extra: {'familyId': familyId},
+                    ),
+                  ),
                 ],
               ),
             );
@@ -664,28 +677,45 @@ class ParentHomeScreen extends ConsumerWidget {
     required String label,
     required bool isSolid,
     required VoidCallback onTap,
+    bool isFullWidth = false,
   }) {
     final foregroundColor = isSolid
         ? const Color(0xFF042421)
         : _colors(context).textPrimary;
-    final content = Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 16, color: foregroundColor),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: foregroundColor,
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ],
-    );
+    final content = isFullWidth
+        ? Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 15, color: foregroundColor),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: foregroundColor,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          )
+        : Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 16, color: foregroundColor),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: foregroundColor,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          );
 
     if (isSolid) {
       return ElevatedButton(
