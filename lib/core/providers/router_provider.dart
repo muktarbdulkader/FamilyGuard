@@ -313,9 +313,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         return null;
       }
 
-      // Allow splash and welcome screens for unauthenticated users
-      final isOnboardingRoute =
-          location == AppRoutes.splash || location == AppRoutes.welcome;
+      // Allow splash, welcome, and role-selection for unauthenticated users
+      final isOnboardingRoute = location == AppRoutes.splash ||
+          location == AppRoutes.welcome ||
+          location == AppRoutes.roleSelection;
       final isAuthRoute =
           location == AppRoutes.login || location == AppRoutes.register;
 

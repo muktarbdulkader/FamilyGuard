@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/constants/app_icons.dart';
 import '../../../../core/constants/app_routes.dart';
 
-/// Modern, responsive welcome screen for FamilyGuard
+/// Modern, animated welcome screen for FamilyGuard
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
 
@@ -13,322 +14,597 @@ class WelcomeScreen extends StatefulWidget {
 }
 
 class _WelcomeScreenState extends State<WelcomeScreen>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _animController;
-  late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
+    with TickerProviderStateMixin {
+  late AnimationController _mainController;
+  late AnimationController _pulseController;
+  late AnimationController _buttonController;
+
+  // Staggered entry animations
+  late Animation<double> _logoScale;
+  late Animation<double> _logoOpacity;
+  late Animation<Offset> _titleSlide;
+  late Animation<double> _titleOpacity;
+  late Animation<Offset> _featuresSlide;
+  late Animation<double> _featuresOpacity;
+  late Animation<Offset> _buttonsSlide;
+  late Animation<double> _buttonsOpacity;
+
+  // Pulse for glow effect
+  late Animation<double> _pulseAnim;
+
+  // Button press scale
+  late Animation<double> _buttonScale;
 
   @override
   void initState() {
     super.initState();
-    _animController = AnimationController(
-      duration: const Duration(milliseconds: 900),
+
+    _mainController = AnimationController(
+      duration: const Duration(milliseconds: 1200),
       vsync: this,
     );
 
-    _fadeAnimation = CurvedAnimation(
-      parent: _animController,
-      curve: Curves.easeOut,
+    _pulseController = AnimationController(
+      duration: const Duration(milliseconds: 2400),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    _buttonController = AnimationController(
+      duration: const Duration(milliseconds: 150),
+      vsync: this,
     );
 
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.12),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _animController,
-      curve: Curves.easeOutCubic,
-    ));
+    // Logo: 0–50%
+    _logoScale = Tween<double>(begin: 0.5, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _mainController,
+        curve: const Interval(0.0, 0.5, curve: Curves.easeOutBack),
+      ),
+    );
+    _logoOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _mainController,
+        curve: const Interval(0.0, 0.4, curve: Curves.easeIn),
+      ),
+    );
 
-    _animController.forward();
+    // Title: 30–65%
+    _titleSlide = Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero)
+        .animate(CurvedAnimation(
+      parent: _mainController,
+      curve: const Interval(0.3, 0.65, curve: Curves.easeOutCubic),
+    ));
+    _titleOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _mainController,
+        curve: const Interval(0.3, 0.65, curve: Curves.easeIn),
+      ),
+    );
+
+    // Feature tiles: 55–85%
+    _featuresSlide =
+        Tween<Offset>(begin: const Offset(0, 0.25), end: Offset.zero).animate(
+      CurvedAnimation(
+        parent: _mainController,
+        curve: const Interval(0.55, 0.85, curve: Curves.easeOutCubic),
+      ),
+    );
+    _featuresOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _mainController,
+        curve: const Interval(0.55, 0.85, curve: Curves.easeIn),
+      ),
+    );
+
+    // Buttons: 75–100%
+    _buttonsSlide =
+        Tween<Offset>(begin: const Offset(0, 0.4), end: Offset.zero).animate(
+      CurvedAnimation(
+        parent: _mainController,
+        curve: const Interval(0.75, 1.0, curve: Curves.easeOutCubic),
+      ),
+    );
+    _buttonsOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _mainController,
+        curve: const Interval(0.75, 1.0, curve: Curves.easeIn),
+      ),
+    );
+
+    _pulseAnim = _pulseController;
+
+    _buttonScale = Tween<double>(begin: 1.0, end: 0.95).animate(
+      CurvedAnimation(parent: _buttonController, curve: Curves.easeInOut),
+    );
+
+    _mainController.forward();
   }
 
   @override
   void dispose() {
-    _animController.dispose();
+    _mainController.dispose();
+    _pulseController.dispose();
+    _buttonController.dispose();
     super.dispose();
+  }
+
+  Future<void> _onGetStarted() async {
+    HapticFeedback.lightImpact();
+    await _buttonController.forward();
+    await _buttonController.reverse();
+    if (mounted) {
+      context.push(AppRoutes.register);
+    }
+  }
+
+  void _onSignIn() {
+    HapticFeedback.selectionClick();
+    context.push(AppRoutes.login);
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    return AnimatedBuilder(
+      animation: Listenable.merge([_pulseController, _mainController]),
+      builder: (context, _) {
+        final pulse = _pulseAnim.value;
 
-    return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: isDark
-                ? [const Color(0xFF0B0F19), const Color(0xFF111827), const Color(0xFF0F172A)]
-                : [const Color(0xFFEEF2FF), const Color(0xFFF8FAFC), const Color(0xFFE0E7FF)],
-          ),
-        ),
-        child: SafeArea(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              return SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    minHeight: constraints.maxHeight - 32,
-                    maxWidth: 520,
+        return Scaffold(
+          body: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF0D0D1A),
+                  Color(0xFF111827),
+                  Color(0xFF0F172A),
+                ],
+              ),
+            ),
+            child: Stack(
+              children: [
+                // ── Animated background glow orbs ──────────────────────────
+                Positioned(
+                  top: -80,
+                  right: -60,
+                  child: Container(
+                    width: 300,
+                    height: 300,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: const Color(0xFF4F46E5)
+                          .withOpacity(0.12 + pulse * 0.06),
+                    ),
                   ),
-                  child: FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: SlideTransition(
-                      position: _slideAnimation,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          // Top Content
-                          Column(
-                            children: [
-                              const SizedBox(height: 12),
+                ),
+                Positioned(
+                  bottom: 160,
+                  left: -90,
+                  child: Container(
+                    width: 260,
+                    height: 260,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: const Color(0xFFE11D48)
+                          .withOpacity(0.10 + pulse * 0.05),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 260,
+                  right: -40,
+                  child: Container(
+                    width: 160,
+                    height: 160,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: const Color(0xFF14B8A6)
+                          .withOpacity(0.08 + pulse * 0.04),
+                    ),
+                  ),
+                ),
 
-                              // Family Care Illustration Hero with Warm Aura
-                              Container(
-                                width: 110,
-                                height: 110,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: Colors.white,
-                                    width: 3.5,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(0xFFF43F5E).withOpacity(isDark ? 0.35 : 0.22),
-                                      blurRadius: 28,
-                                      spreadRadius: 4,
-                                    ),
-                                    BoxShadow(
-                                      color: const Color(0xFF4F46E5).withOpacity(isDark ? 0.3 : 0.15),
-                                      blurRadius: 18,
-                                    ),
-                                  ],
-                                ),
-                                child: ClipOval(
-                                  child: Image.asset(
-                                    'assets/images/family_care.png',
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => const AppLogo(size: 88, showBackground: false),
-                                  ),
-                                ),
-                              ),
-
-                              const SizedBox(height: 16),
-
-                              // App Title
-                              Text(
-                                AppConstants.appName,
-                                style: theme.textTheme.headlineMedium?.copyWith(
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: -0.5,
-                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-
-                              const SizedBox(height: 6),
-
-                              // Tagline badge
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF4F46E5).withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: const Text(
-                                  'Safe • Connected • Together',
-                                  style: TextStyle(
-                                    color: Color(0xFF4F46E5),
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 13,
-                                    letterSpacing: 0.2,
-                                  ),
-                                ),
-                              ),
-
-                              const SizedBox(height: 12),
-
-                              // Description
-                              Text(
-                                'A smarter, safer digital environment for your children and family peace of mind.',
-                                style: TextStyle(
-                                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                                  fontSize: 14,
-                                  height: 1.4,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-
-                              const SizedBox(height: 24),
-
-                              // Feature Highlights List
-                              _buildFeatureTile(
-                                context: context,
-                                isDark: isDark,
-                                icon: Icons.shield_rounded,
-                                iconColor: const Color(0xFF10B981),
-                                title: 'Live Device Protection',
-                                subtitle: 'Instant app blocking and safe web limits',
-                              ),
-                              const SizedBox(height: 10),
-                              _buildFeatureTile(
-                                context: context,
-                                isDark: isDark,
-                                icon: Icons.location_on_rounded,
-                                iconColor: const Color(0xFF3B82F6),
-                                title: 'Real-Time Location',
-                                subtitle: 'Know where your family is with safe zones',
-                              ),
-                              const SizedBox(height: 10),
-                              _buildFeatureTile(
-                                context: context,
-                                isDark: isDark,
-                                icon: Icons.timer_rounded,
-                                iconColor: const Color(0xFF8B5CF6),
-                                title: 'Smart Screen Time',
-                                subtitle: 'Schedule healthy daily device habits',
-                              ),
-                            ],
+                // ── Main scrollable content ─────────────────────────────────
+                SafeArea(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 16),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: constraints.maxHeight - 32,
+                            maxWidth: 520,
                           ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              // ── TOP: Logo + title + features ──────────────
+                              Column(
+                                children: [
+                                  const SizedBox(height: 16),
 
-                          // Bottom Actions
-                          Padding(
-                            padding: const EdgeInsets.only(top: 24.0, bottom: 8.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                // Get Started Button
-                                Container(
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(16),
-                                    gradient: const LinearGradient(
-                                      colors: [Color(0xFF4F46E5), Color(0xFFE11D48)],
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: const Color(0xFFE11D48).withOpacity(0.35),
-                                        blurRadius: 14,
-                                        offset: const Offset(0, 5),
+                                  // Logo with breathing aura
+                                  ScaleTransition(
+                                    scale: _logoScale,
+                                    child: FadeTransition(
+                                      opacity: _logoOpacity,
+                                      child: Stack(
+                                        alignment: Alignment.center,
+                                        children: [
+                                          // Outer breathing ring
+                                          Container(
+                                            width: 130 + pulse * 14,
+                                            height: 130 + pulse * 14,
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              border: Border.all(
+                                                color: const Color(0xFFF43F5E)
+                                                    .withOpacity(
+                                                        0.22 - pulse * 0.08),
+                                                width: 1.5,
+                                              ),
+                                            ),
+                                          ),
+                                          // Middle glow
+                                          Container(
+                                            width: 118,
+                                            height: 118,
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: const Color(0xFFF43F5E)
+                                                      .withOpacity(0.38),
+                                                  blurRadius: 32,
+                                                  spreadRadius: 6,
+                                                ),
+                                                BoxShadow(
+                                                  color: const Color(0xFF4F46E5)
+                                                      .withOpacity(0.28),
+                                                  blurRadius: 22,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          // Photo circle
+                                          Container(
+                                            width: 110,
+                                            height: 110,
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              border: Border.all(
+                                                color: Colors.white
+                                                    .withOpacity(0.9),
+                                                width: 3.5,
+                                              ),
+                                            ),
+                                            child: ClipOval(
+                                              child: Image.asset(
+                                                'assets/images/family_care.png',
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (_, __, ___) =>
+                                                    const AppLogo(
+                                                        size: 88,
+                                                        showBackground: false),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                    ],
+                                    ),
                                   ),
-                                  child: ElevatedButton(
-                                    onPressed: () => context.push(AppRoutes.roleSelection),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.transparent,
-                                      shadowColor: Colors.transparent,
-                                      foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(vertical: 16),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(16),
+
+                                  const SizedBox(height: 20),
+
+                                  // App name + tagline
+                                  SlideTransition(
+                                    position: _titleSlide,
+                                    child: FadeTransition(
+                                      opacity: _titleOpacity,
+                                      child: Column(
+                                        children: [
+                                          // Protective badge
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 12, vertical: 5),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white
+                                                  .withOpacity(0.08),
+                                              borderRadius:
+                                                  BorderRadius.circular(20),
+                                              border: Border.all(
+                                                color: Colors.white
+                                                    .withOpacity(0.12),
+                                              ),
+                                            ),
+                                            child: const Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(
+                                                  Icons.favorite_rounded,
+                                                  color: Color(0xFFFB7185),
+                                                  size: 13,
+                                                ),
+                                                SizedBox(width: 5),
+                                                Text(
+                                                  'FAMILY PROTECTION & CARE',
+                                                  style: TextStyle(
+                                                    color: Color(0xFFFFE4E6),
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.w700,
+                                                    letterSpacing: 1.1,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          const SizedBox(height: 12),
+                                          // App name
+                                          const Text(
+                                            AppConstants.appName,
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 34,
+                                              fontWeight: FontWeight.w900,
+                                              letterSpacing: -0.8,
+                                            ),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                          const SizedBox(height: 8),
+                                          // Tagline badge
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 14, vertical: 5),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF4F46E5)
+                                                  .withOpacity(0.18),
+                                              borderRadius:
+                                                  BorderRadius.circular(20),
+                                              border: Border.all(
+                                                color: const Color(0xFF4F46E5)
+                                                    .withOpacity(0.4),
+                                              ),
+                                            ),
+                                            child: const Text(
+                                              'Safe • Connected • Together',
+                                              style: TextStyle(
+                                                color: Color(0xFFA5B4FC),
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 13,
+                                                letterSpacing: 0.2,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 12),
+                                          Text(
+                                            'A smarter, safer digital environment\nfor your children and family peace of mind.',
+                                            style: TextStyle(
+                                              color: Colors.white
+                                                  .withOpacity(0.65),
+                                              fontSize: 13.5,
+                                              height: 1.5,
+                                            ),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                    child: const Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                  ),
+
+                                  const SizedBox(height: 24),
+
+                                  // Feature tiles
+                                  SlideTransition(
+                                    position: _featuresSlide,
+                                    child: FadeTransition(
+                                      opacity: _featuresOpacity,
+                                      child: Column(
+                                        children: [
+                                          _buildFeatureTile(
+                                            icon: Icons.shield_rounded,
+                                            iconColor: const Color(0xFF10B981),
+                                            title: 'Live Device Protection',
+                                            subtitle:
+                                                'Instant app blocking and safe web limits',
+                                          ),
+                                          const SizedBox(height: 10),
+                                          _buildFeatureTile(
+                                            icon: Icons.location_on_rounded,
+                                            iconColor: const Color(0xFF3B82F6),
+                                            title: 'Real-Time Location',
+                                            subtitle:
+                                                'Know where your family is with safe zones',
+                                          ),
+                                          const SizedBox(height: 10),
+                                          _buildFeatureTile(
+                                            icon: Icons.timer_rounded,
+                                            iconColor: const Color(0xFF8B5CF6),
+                                            title: 'Smart Screen Time',
+                                            subtitle:
+                                                'Schedule healthy daily device habits',
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+
+                              // ── BOTTOM: Buttons ───────────────────────────
+                              SlideTransition(
+                                position: _buttonsSlide,
+                                child: FadeTransition(
+                                  opacity: _buttonsOpacity,
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(
+                                        top: 28, bottom: 8),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
                                       children: [
-                                        Text(
-                                          'Get Started',
-                                          style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w700,
+                                        // Get Started — animated press scale
+                                        ScaleTransition(
+                                          scale: _buttonScale,
+                                          child: Container(
+                                            decoration: BoxDecoration(
+                                              borderRadius:
+                                                  BorderRadius.circular(18),
+                                              gradient: const LinearGradient(
+                                                colors: [
+                                                  Color(0xFF4F46E5),
+                                                  Color(0xFF7C3AED),
+                                                  Color(0xFFE11D48),
+                                                ],
+                                              ),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: const Color(0xFFE11D48)
+                                                      .withOpacity(
+                                                          0.30 + pulse * 0.15),
+                                                  blurRadius:
+                                                      18 + pulse * 8,
+                                                  offset: const Offset(0, 6),
+                                                ),
+                                                BoxShadow(
+                                                  color: const Color(0xFF4F46E5)
+                                                      .withOpacity(0.25),
+                                                  blurRadius: 14,
+                                                  offset: const Offset(0, 3),
+                                                ),
+                                              ],
+                                            ),
+                                            child: ElevatedButton(
+                                              onPressed: _onGetStarted,
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor:
+                                                    Colors.transparent,
+                                                shadowColor: Colors.transparent,
+                                                foregroundColor: Colors.white,
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        vertical: 17),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(18),
+                                                ),
+                                              ),
+                                              child: const Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: [
+                                                  Text(
+                                                    'Get Started',
+                                                    style: TextStyle(
+                                                      fontSize: 17,
+                                                      fontWeight:
+                                                          FontWeight.w800,
+                                                      letterSpacing: 0.3,
+                                                    ),
+                                                  ),
+                                                  SizedBox(width: 10),
+                                                  Icon(
+                                                      Icons
+                                                          .arrow_forward_rounded,
+                                                      size: 22),
+                                                ],
+                                              ),
+                                            ),
                                           ),
                                         ),
-                                        SizedBox(width: 8),
-                                        Icon(Icons.arrow_forward_rounded, size: 20),
+
+                                        const SizedBox(height: 14),
+
+                                        // Sign In
+                                        OutlinedButton(
+                                          onPressed: _onSignIn,
+                                          style: OutlinedButton.styleFrom(
+                                            padding: const EdgeInsets.symmetric(
+                                                vertical: 15),
+                                            side: BorderSide(
+                                              color: Colors.white
+                                                  .withOpacity(0.18),
+                                              width: 1.5,
+                                            ),
+                                            foregroundColor: Colors.white,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(18),
+                                            ),
+                                          ),
+                                          child: const Text(
+                                            'I Already Have an Account',
+                                            style: TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+
+                                        const SizedBox(height: 18),
+
+                                        // Terms
+                                        Text(
+                                          'By continuing, you agree to our Terms & Privacy Policy',
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color:
+                                                Colors.white.withOpacity(0.38),
+                                          ),
+                                        ),
                                       ],
                                     ),
                                   ),
                                 ),
-
-                                const SizedBox(height: 12),
-
-                                // Sign In Button
-                                OutlinedButton(
-                                  onPressed: () => context.push(AppRoutes.login),
-                                  style: OutlinedButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(vertical: 15),
-                                    side: BorderSide(
-                                      color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
-                                      width: 1.5,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                  ),
-                                  child: Text(
-                                    'I Already Have an Account',
-                                    style: TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w600,
-                                      color: isDark ? Colors.white : const Color(0xFF1E293B),
-                                    ),
-                                  ),
-                                ),
-
-                                const SizedBox(height: 16),
-
-                                // Terms and Privacy
-                                Text(
-                                  'By continuing, you agree to our Terms & Privacy Policy',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
-                                  ),
-                                ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    ),
+                        ),
+                      );
+                    },
                   ),
                 ),
-              );
-            },
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
   Widget _buildFeatureTile({
-    required BuildContext context,
-    required bool isDark,
     required IconData icon,
     required Color iconColor,
     required String title,
     required String subtitle,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B).withOpacity(0.7) : Colors.white.withOpacity(0.85),
+        color: Colors.white.withOpacity(0.05),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isDark ? const Color(0xFF334155).withOpacity(0.5) : const Color(0xFFE2E8F0),
+          color: Colors.white.withOpacity(0.08),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.15 : 0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.12),
+              color: iconColor.withOpacity(0.15),
               borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: iconColor.withOpacity(0.25),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             child: Icon(icon, color: iconColor, size: 22),
           ),
@@ -339,10 +615,10 @@ class _WelcomeScreenState extends State<WelcomeScreen>
               children: [
                 Text(
                   title,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 14,
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    color: Colors.white,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -350,11 +626,16 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                   subtitle,
                   style: TextStyle(
                     fontSize: 12,
-                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    color: Colors.white.withOpacity(0.55),
                   ),
                 ),
               ],
             ),
+          ),
+          Icon(
+            Icons.chevron_right_rounded,
+            color: Colors.white.withOpacity(0.2),
+            size: 18,
           ),
         ],
       ),

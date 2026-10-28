@@ -13,12 +13,26 @@ import '../../../../core/providers/auth_provider.dart';
 class RoleSelectionScreen extends ConsumerWidget {
   const RoleSelectionScreen({super.key});
 
-  /// Handle role selection
+  /// Handle role selection — if authenticated, update role in DB;
+  /// if not authenticated (coming from Welcome → Get Started), go to register
+  /// with the selected role passed as extra so login screen can pre-fill it.
   Future<void> _handleRoleSelection(
     BuildContext context,
     WidgetRef ref,
     UserRole role,
   ) async {
+    final authState = ref.read(authNotifierProvider);
+    final isAuthenticated = authState.user != null;
+
+    if (!isAuthenticated) {
+      // Not logged in: go to register and carry the chosen role
+      if (context.mounted) {
+        context.push(AppRoutes.register, extra: {'role': role});
+      }
+      return;
+    }
+
+    // Already logged in: persist role to Firestore
     final authNotifier = ref.read(authNotifierProvider.notifier);
     final success = await authNotifier.updateRole(role);
 
@@ -100,7 +114,9 @@ class RoleSelectionScreen extends ConsumerWidget {
 
                     // Welcome Text
                     Text(
-                      'Welcome to ${AppConstants.appName}, ${currentUser?.displayName ?? 'Family Member'}!',
+                      currentUser != null
+                          ? 'Welcome to ${AppConstants.appName}, ${currentUser.displayName}!'
+                          : 'Choose Your Role',
                       style: theme.textTheme.headlineMedium?.copyWith(
                         fontWeight: FontWeight.w800,
                         letterSpacing: -0.5,
@@ -110,7 +126,9 @@ class RoleSelectionScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Select how this device will be used in your family setup',
+                      currentUser != null
+                          ? 'Select how this device will be used in your family setup'
+                          : 'How will you use FamilyGuard? Select your role to continue.',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: isDark ? Colors.grey[400] : const Color(0xFF64748B),
                         height: 1.4,
@@ -171,22 +189,41 @@ class RoleSelectionScreen extends ConsumerWidget {
                       const SizedBox(height: 16),
                     ],
 
-                    // Sign out option
+                    // Sign out or back option
                     Center(
-                      child: TextButton.icon(
-                        onPressed: authState.isLoading ? null : () {
-                          ref.read(authNotifierProvider.notifier).signOut();
-                        },
-                        icon: const Icon(Icons.logout_rounded, size: 18, color: Color(0xFF64748B)),
-                        label: const Text(
-                          'Switch Account or Sign Out',
-                          style: TextStyle(
-                            color: Color(0xFF64748B),
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
+                      child: currentUser == null
+                          ? TextButton.icon(
+                              onPressed: () => context.go(AppRoutes.welcome),
+                              icon: const Icon(Icons.arrow_back_rounded,
+                                  size: 18, color: Color(0xFF64748B)),
+                              label: const Text(
+                                'Back to Welcome',
+                                style: TextStyle(
+                                  color: Color(0xFF64748B),
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            )
+                          : TextButton.icon(
+                              onPressed: authState.isLoading
+                                  ? null
+                                  : () {
+                                      ref
+                                          .read(authNotifierProvider.notifier)
+                                          .signOut();
+                                    },
+                              icon: const Icon(Icons.logout_rounded,
+                                  size: 18, color: Color(0xFF64748B)),
+                              label: const Text(
+                                'Switch Account or Sign Out',
+                                style: TextStyle(
+                                  color: Color(0xFF64748B),
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
                     ),
                     const SizedBox(height: 12),
                   ],
