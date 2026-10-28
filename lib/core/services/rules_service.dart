@@ -93,67 +93,79 @@ class RulesService {
     }
   }
 
-  /// Get all rules for a specific child
+  /// Get all rules for a specific child — sorted client-side to avoid composite index
   Stream<List<RuleModel>> getRulesForChild(String childId) {
     return _firestore
         .collection(rulesCollection)
         .where('childId', isEqualTo: childId)
-        .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => RuleModel.fromFirestore(doc))
-            .toList());
+        .map((snapshot) {
+          final rules = snapshot.docs
+              .map((doc) => RuleModel.fromFirestore(doc))
+              .toList();
+          rules.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          return rules;
+        });
   }
 
-  /// Get all rules for a family
+  /// Get all rules for a family — sorted client-side to avoid composite index
   Stream<List<RuleModel>> getRulesForFamily(String familyId) {
     return _firestore
         .collection(rulesCollection)
         .where('familyId', isEqualTo: familyId)
-        .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => RuleModel.fromFirestore(doc))
-            .toList());
+        .map((snapshot) {
+          final rules = snapshot.docs
+              .map((doc) => RuleModel.fromFirestore(doc))
+              .toList();
+          rules.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          return rules;
+        });
   }
 
-  /// Get active rules for a child
+  /// Get active rules for a child — filtered + sorted client-side
   Stream<List<RuleModel>> getActiveRulesForChild(String childId) {
     return _firestore
         .collection(rulesCollection)
         .where('childId', isEqualTo: childId)
-        .where('status', isEqualTo: RuleStatus.active.name)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => RuleModel.fromFirestore(doc))
-            .where((rule) => rule.isActive)
-            .toList());
+        .map((snapshot) {
+          final rules = snapshot.docs
+              .map((doc) => RuleModel.fromFirestore(doc))
+              .where((rule) => rule.status == RuleStatus.active && rule.isActive)
+              .toList();
+          rules.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          return rules;
+        });
   }
 
-  /// Get rules by type for a child
+  /// Get rules by type for a child — filtered client-side to avoid composite index
   Stream<List<RuleModel>> getRulesByType(String childId, RuleType type) {
     return _firestore
         .collection(rulesCollection)
         .where('childId', isEqualTo: childId)
-        .where('type', isEqualTo: type.name)
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) => RuleModel.fromFirestore(doc))
+            .where((rule) => rule.type == type)
             .toList());
   }
 
   /// Get rules for a specific app
   Future<List<RuleModel>> getRulesForApp(String childId, String packageName) async {
     try {
+      // Query only by childId to avoid composite index requirement;
+      // filter appPackageName + status client-side.
       final snapshot = await _firestore
           .collection(rulesCollection)
           .where('childId', isEqualTo: childId)
-          .where('appPackageName', isEqualTo: packageName)
-          .where('status', isEqualTo: RuleStatus.active.name)
           .get();
 
       return snapshot.docs
           .map((doc) => RuleModel.fromFirestore(doc))
+          .where((rule) =>
+              rule.appPackageName == packageName &&
+              rule.status == RuleStatus.active)
           .toList();
     } catch (e) {
       if (kDebugMode) {
@@ -228,33 +240,35 @@ class RulesService {
     }
   }
 
-  /// Get enforcement logs for a child
+  /// Get enforcement logs for a child — sorted client-side to avoid composite index
   Stream<List<RuleEnforcementLog>> getEnforcementLogs(String childId, {int limit = 50}) {
     return _firestore
         .collection(enforcementLogsCollection)
         .where('childId', isEqualTo: childId)
-        .orderBy('timestamp', descending: true)
-        .limit(limit)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => RuleEnforcementLog.fromFirestore(doc))
-            .toList());
+        .map((snapshot) {
+          final logs = snapshot.docs
+              .map((doc) => RuleEnforcementLog.fromFirestore(doc))
+              .toList();
+          logs.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+          return logs.take(limit).toList();
+        });
   }
 
-  /// Get enforcement statistics
+  /// Get enforcement statistics — filter client-side to avoid composite index
   Future<Map<String, int>> getEnforcementStats(String childId, DateTime startDate, DateTime endDate) async {
     try {
       final snapshot = await _firestore
           .collection(enforcementLogsCollection)
           .where('childId', isEqualTo: childId)
-          .where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
-          .where('timestamp', isLessThanOrEqualTo: Timestamp.fromDate(endDate))
           .get();
 
       final stats = <String, int>{};
       for (final doc in snapshot.docs) {
         final log = RuleEnforcementLog.fromFirestore(doc);
-        stats[log.action] = (stats[log.action] ?? 0) + 1;
+        if (!log.timestamp.isBefore(startDate) && !log.timestamp.isAfter(endDate)) {
+          stats[log.action] = (stats[log.action] ?? 0) + 1;
+        }
       }
 
       return stats;

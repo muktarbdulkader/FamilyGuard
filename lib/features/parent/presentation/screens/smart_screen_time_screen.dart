@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/models/rule_model.dart';
 import '../../../../core/providers/rules_provider.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../localization/smart_screen_time_l10n.dart';
 
 // ─────────────────────────────────────────────────────────────
 // Screen entry point — receives child info from caller
@@ -30,24 +32,12 @@ class _SmartScreenTimeScreenState
   late final AnimationController _animController;
   late final Animation<double> _fadeIn;
 
-  // ── colour palette ──────────────────────────────────────────
-  static const _bg = Color(0xFF0B0F19);
-  static const _surface = Color(0xFF111827);
-  static const _card = Color(0xFF1A2235);
-  static const _border = Color(0xFF1E293B);
-  static const _teal = Color(0xFF14B8A6);
-  static const _indigo = Color(0xFF4F46E5);
-  static const _rose = Color(0xFFE11D48);
-  static const _amber = Color(0xFFF59E0B);
-  static const _textPrimary = Colors.white;
-  static const _textSec = Color(0xFF94A3B8);
-
   @override
   void initState() {
     super.initState();
     _animController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 600),
+      duration: const Duration(milliseconds: 500),
     );
     _fadeIn = CurvedAnimation(parent: _animController, curve: Curves.easeOut);
     _animController.forward();
@@ -59,6 +49,16 @@ class _SmartScreenTimeScreenState
     super.dispose();
   }
 
+  // ── Dynamic Theme & Accent Palette ───────────────────────────
+  Color _tealAccent(AppColors c) =>
+      c.isDark ? const Color(0xFF2DD4BF) : const Color(0xFF0D9488);
+  Color _indigoAccent(AppColors c) =>
+      c.isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5);
+  Color _roseAccent(AppColors c) =>
+      c.isDark ? const Color(0xFFFB7185) : const Color(0xFFE11D48);
+  Color _amberAccent(AppColors c) =>
+      c.isDark ? const Color(0xFFFBBF24) : const Color(0xFFD97706);
+
   // ── helpers ─────────────────────────────────────────────────
   String _fmtAmPm(TimeOfDay t) {
     final h = t.hourOfPeriod == 0 ? 12 : t.hourOfPeriod;
@@ -67,19 +67,34 @@ class _SmartScreenTimeScreenState
     return '$h:$m $p';
   }
 
-  String _fmtMins(int mins) {
-    if (mins < 60) return '${mins}m';
+  String _fmtMins(int mins, SmartScreenTimeL10n l10n) {
+    if (mins < 60) {
+      return l10n.languageCode == 'am'
+          ? '$mins ደቂቃ'
+          : l10n.languageCode == 'ar'
+              ? '$mins د'
+              : '${mins}m';
+    }
     final h = mins ~/ 60;
     final m = mins % 60;
-    return m == 0 ? '${h}h' : '${h}h ${m}m';
+    if (m == 0) {
+      return l10n.languageCode == 'am'
+          ? '$h ሰዓት'
+          : l10n.languageCode == 'ar'
+              ? '$h س'
+              : '${h}h';
+    }
+    return l10n.languageCode == 'am'
+        ? '$h ሰ $m ደ'
+        : l10n.languageCode == 'ar'
+            ? '$h س $m د'
+            : '${h}h ${m}m';
   }
 
-  // find first rule of a given type (or null)
   RuleModel? _ruleOf(List<RuleModel> rules, RuleType t) =>
       rules.where((r) => r.type == t).firstOrNull;
 
   // ── SAVE helpers ────────────────────────────────────────────
-
   Future<void> _saveRule(RuleModel rule) async {
     final svc = ref.read(rulesServiceProvider);
     if (rule.id.isEmpty) {
@@ -115,7 +130,6 @@ class _SmartScreenTimeScreenState
       );
 
   // ── DIALOGS ─────────────────────────────────────────────────
-
   Future<void> _showDailyLimitDialog(RuleModel? existing) async {
     int minutes = existing?.totalScreenTimeMinutes ?? 120;
     final ctrl = TextEditingController(text: minutes.toString());
@@ -124,337 +138,22 @@ class _SmartScreenTimeScreenState
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: _card,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheet) => Padding(
-          padding: EdgeInsets.fromLTRB(
-              24, 20, 24, MediaQuery.of(ctx).viewInsets.bottom + 28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // drag handle
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: _textSec.withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              _sheetTitle(Icons.timer_rounded, _teal, 'Daily Screen Time Limit'),
-              const SizedBox(height: 20),
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        final colors = AppColors.of(ctx);
+        final l10n = SmartScreenTimeL10n.of(ctx);
+        final teal = _tealAccent(colors);
+        final rose = _roseAccent(colors);
 
-              // ── Hours slider ─────────────────────────────────
-              Text('Daily limit: ${_fmtMins(minutes)}',
-                  style: const TextStyle(
-                      color: _textPrimary,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700)),
-              const SizedBox(height: 8),
-              Slider(
-                value: minutes.toDouble(),
-                min: 15,
-                max: 480,
-                divisions: 31,
-                activeColor: _teal,
-                inactiveColor: _border,
-                label: _fmtMins(minutes),
-                onChanged: (v) => setSheet(() {
-                  minutes = v.round();
-                  ctrl.text = v.round().toString();
-                }),
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('15m', style: TextStyle(color: _textSec, fontSize: 11)),
-                  Text('8h', style: TextStyle(color: _textSec, fontSize: 11)),
-                ],
-              ),
-              const SizedBox(height: 20),
-
-              // ── Warning time ──────────────────────────────────
-              Text('Warn before limit:',
-                  style: const TextStyle(
-                      color: _textPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600)),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                children: [5, 10, 15, 30].map((m) {
-                  final sel = warning == m;
-                  return GestureDetector(
-                    onTap: () => setSheet(() => warning = m),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: sel ? _teal : _surface,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                            color: sel ? _teal : _border, width: 1.5),
-                      ),
-                      child: Text('${m}m',
-                          style: TextStyle(
-                              color: sel ? Colors.black : _textSec,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13)),
-                    ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 28),
-
-              // ── Buttons ───────────────────────────────────────
-              Row(
-                children: [
-                  if (existing != null && existing.id.isNotEmpty)
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () async {
-                          Navigator.pop(ctx);
-                          await _deleteRule(existing.id);
-                          _snack('Daily limit removed');
-                        },
-                        icon: const Icon(Icons.delete_outline_rounded,
-                            color: _rose, size: 18),
-                        label: const Text('Remove',
-                            style: TextStyle(color: _rose)),
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: _rose),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                        ),
-                      ),
-                    ),
-                  if (existing != null && existing.id.isNotEmpty)
-                    const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        Navigator.pop(ctx);
-                        final now = DateTime.now();
-                        final rule = (existing ?? _blankRule(RuleType.screenTime))
-                            .copyWith(
-                          ruleName: 'Daily Screen Time',
-                          totalScreenTimeMinutes: minutes,
-                          warningMinutes: warning,
-                          description:
-                              'Max ${_fmtMins(minutes)} screen time per day',
-                          updatedAt: now,
-                        );
-                        await _saveRule(rule);
-                        _snack('Daily limit saved ✓');
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _teal,
-                        foregroundColor: Colors.black,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      child: const Text('Save',
-                          style: TextStyle(fontWeight: FontWeight.w800)),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _showBedtimeDialog(RuleModel? existing) async {
-    TimeOfDay start = existing?.bedtimeStart ?? const TimeOfDay(hour: 21, minute: 0);
-    TimeOfDay end = existing?.bedtimeEnd ?? const TimeOfDay(hour: 7, minute: 0);
-    List<int> days = List<int>.from(
-        existing?.allowedDays ?? [1, 2, 3, 4, 5, 6, 7]);
-
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: _card,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheet) => Padding(
-          padding: EdgeInsets.fromLTRB(
-              24, 20, 24, MediaQuery.of(ctx).viewInsets.bottom + 28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: _textSec.withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              _sheetTitle(Icons.bedtime_rounded, _indigo, 'Bedtime Schedule'),
-              const SizedBox(height: 6),
-              Text(
-                'Device will be locked outside allowed hours.',
-                style: TextStyle(color: _textSec, fontSize: 13),
-              ),
-              const SizedBox(height: 24),
-
-              // ── Time row ──────────────────────────────────────
-              Row(
-                children: [
-                  Expanded(
-                    child: _timePickerCard(
-                      label: 'Bedtime',
-                      icon: Icons.nights_stay_rounded,
-                      color: _indigo,
-                      time: start,
-                      onTap: () async {
-                        final t = await showTimePicker(
-                            context: ctx, initialTime: start);
-                        if (t != null) setSheet(() => start = t);
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _timePickerCard(
-                      label: 'Wake up',
-                      icon: Icons.wb_sunny_rounded,
-                      color: _amber,
-                      time: end,
-                      onTap: () async {
-                        final t = await showTimePicker(
-                            context: ctx, initialTime: end);
-                        if (t != null) setSheet(() => end = t);
-                      },
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-
-              // ── Days ─────────────────────────────────────────
-              Text('Apply on:',
-                  style: const TextStyle(
-                      color: _textPrimary,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14)),
-              const SizedBox(height: 10),
-              _daySelector(days, (d) => setSheet(() {
-                    if (days.contains(d)) {
-                      days.remove(d);
-                    } else {
-                      days.add(d);
-                    }
-                  })),
-              const SizedBox(height: 28),
-
-              Row(
-                children: [
-                  if (existing != null && existing.id.isNotEmpty)
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () async {
-                          Navigator.pop(ctx);
-                          await _deleteRule(existing.id);
-                          _snack('Bedtime rule removed');
-                        },
-                        icon: const Icon(Icons.delete_outline_rounded,
-                            color: _rose, size: 18),
-                        label:
-                            const Text('Remove', style: TextStyle(color: _rose)),
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: _rose),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                        ),
-                      ),
-                    ),
-                  if (existing != null && existing.id.isNotEmpty)
-                    const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        if (days.isEmpty) {
-                          _snack('Select at least one day');
-                          return;
-                        }
-                        Navigator.pop(ctx);
-                        final now = DateTime.now();
-                        final rule =
-                            (existing ?? _blankRule(RuleType.bedtime)).copyWith(
-                          ruleName: 'Bedtime',
-                          bedtimeStart: start,
-                          bedtimeEnd: end,
-                          bedtimeEnabled: true,
-                          allowedDays: List<int>.from(days),
-                          description:
-                              'No screen from ${_fmtAmPm(start)} to ${_fmtAmPm(end)}',
-                          updatedAt: now,
-                        );
-                        await _saveRule(rule);
-                        _snack('Bedtime schedule saved ✓');
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _indigo,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      child: const Text('Save',
-                          style: TextStyle(fontWeight: FontWeight.w800)),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _showFocusBlockDialog([RuleModel? existing]) async {
-    TimeOfDay start =
-        existing?.allowedStartTime ?? const TimeOfDay(hour: 15, minute: 0);
-    TimeOfDay end =
-        existing?.allowedEndTime ?? const TimeOfDay(hour: 17, minute: 0);
-    List<int> days =
-        List<int>.from(existing?.allowedDays ?? [1, 2, 3, 4, 5]);
-    String label = existing?.ruleName ?? 'Study Focus';
-    final labelCtrl = TextEditingController(text: label);
-
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: _card,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheet) => Padding(
-          padding: EdgeInsets.fromLTRB(
-              24, 20, 24, MediaQuery.of(ctx).viewInsets.bottom + 28),
-          child: SingleChildScrollView(
+        return StatefulBuilder(
+          builder: (ctx, setSheet) => Container(
+            decoration: BoxDecoration(
+              color: colors.surface,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              border: Border.all(color: colors.border),
+            ),
+            padding: EdgeInsets.fromLTRB(
+                24, 20, 24, MediaQuery.of(ctx).viewInsets.bottom + 28),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -464,54 +163,231 @@ class _SmartScreenTimeScreenState
                     width: 40,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: _textSec.withOpacity(0.3),
+                      color: colors.textSecondary.withOpacity(0.3),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
                 ),
                 const SizedBox(height: 20),
-                _sheetTitle(Icons.menu_book_rounded, _amber, 'Focus Block'),
-                const SizedBox(height: 6),
-                Text(
-                  'Block distracting apps during this window.',
-                  style: TextStyle(color: _textSec, fontSize: 13),
+                _sheetTitle(
+                  Icons.timer_rounded,
+                  teal,
+                  l10n.dailyLimitTitle,
+                  colors,
                 ),
                 const SizedBox(height: 20),
 
-                // Name field
-                TextField(
-                  controller: labelCtrl,
-                  style: const TextStyle(color: _textPrimary),
-                  decoration: InputDecoration(
-                    labelText: 'Block name',
-                    labelStyle: TextStyle(color: _textSec),
-                    filled: true,
-                    fillColor: _surface,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: _border),
+                // ── Hours slider ─────────────────────────────────
+                Text(
+                  '${l10n.dailyLimitHeader}: ${_fmtMins(minutes, l10n)}',
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Slider(
+                  value: minutes.toDouble(),
+                  min: 15,
+                  max: 480,
+                  divisions: 31,
+                  activeColor: teal,
+                  inactiveColor: colors.border,
+                  label: _fmtMins(minutes, l10n),
+                  onChanged: (v) => setSheet(() {
+                    minutes = v.round();
+                    ctrl.text = v.round().toString();
+                  }),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('15m',
+                        style: TextStyle(
+                            color: colors.textSecondary, fontSize: 11)),
+                    Text('8h',
+                        style: TextStyle(
+                            color: colors.textSecondary, fontSize: 11)),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                // ── Warning time ──────────────────────────────────
+                Text(
+                  l10n.warnBeforeLimit(warning),
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  children: [5, 10, 15, 30].map((m) {
+                    final sel = warning == m;
+                    return GestureDetector(
+                      onTap: () => setSheet(() => warning = m),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: sel ? teal : colors.surfaceHighlight,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: sel ? teal : colors.border,
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Text(
+                          '${m}m',
+                          style: TextStyle(
+                            color: sel
+                                ? (colors.isDark ? Colors.black : Colors.white)
+                                : colors.textSecondary,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 28),
+
+                // ── Buttons ───────────────────────────────────────
+                Row(
+                  children: [
+                    if (existing != null && existing.id.isNotEmpty)
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            Navigator.pop(ctx);
+                            await _deleteRule(existing.id);
+                            _snack(l10n.dailyLimitRemovedSnack);
+                          },
+                          icon: Icon(Icons.delete_outline_rounded,
+                              color: rose, size: 18),
+                          label: Text(l10n.removeAction,
+                              style: TextStyle(color: rose)),
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: rose),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                        ),
+                      ),
+                    if (existing != null && existing.id.isNotEmpty)
+                      const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          Navigator.pop(ctx);
+                          final now = DateTime.now();
+                          final rule =
+                              (existing ?? _blankRule(RuleType.screenTime))
+                                  .copyWith(
+                            ruleName: 'Daily Screen Time',
+                            totalScreenTimeMinutes: minutes,
+                            warningMinutes: warning,
+                            description:
+                                'Max ${_fmtMins(minutes, l10n)} screen time per day',
+                            updatedAt: now,
+                          );
+                          await _saveRule(rule);
+                          _snack(l10n.dailyLimitSavedSnack);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: teal,
+                          foregroundColor:
+                              colors.isDark ? Colors.black : Colors.white,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        child: Text(l10n.saveAction,
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w800)),
+                      ),
                     ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: _border),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: _amber),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showBedtimeDialog(RuleModel? existing) async {
+    TimeOfDay start =
+        existing?.bedtimeStart ?? const TimeOfDay(hour: 21, minute: 0);
+    TimeOfDay end = existing?.bedtimeEnd ?? const TimeOfDay(hour: 7, minute: 0);
+    List<int> days =
+        List<int>.from(existing?.allowedDays ?? [1, 2, 3, 4, 5, 6, 7]);
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        final colors = AppColors.of(ctx);
+        final l10n = SmartScreenTimeL10n.of(ctx);
+        final indigo = _indigoAccent(colors);
+        final amber = _amberAccent(colors);
+        final rose = _roseAccent(colors);
+
+        return StatefulBuilder(
+          builder: (ctx, setSheet) => Container(
+            decoration: BoxDecoration(
+              color: colors.surface,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              border: Border.all(color: colors.border),
+            ),
+            padding: EdgeInsets.fromLTRB(
+                24, 20, 24, MediaQuery.of(ctx).viewInsets.bottom + 28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: colors.textSecondary.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                  onChanged: (v) => label = v,
                 ),
                 const SizedBox(height: 20),
+                _sheetTitle(
+                  Icons.bedtime_rounded,
+                  indigo,
+                  l10n.bedtimeTitle,
+                  colors,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  l10n.deviceLockedOutsideHours,
+                  style: TextStyle(color: colors.textSecondary, fontSize: 13),
+                ),
+                const SizedBox(height: 24),
 
+                // ── Time row ──────────────────────────────────────
                 Row(
                   children: [
                     Expanded(
                       child: _timePickerCard(
-                        label: 'Start',
-                        icon: Icons.play_circle_outline_rounded,
-                        color: _amber,
+                        label: l10n.bedtimeLabel,
+                        icon: Icons.nights_stay_rounded,
+                        color: indigo,
                         time: start,
+                        colors: colors,
                         onTap: () async {
                           final t = await showTimePicker(
                               context: ctx, initialTime: start);
@@ -522,10 +398,11 @@ class _SmartScreenTimeScreenState
                     const SizedBox(width: 12),
                     Expanded(
                       child: _timePickerCard(
-                        label: 'End',
-                        icon: Icons.stop_circle_outlined,
-                        color: Colors.orange,
+                        label: l10n.wakeUpLabel,
+                        icon: Icons.wb_sunny_rounded,
+                        color: amber,
                         time: end,
+                        colors: colors,
                         onTap: () async {
                           final t = await showTimePicker(
                               context: ctx, initialTime: end);
@@ -537,19 +414,28 @@ class _SmartScreenTimeScreenState
                 ),
                 const SizedBox(height: 20),
 
-                Text('Apply on:',
-                    style: const TextStyle(
-                        color: _textPrimary,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14)),
+                // ── Days ─────────────────────────────────────────
+                Text(
+                  l10n.applyOnDays,
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
                 const SizedBox(height: 10),
-                _daySelector(days, (d) => setSheet(() {
-                      if (days.contains(d)) {
-                        days.remove(d);
-                      } else {
-                        days.add(d);
-                      }
-                    })),
+                _daySelector(
+                  selected: days,
+                  colors: colors,
+                  l10n: l10n,
+                  onToggle: (d) => setSheet(() {
+                    if (days.contains(d)) {
+                      days.remove(d);
+                    } else {
+                      days.add(d);
+                    }
+                  }),
+                ),
                 const SizedBox(height: 28),
 
                 Row(
@@ -560,14 +446,14 @@ class _SmartScreenTimeScreenState
                           onPressed: () async {
                             Navigator.pop(ctx);
                             await _deleteRule(existing.id);
-                            _snack('Focus block removed');
+                            _snack(l10n.bedtimeRemovedSnack);
                           },
-                          icon: const Icon(Icons.delete_outline_rounded,
-                              color: _rose, size: 18),
-                          label: const Text('Remove',
-                              style: TextStyle(color: _rose)),
+                          icon: Icon(Icons.delete_outline_rounded,
+                              color: rose, size: 18),
+                          label: Text(l10n.removeAction,
+                              style: TextStyle(color: rose)),
                           style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: _rose),
+                            side: BorderSide(color: rose),
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12)),
                             padding: const EdgeInsets.symmetric(vertical: 14),
@@ -580,39 +466,35 @@ class _SmartScreenTimeScreenState
                       child: ElevatedButton(
                         onPressed: () async {
                           if (days.isEmpty) {
-                            _snack('Select at least one day');
-                            return;
-                          }
-                          final name = labelCtrl.text.trim();
-                          if (name.isEmpty) {
-                            _snack('Enter a block name');
+                            _snack(l10n.selectAtLeastOneDaySnack);
                             return;
                           }
                           Navigator.pop(ctx);
                           final now = DateTime.now();
                           final rule =
-                              (existing ?? _blankRule(RuleType.appSchedule))
-                                  .copyWith(
-                            ruleName: name,
-                            allowedStartTime: start,
-                            allowedEndTime: end,
+                              (existing ?? _blankRule(RuleType.bedtime)).copyWith(
+                            ruleName: 'Bedtime',
+                            bedtimeStart: start,
+                            bedtimeEnd: end,
+                            bedtimeEnabled: true,
                             allowedDays: List<int>.from(days),
                             description:
-                                'Focus block ${_fmtAmPm(start)} – ${_fmtAmPm(end)}',
+                                'No screen from ${_fmtAmPm(start)} to ${_fmtAmPm(end)}',
                             updatedAt: now,
                           );
                           await _saveRule(rule);
-                          _snack('Focus block saved ✓');
+                          _snack(l10n.bedtimeSavedSnack);
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: _amber,
-                          foregroundColor: Colors.black,
+                          backgroundColor: indigo,
+                          foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12)),
                           padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
-                        child: const Text('Save',
-                            style: TextStyle(fontWeight: FontWeight.w800)),
+                        child: Text(l10n.saveAction,
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w800)),
                       ),
                     ),
                   ],
@@ -620,14 +502,237 @@ class _SmartScreenTimeScreenState
               ],
             ),
           ),
-        ),
-      ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showFocusBlockDialog([RuleModel? existing]) async {
+    final l10nInit = SmartScreenTimeL10n.of(context);
+    TimeOfDay start =
+        existing?.allowedStartTime ?? const TimeOfDay(hour: 15, minute: 0);
+    TimeOfDay end =
+        existing?.allowedEndTime ?? const TimeOfDay(hour: 17, minute: 0);
+    List<int> days =
+        List<int>.from(existing?.allowedDays ?? [1, 2, 3, 4, 5]);
+    String label = existing?.ruleName ?? l10nInit.defaultFocusBlockName;
+    final labelCtrl = TextEditingController(text: label);
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        final colors = AppColors.of(ctx);
+        final l10n = SmartScreenTimeL10n.of(ctx);
+        final amber = _amberAccent(colors);
+        final rose = _roseAccent(colors);
+
+        return StatefulBuilder(
+          builder: (ctx, setSheet) => Container(
+            decoration: BoxDecoration(
+              color: colors.surface,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              border: Border.all(color: colors.border),
+            ),
+            padding: EdgeInsets.fromLTRB(
+                24, 20, 24, MediaQuery.of(ctx).viewInsets.bottom + 28),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: colors.textSecondary.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  _sheetTitle(
+                    Icons.menu_book_rounded,
+                    amber,
+                    l10n.focusBlockSingular,
+                    colors,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    l10n.blockDistractions,
+                    style: TextStyle(color: colors.textSecondary, fontSize: 13),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Name field
+                  TextField(
+                    controller: labelCtrl,
+                    style: TextStyle(color: colors.textPrimary),
+                    decoration: InputDecoration(
+                      labelText: l10n.blockNameLabel,
+                      labelStyle: TextStyle(color: colors.textSecondary),
+                      filled: true,
+                      fillColor: colors.surfaceHighlight,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: colors.border),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: colors.border),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: amber, width: 2),
+                      ),
+                    ),
+                    onChanged: (v) => label = v,
+                  ),
+                  const SizedBox(height: 20),
+
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _timePickerCard(
+                          label: l10n.startLabel,
+                          icon: Icons.play_circle_outline_rounded,
+                          color: amber,
+                          time: start,
+                          colors: colors,
+                          onTap: () async {
+                            final t = await showTimePicker(
+                                context: ctx, initialTime: start);
+                            if (t != null) setSheet(() => start = t);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _timePickerCard(
+                          label: l10n.endLabel,
+                          icon: Icons.stop_circle_outlined,
+                          color: Colors.orange,
+                          time: end,
+                          colors: colors,
+                          onTap: () async {
+                            final t = await showTimePicker(
+                                context: ctx, initialTime: end);
+                            if (t != null) setSheet(() => end = t);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  Text(
+                    l10n.applyOnDays,
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _daySelector(
+                    selected: days,
+                    colors: colors,
+                    l10n: l10n,
+                    onToggle: (d) => setSheet(() {
+                      if (days.contains(d)) {
+                        days.remove(d);
+                      } else {
+                        days.add(d);
+                      }
+                    }),
+                  ),
+                  const SizedBox(height: 28),
+
+                  Row(
+                    children: [
+                      if (existing != null && existing.id.isNotEmpty)
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () async {
+                              Navigator.pop(ctx);
+                              await _deleteRule(existing.id);
+                              _snack(l10n.focusRemovedSnack);
+                            },
+                            icon: Icon(Icons.delete_outline_rounded,
+                                color: rose, size: 18),
+                            label: Text(l10n.removeAction,
+                                style: TextStyle(color: rose)),
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(color: rose),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            ),
+                          ),
+                        ),
+                      if (existing != null && existing.id.isNotEmpty)
+                        const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            if (days.isEmpty) {
+                              _snack(l10n.selectAtLeastOneDaySnack);
+                              return;
+                            }
+                            final name = labelCtrl.text.trim();
+                            if (name.isEmpty) {
+                              _snack(l10n.enterBlockNameSnack);
+                              return;
+                            }
+                            Navigator.pop(ctx);
+                            final now = DateTime.now();
+                            final rule =
+                                (existing ?? _blankRule(RuleType.appSchedule))
+                                    .copyWith(
+                              ruleName: name,
+                              allowedStartTime: start,
+                              allowedEndTime: end,
+                              allowedDays: List<int>.from(days),
+                              description:
+                                  'Focus block ${_fmtAmPm(start)} – ${_fmtAmPm(end)}',
+                              updatedAt: now,
+                            );
+                            await _saveRule(rule);
+                            _snack(l10n.focusSavedSnack);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: amber,
+                            foregroundColor:
+                                colors.isDark ? Colors.black : Colors.white,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: Text(l10n.saveAction,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w800)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
   // ── reusable sub-widgets ────────────────────────────────────
-
-  Widget _sheetTitle(IconData icon, Color color, String text) {
+  Widget _sheetTitle(
+    IconData icon,
+    Color color,
+    String text,
+    AppColors colors,
+  ) {
     return Row(
       children: [
         Container(
@@ -639,11 +744,16 @@ class _SmartScreenTimeScreenState
           child: Icon(icon, color: color, size: 20),
         ),
         const SizedBox(width: 12),
-        Text(text,
-            style: const TextStyle(
-                color: _textPrimary,
-                fontSize: 17,
-                fontWeight: FontWeight.w800)),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -653,6 +763,7 @@ class _SmartScreenTimeScreenState
     required IconData icon,
     required Color color,
     required TimeOfDay time,
+    required AppColors colors,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
@@ -660,7 +771,7 @@ class _SmartScreenTimeScreenState
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
         decoration: BoxDecoration(
-          color: _surface,
+          color: colors.surfaceHighlight,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: color.withOpacity(0.4), width: 1.5),
         ),
@@ -671,27 +782,40 @@ class _SmartScreenTimeScreenState
               children: [
                 Icon(icon, color: color, size: 14),
                 const SizedBox(width: 4),
-                Text(label,
-                    style: TextStyle(
-                        color: _textSec,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600)),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: colors.textSecondary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 6),
-            Text(_fmtAmPm(time),
-                style: TextStyle(
-                    color: color,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900)),
+            Text(
+              _fmtAmPm(time),
+              style: TextStyle(
+                color: color,
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _daySelector(List<int> selected, void Function(int) onToggle) {
-    const labels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+  Widget _daySelector({
+    required List<int> selected,
+    required AppColors colors,
+    required SmartScreenTimeL10n l10n,
+    required void Function(int) onToggle,
+  }) {
+    final labels = l10n.dayLabelsShort;
+    final indigo = _indigoAccent(colors);
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: List.generate(7, (i) {
@@ -701,20 +825,25 @@ class _SmartScreenTimeScreenState
           onTap: () => onToggle(day),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            width: 36,
-            height: 36,
+            width: 38,
+            height: 38,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: isSel ? _indigo : _surface,
+              color: isSel ? indigo : colors.surfaceHighlight,
               border: Border.all(
-                  color: isSel ? _indigo : _border, width: 1.5),
+                color: isSel ? indigo : colors.border,
+                width: 1.5,
+              ),
             ),
             child: Center(
-              child: Text(labels[i],
-                  style: TextStyle(
-                      color: isSel ? Colors.white : _textSec,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13)),
+              child: Text(
+                labels[i],
+                style: TextStyle(
+                  color: isSel ? Colors.white : colors.textSecondary,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                ),
+              ),
             ),
           ),
         );
@@ -724,12 +853,22 @@ class _SmartScreenTimeScreenState
 
   void _snack(String msg) {
     if (!mounted) return;
+    final colors = AppColors.of(context);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(msg, style: const TextStyle(fontWeight: FontWeight.w600)),
-        backgroundColor: const Color(0xFF1E293B),
+        content: Text(
+          msg,
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        backgroundColor: colors.surface,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: colors.border),
+        ),
         duration: const Duration(seconds: 2),
       ),
     );
@@ -741,42 +880,128 @@ class _SmartScreenTimeScreenState
   @override
   Widget build(BuildContext context) {
     final rulesAsync = ref.watch(childRulesProvider(widget.childId));
+    final colors = AppColors.of(context);
+    final l10n = SmartScreenTimeL10n.of(context);
 
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: colors.background,
       body: FadeTransition(
         opacity: _fadeIn,
         child: rulesAsync.when(
-          loading: () => const Center(
-            child: CircularProgressIndicator(color: _teal, strokeWidth: 2.5),
+          loading: () => Center(
+            child: CircularProgressIndicator(
+              color: _tealAccent(colors),
+              strokeWidth: 2.5,
+            ),
           ),
-          error: (e, _) => _buildError(e.toString()),
-          data: (rules) => _buildBody(rules),
+          error: (e, _) => _buildError(e.toString(), colors, l10n),
+          data: (rules) => _buildBody(rules, colors, l10n),
         ),
       ),
     );
   }
 
-  Widget _buildError(String msg) {
+  Widget _buildError(String msg, AppColors colors, SmartScreenTimeL10n l10n) {
+    final isIndexBuilding = msg.contains('failed-precondition') ||
+        msg.contains('FAILED_PRECONDITION') ||
+        msg.contains('index') ||
+        msg.contains('Index');
+    final teal = _tealAccent(colors);
+    final rose = _roseAccent(colors);
+
+    if (isIndexBuilding) {
+      Future.delayed(const Duration(seconds: 8), () {
+        if (mounted) {
+          ref.invalidate(childRulesProvider(widget.childId));
+        }
+      });
+
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: teal.withOpacity(0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: SizedBox(
+                  width: 36,
+                  height: 36,
+                  child: CircularProgressIndicator(
+                    color: teal,
+                    strokeWidth: 2.5,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                l10n.settingUpDatabaseTitle,
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                l10n.firestoreBuildingSubtitle,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: colors.textSecondary,
+                  fontSize: 13,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: () =>
+                    ref.refresh(childRulesProvider(widget.childId)),
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: Text(l10n.retryNowAction),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: teal,
+                  foregroundColor: colors.isDark ? Colors.black : Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 24, vertical: 12),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline_rounded,
-                color: _rose, size: 48),
+            Icon(Icons.error_outline_rounded, color: rose, size: 48),
             const SizedBox(height: 12),
-            Text(msg,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: _textSec)),
+            Text(
+              msg,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: colors.textSecondary, fontSize: 13),
+            ),
             const SizedBox(height: 20),
-            ElevatedButton(
+            ElevatedButton.icon(
               onPressed: () =>
                   ref.refresh(childRulesProvider(widget.childId)),
-              style: ElevatedButton.styleFrom(backgroundColor: _teal),
-              child: const Text('Retry',
-                  style: TextStyle(color: Colors.black)),
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: Text(l10n.retryAction),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: teal,
+                foregroundColor: colors.isDark ? Colors.black : Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
             ),
           ],
         ),
@@ -784,7 +1009,11 @@ class _SmartScreenTimeScreenState
     );
   }
 
-  Widget _buildBody(List<RuleModel> rules) {
+  Widget _buildBody(
+    List<RuleModel> rules,
+    AppColors colors,
+    SmartScreenTimeL10n l10n,
+  ) {
     final screenTimeRule = _ruleOf(rules, RuleType.screenTime);
     final bedtimeRule = _ruleOf(rules, RuleType.bedtime);
     final focusRules = rules
@@ -794,20 +1023,28 @@ class _SmartScreenTimeScreenState
         .where((r) => r.type == RuleType.appLimit)
         .toList();
 
+    final teal = _tealAccent(colors);
+    final indigo = _indigoAccent(colors);
+    final amber = _amberAccent(colors);
+    final rose = _roseAccent(colors);
+
     return CustomScrollView(
       physics: const BouncingScrollPhysics(),
       slivers: [
         // ── App Bar ───────────────────────────────────────────
         SliverAppBar(
-          backgroundColor: _bg,
+          backgroundColor: colors.background,
           expandedHeight: 130,
           floating: false,
           pinned: true,
           elevation: 0,
           leading: IconButton(
             onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                color: _textPrimary, size: 20),
+            icon: Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: colors.textPrimary,
+              size: 20,
+            ),
           ),
           flexibleSpace: FlexibleSpaceBar(
             titlePadding:
@@ -817,17 +1054,17 @@ class _SmartScreenTimeScreenState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Smart Screen Time',
-                  style: const TextStyle(
-                    color: _textPrimary,
+                  l10n.screenTitle,
+                  style: TextStyle(
+                    color: colors.textPrimary,
                     fontSize: 17,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
                 Text(
                   widget.childName,
-                  style: const TextStyle(
-                    color: _teal,
+                  style: TextStyle(
+                    color: teal,
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),
@@ -840,8 +1077,8 @@ class _SmartScreenTimeScreenState
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    _teal.withOpacity(0.12),
-                    _bg,
+                    teal.withOpacity(colors.isDark ? 0.12 : 0.08),
+                    colors.background,
                   ],
                 ),
               ),
@@ -857,83 +1094,100 @@ class _SmartScreenTimeScreenState
               children: [
                 // ── Summary banner ─────────────────────────────
                 _buildSummaryBanner(
-                    rules, screenTimeRule, bedtimeRule, focusRules),
+                  rules: rules,
+                  screenTime: screenTimeRule,
+                  bedtime: bedtimeRule,
+                  focus: focusRules,
+                  colors: colors,
+                  l10n: l10n,
+                ),
                 const SizedBox(height: 20),
 
                 // ── Section: Daily Limit ───────────────────────
-                _sectionHeader('Daily Limit', Icons.timer_rounded, _teal),
+                _sectionHeader(l10n.dailyLimitHeader, Icons.timer_rounded, teal),
                 const SizedBox(height: 10),
-                _buildDailyLimitCard(screenTimeRule),
+                _buildDailyLimitCard(screenTimeRule, colors, l10n),
                 const SizedBox(height: 20),
 
                 // ── Section: Bedtime ───────────────────────────
-                _sectionHeader('Bedtime Schedule', Icons.bedtime_rounded, _indigo),
+                _sectionHeader(l10n.bedtimeTitle, Icons.bedtime_rounded, indigo),
                 const SizedBox(height: 10),
-                _buildBedtimeCard(bedtimeRule),
+                _buildBedtimeCard(bedtimeRule, colors, l10n),
                 const SizedBox(height: 20),
 
                 // ── Section: Focus Blocks ──────────────────────
-                _sectionHeader('Focus Blocks', Icons.menu_book_rounded, _amber,
-                    trailing: GestureDetector(
-                      onTap: () => _showFocusBlockDialog(),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: _amber.withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: const [
-                            Icon(Icons.add, color: _amber, size: 14),
-                            SizedBox(width: 3),
-                            Text('Add',
-                                style: TextStyle(
-                                    color: _amber,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700)),
-                          ],
-                        ),
+                _sectionHeader(
+                  l10n.focusBlocksTitle,
+                  Icons.menu_book_rounded,
+                  amber,
+                  trailing: GestureDetector(
+                    onTap: () => _showFocusBlockDialog(),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: amber.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(20),
                       ),
-                    )),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.add, color: amber, size: 14),
+                          const SizedBox(width: 3),
+                          Text(
+                            l10n.addAction,
+                            style: TextStyle(
+                              color: amber,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 10),
                 if (focusRules.isEmpty)
                   _buildEmptyCard(
                     icon: Icons.menu_book_outlined,
-                    color: _amber,
-                    title: 'No focus blocks yet',
-                    subtitle: 'Add a study window to block distractions',
+                    color: amber,
+                    title: l10n.noFocusBlocksTitle,
+                    subtitle: l10n.addStudyWindowSubtitle,
                     onAdd: () => _showFocusBlockDialog(),
-                    addLabel: 'Add Focus Block',
+                    addLabel: l10n.addFocusBlockAction,
+                    colors: colors,
                   )
                 else
                   ...focusRules.map(
                     (r) => Padding(
                       padding: const EdgeInsets.only(bottom: 10),
-                      child: _buildFocusRuleCard(r),
+                      child: _buildFocusRuleCard(r, colors, l10n),
                     ),
                   ),
                 const SizedBox(height: 20),
 
                 // ── Section: App Time Limits ───────────────────
                 _sectionHeader(
-                    'App Time Limits', Icons.apps_rounded, _rose),
+                  l10n.appTimeLimitsTitle,
+                  Icons.apps_rounded,
+                  rose,
+                ),
                 const SizedBox(height: 10),
                 if (appLimitRules.isEmpty)
                   _buildEmptyCard(
                     icon: Icons.hourglass_empty_rounded,
-                    color: _rose,
-                    title: 'No per-app limits',
-                    subtitle:
-                        'Set per-app limits from the App Management screen',
+                    color: rose,
+                    title: l10n.noAppLimitsTitle,
+                    subtitle: l10n.setAppLimitsFromManagementSubtitle,
                     onAdd: null,
+                    colors: colors,
                   )
                 else
                   ...appLimitRules.map(
                     (r) => Padding(
                       padding: const EdgeInsets.only(bottom: 8),
-                      child: _buildAppLimitCard(r),
+                      child: _buildAppLimitCard(r, colors, l10n),
                     ),
                   ),
 
@@ -947,59 +1201,73 @@ class _SmartScreenTimeScreenState
   }
 
   // ── Summary banner ──────────────────────────────────────────
-  Widget _buildSummaryBanner(
-    List<RuleModel> rules,
-    RuleModel? screenTime,
-    RuleModel? bedtime,
-    List<RuleModel> focus,
-  ) {
+  Widget _buildSummaryBanner({
+    required List<RuleModel> rules,
+    required RuleModel? screenTime,
+    required RuleModel? bedtime,
+    required List<RuleModel> focus,
+    required AppColors colors,
+    required SmartScreenTimeL10n l10n,
+  }) {
     final activeCount = rules.where((r) => r.isActive).length;
     final dailyLimit = screenTime?.totalScreenTimeMinutes;
     final bedtimeActive =
         bedtime != null && bedtime.status == RuleStatus.active;
+    final teal = _tealAccent(colors);
+    final indigo = _indigoAccent(colors);
+    final amber = _amberAccent(colors);
 
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [_teal.withOpacity(0.12), _indigo.withOpacity(0.08)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: colors.surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _teal.withOpacity(0.2)),
+        border: Border.all(color: teal.withOpacity(0.25)),
+        boxShadow: [
+          BoxShadow(
+            color: colors.isDark
+                ? teal.withOpacity(0.04)
+                : Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Row(
         children: [
           Expanded(
             child: _statCell(
               value: activeCount.toString(),
-              label: 'Active rules',
-              color: _teal,
+              label: l10n.activeRulesStat,
+              color: teal,
+              colors: colors,
             ),
           ),
-          _divider(),
+          _divider(colors),
           Expanded(
             child: _statCell(
-              value: dailyLimit != null ? _fmtMins(dailyLimit) : '—',
-              label: 'Daily limit',
-              color: _teal,
+              value: dailyLimit != null ? _fmtMins(dailyLimit, l10n) : '—',
+              label: l10n.dailyLimitStat,
+              color: teal,
+              colors: colors,
             ),
           ),
-          _divider(),
+          _divider(colors),
           Expanded(
             child: _statCell(
-              value: bedtimeActive ? 'On' : 'Off',
-              label: 'Bedtime',
-              color: bedtimeActive ? _indigo : _textSec,
+              value: bedtimeActive ? l10n.onStatus : l10n.offStatus,
+              label: l10n.bedtimeStat,
+              color: bedtimeActive ? indigo : colors.textSecondary,
+              colors: colors,
             ),
           ),
-          _divider(),
+          _divider(colors),
           Expanded(
             child: _statCell(
               value: focus.length.toString(),
-              label: 'Focus blocks',
-              color: _amber,
+              label: l10n.focusBlocksStat,
+              color: amber,
+              colors: colors,
             ),
           ),
         ],
@@ -1007,43 +1275,59 @@ class _SmartScreenTimeScreenState
     );
   }
 
-  Widget _statCell(
-      {required String value, required String label, required Color color}) {
+  Widget _statCell({
+    required String value,
+    required String label,
+    required Color color,
+    required AppColors colors,
+  }) {
     return Column(
       children: [
-        Text(value,
-            style: TextStyle(
-                color: color,
-                fontSize: 18,
-                fontWeight: FontWeight.w900)),
+        Text(
+          value,
+          style: TextStyle(
+            color: color,
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
         const SizedBox(height: 2),
-        Text(label,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: _textSec, fontSize: 10)),
+        Text(
+          label,
+          textAlign: TextAlign.center,
+          style: TextStyle(color: colors.textSecondary, fontSize: 10),
+        ),
       ],
     );
   }
 
-  Widget _divider() => Container(
+  Widget _divider(AppColors colors) => Container(
         width: 1,
         height: 36,
-        color: _border,
+        color: colors.border,
         margin: const EdgeInsets.symmetric(horizontal: 2),
       );
 
   // ── Section header ──────────────────────────────────────────
-  Widget _sectionHeader(String title, IconData icon, Color color,
-      {Widget? trailing}) {
+  Widget _sectionHeader(
+    String title,
+    IconData icon,
+    Color color, {
+    Widget? trailing,
+  }) {
     return Row(
       children: [
         Icon(icon, color: color, size: 16),
         const SizedBox(width: 7),
-        Text(title,
-            style: TextStyle(
-                color: color,
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.3)),
+        Text(
+          title,
+          style: TextStyle(
+            color: color,
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.3,
+          ),
+        ),
         const Spacer(),
         ?trailing,
       ],
@@ -1051,26 +1335,35 @@ class _SmartScreenTimeScreenState
   }
 
   // ── Daily limit card ─────────────────────────────────────────
-  Widget _buildDailyLimitCard(RuleModel? rule) {
+  Widget _buildDailyLimitCard(
+    RuleModel? rule,
+    AppColors colors,
+    SmartScreenTimeL10n l10n,
+  ) {
     final hasRule = rule != null;
     final isActive = hasRule && rule.status == RuleStatus.active;
     final limit = rule?.totalScreenTimeMinutes;
+    final teal = _tealAccent(colors);
+    final amber = _amberAccent(colors);
 
     return _ruleCard(
-      color: _teal,
+      color: teal,
       icon: Icons.timer_rounded,
       title: hasRule
-          ? 'Max ${_fmtMins(limit ?? 0)} per day'
-          : 'Not set — tap to configure',
+          ? l10n.maxPerDay(_fmtMins(limit ?? 0, l10n))
+          : l10n.notSetTapToConfigure,
       subtitle: hasRule
-          ? 'Warn ${rule.warningMinutes ?? 15}m before limit · ${isActive ? "Active" : "Paused"}'
-          : 'Total device screen time for ${widget.childName}',
-      statusColor: hasRule ? (isActive ? _teal : _amber) : _textSec,
-      statusLabel: hasRule ? (isActive ? 'Active' : 'Paused') : 'Not set',
+          ? '${l10n.warnBeforeLimit(rule.warningMinutes ?? 15)} · ${isActive ? l10n.activeStatus : l10n.pausedStatus}'
+          : l10n.totalScreenTimeFor(widget.childName),
+      statusColor: hasRule ? (isActive ? teal : amber) : colors.textSecondary,
+      statusLabel: hasRule
+          ? (isActive ? l10n.activeStatus : l10n.pausedStatus)
+          : l10n.notSetStatus,
+      colors: colors,
       trailing: hasRule
           ? Switch(
               value: isActive,
-              activeColor: _teal,
+              activeColor: teal,
               onChanged: (v) => _toggleRule(rule, v),
             )
           : null,
@@ -1079,11 +1372,17 @@ class _SmartScreenTimeScreenState
   }
 
   // ── Bedtime card ─────────────────────────────────────────────
-  Widget _buildBedtimeCard(RuleModel? rule) {
+  Widget _buildBedtimeCard(
+    RuleModel? rule,
+    AppColors colors,
+    SmartScreenTimeL10n l10n,
+  ) {
     final hasRule = rule != null;
     final isActive = hasRule && rule.status == RuleStatus.active;
+    final indigo = _indigoAccent(colors);
+    final amber = _amberAccent(colors);
 
-    String timeRange = 'Not set';
+    String timeRange = l10n.notSetStatus;
     if (hasRule && rule.bedtimeStart != null && rule.bedtimeEnd != null) {
       timeRange =
           '${_fmtAmPm(rule.bedtimeStart!)} – ${_fmtAmPm(rule.bedtimeEnd!)}';
@@ -1091,24 +1390,34 @@ class _SmartScreenTimeScreenState
 
     String daysLabel = '';
     if (hasRule && rule.allowedDays != null) {
-      const labels = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-      final sorted = List<int>.from(rule.allowedDays!)..sort();
-      daysLabel = sorted.map((d) => labels[d]).join(', ');
+      if (rule.allowedDays!.length == 7) {
+        daysLabel = l10n.everyDay;
+      } else {
+        final labels = l10n.dayNamesMedium;
+        final sorted = List<int>.from(rule.allowedDays!)..sort();
+        daysLabel = sorted
+            .map((d) => d < labels.length ? labels[d] : '')
+            .where((s) => s.isNotEmpty)
+            .join(', ');
+      }
     }
 
     return _ruleCard(
-      color: _indigo,
+      color: indigo,
       icon: Icons.bedtime_rounded,
-      title: hasRule ? timeRange : 'Not set — tap to configure',
+      title: hasRule ? timeRange : l10n.notSetTapToConfigure,
       subtitle: hasRule
-          ? '${isActive ? "Active" : "Paused"} · $daysLabel'
-          : 'Set quiet hours for ${widget.childName}',
-      statusColor: hasRule ? (isActive ? _indigo : _amber) : _textSec,
-      statusLabel: hasRule ? (isActive ? 'Active' : 'Paused') : 'Not set',
+          ? '${isActive ? l10n.activeStatus : l10n.pausedStatus} · $daysLabel'
+          : l10n.bedtimeFor(widget.childName),
+      statusColor: hasRule ? (isActive ? indigo : amber) : colors.textSecondary,
+      statusLabel: hasRule
+          ? (isActive ? l10n.activeStatus : l10n.pausedStatus)
+          : l10n.notSetStatus,
+      colors: colors,
       trailing: hasRule
           ? Switch(
               value: isActive,
-              activeColor: _indigo,
+              activeColor: indigo,
               onChanged: (v) => _toggleRule(rule, v),
             )
           : null,
@@ -1117,30 +1426,39 @@ class _SmartScreenTimeScreenState
   }
 
   // ── Focus block card ──────────────────────────────────────────
-  Widget _buildFocusRuleCard(RuleModel rule) {
+  Widget _buildFocusRuleCard(
+    RuleModel rule,
+    AppColors colors,
+    SmartScreenTimeL10n l10n,
+  ) {
     final isActive = rule.status == RuleStatus.active;
+    final amber = _amberAccent(colors);
+
     String timeRange = '';
     if (rule.allowedStartTime != null && rule.allowedEndTime != null) {
       timeRange =
           '${_fmtAmPm(rule.allowedStartTime!)} – ${_fmtAmPm(rule.allowedEndTime!)}';
     }
-    const labels = ['', 'M', 'T', 'W', 'T', 'F', 'S', 'S'];
-    final daysLabel = rule.allowedDays != null
-        ? (List<int>.from(rule.allowedDays!)..sort())
-            .map((d) => labels[d])
-            .join(' ')
-        : 'Every day';
+
+    String daysLabel = l10n.everyDay;
+    if (rule.allowedDays != null && rule.allowedDays!.length < 7) {
+      final labels = l10n.dayLabelsShort;
+      daysLabel = (List<int>.from(rule.allowedDays!)..sort())
+          .map((d) => (d - 1 >= 0 && d - 1 < labels.length) ? labels[d - 1] : '')
+          .join(' ');
+    }
 
     return _ruleCard(
-      color: _amber,
+      color: amber,
       icon: Icons.menu_book_rounded,
       title: rule.ruleName,
       subtitle: '$timeRange · $daysLabel',
-      statusColor: isActive ? _amber : _textSec,
-      statusLabel: isActive ? 'Active' : 'Paused',
+      statusColor: isActive ? amber : colors.textSecondary,
+      statusLabel: isActive ? l10n.activeStatus : l10n.pausedStatus,
+      colors: colors,
       trailing: Switch(
         value: isActive,
-        activeColor: _amber,
+        activeColor: amber,
         onChanged: (v) => _toggleRule(rule, v),
       ),
       onTap: () => _showFocusBlockDialog(rule),
@@ -1148,22 +1466,28 @@ class _SmartScreenTimeScreenState
   }
 
   // ── App limit card (read-only here) ──────────────────────────
-  Widget _buildAppLimitCard(RuleModel rule) {
+  Widget _buildAppLimitCard(
+    RuleModel rule,
+    AppColors colors,
+    SmartScreenTimeL10n l10n,
+  ) {
     final isActive = rule.status == RuleStatus.active;
     final limit = rule.dailyLimitMinutes;
+    final rose = _roseAccent(colors);
 
     return _ruleCard(
-      color: _rose,
+      color: rose,
       icon: Icons.hourglass_bottom_rounded,
       title: rule.appName ?? rule.appPackageName ?? 'Unknown App',
       subtitle: limit != null
-          ? '${_fmtMins(limit)} per day · ${isActive ? "Active" : "Paused"}'
-          : 'Limit set · ${isActive ? "Active" : "Paused"}',
-      statusColor: isActive ? _rose : _textSec,
-      statusLabel: isActive ? 'Active' : 'Paused',
+          ? '${_fmtMins(limit, l10n)} / ${l10n.dailyLimitStat} · ${isActive ? l10n.activeStatus : l10n.pausedStatus}'
+          : '${l10n.activeRulesStat} · ${isActive ? l10n.activeStatus : l10n.pausedStatus}',
+      statusColor: isActive ? rose : colors.textSecondary,
+      statusLabel: isActive ? l10n.activeStatus : l10n.pausedStatus,
+      colors: colors,
       trailing: Switch(
         value: isActive,
-        activeColor: _rose,
+        activeColor: rose,
         onChanged: (v) => _toggleRule(rule, v),
       ),
       onTap: null,
@@ -1178,6 +1502,7 @@ class _SmartScreenTimeScreenState
     required String subtitle,
     required Color statusColor,
     required String statusLabel,
+    required AppColors colors,
     Widget? trailing,
     VoidCallback? onTap,
   }) {
@@ -1186,13 +1511,20 @@ class _SmartScreenTimeScreenState
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: _card,
+          color: colors.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withOpacity(0.18), width: 1.2),
+          border: Border.all(
+            color: colors.isDark
+                ? color.withOpacity(0.2)
+                : colors.border,
+            width: 1.2,
+          ),
           boxShadow: [
             BoxShadow(
-              color: color.withOpacity(0.05),
-              blurRadius: 12,
+              color: colors.isDark
+                  ? color.withOpacity(0.04)
+                  : Colors.black.withOpacity(0.03),
+              blurRadius: 10,
               offset: const Offset(0, 3),
             ),
           ],
@@ -1213,19 +1545,26 @@ class _SmartScreenTimeScreenState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title,
-                      style: const TextStyle(
-                          color: _textPrimary,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   const SizedBox(height: 3),
-                  Text(subtitle,
-                      style: const TextStyle(
-                          color: _textSec, fontSize: 12),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: colors.textSecondary,
+                      fontSize: 12,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   const SizedBox(height: 5),
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -1234,11 +1573,14 @@ class _SmartScreenTimeScreenState
                       color: statusColor.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Text(statusLabel,
-                        style: TextStyle(
-                            color: statusColor,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700)),
+                    child: Text(
+                      statusLabel,
+                      style: TextStyle(
+                        color: statusColor,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -1248,8 +1590,11 @@ class _SmartScreenTimeScreenState
               trailing,
             ] else if (onTap != null) ...[
               const SizedBox(width: 8),
-              Icon(Icons.chevron_right_rounded,
-                  color: _textSec.withOpacity(0.5), size: 20),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: colors.textSecondary.withOpacity(0.5),
+                size: 20,
+              ),
             ],
           ],
         ),
@@ -1264,28 +1609,34 @@ class _SmartScreenTimeScreenState
     required String title,
     required String subtitle,
     required VoidCallback? onAdd,
+    required AppColors colors,
     String addLabel = 'Configure',
   }) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: _card,
+        color: colors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _border),
+        border: Border.all(color: colors.border),
       ),
       child: Column(
         children: [
-          Icon(icon, color: color.withOpacity(0.35), size: 36),
+          Icon(icon, color: color.withOpacity(0.4), size: 36),
           const SizedBox(height: 10),
-          Text(title,
-              style: const TextStyle(
-                  color: _textPrimary,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14)),
+          Text(
+            title,
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+            ),
+          ),
           const SizedBox(height: 4),
-          Text(subtitle,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: _textSec, fontSize: 12)),
+          Text(
+            subtitle,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: colors.textSecondary, fontSize: 12),
+          ),
           if (onAdd != null) ...[
             const SizedBox(height: 14),
             GestureDetector(
@@ -1298,11 +1649,14 @@ class _SmartScreenTimeScreenState
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: color.withOpacity(0.3)),
                 ),
-                child: Text(addLabel,
-                    style: TextStyle(
-                        color: color,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13)),
+                child: Text(
+                  addLabel,
+                  style: TextStyle(
+                    color: color,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
               ),
             ),
           ],
@@ -1311,4 +1665,3 @@ class _SmartScreenTimeScreenState
     );
   }
 }
-
