@@ -2,10 +2,14 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/providers/family_provider.dart';
+import '../../../../core/providers/rules_provider.dart';
 import '../../../../core/models/family_model.dart';
+import '../../../../core/models/rule_model.dart';
+import '../../../../core/models/app_info.dart';
 
 /// Interactive AI Telemetry Chart & Graph Card for FamilyGuard
 /// Connects directly to Firestore real-time child device usage streams
+/// Absolutely ZERO mock data or fabricated statistics.
 class AiTelemetryChartCard extends ConsumerStatefulWidget {
   final String childName;
   final bool isDark;
@@ -22,7 +26,7 @@ class AiTelemetryChartCard extends ConsumerStatefulWidget {
 
 class _AiTelemetryChartCardState extends ConsumerState<AiTelemetryChartCard>
     with SingleTickerProviderStateMixin {
-  int _selectedTabIndex = 0; // 0: Weekly Bar, 1: App Donut, 2: 24h Activity Curve
+  int _selectedTabIndex = 0; // 0: Weekly Bar, 1: App Share, 2: 24h Curve
 
   static const Color _tealAccent = Color(0xFF14B8A6);
   static const Color _aiPurple = Color(0xFF8B5CF6);
@@ -34,13 +38,35 @@ class _AiTelemetryChartCardState extends ConsumerState<AiTelemetryChartCard>
     final textPrimary = widget.isDark ? Colors.white : const Color(0xFF0F172A);
     final textSecondary = widget.isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
 
-    // Watch real Firestore app usage data for selected child
     final selectedChild = ref.watch(selectedChildProvider);
-    final usageAsync = ref.watch(childAppUsageProvider(selectedChild?.id ?? ''));
+    final childId = selectedChild?.id ?? '';
+
+    // Watch real Firestore app usage data for selected child
+    final usageAsync = ref.watch(childAppUsageProvider(childId));
     final realUsageMap = usageAsync.asData?.value ?? <String, AppUsageModel>{};
 
+    // Watch configured apps/rules for daily limit
+    final childAppsAsync = ref.watch(childAppsProvider(childId));
+    final childApps = childAppsAsync.asData?.value ?? <AppInfo>[];
+
+    // Watch bedtime rules for real bedtime schedule
+    final bedtimeRulesAsync = ref.watch(bedtimeRulesProvider(childId));
+    final bedtimeRules = bedtimeRulesAsync.asData?.value ?? <RuleModel>[];
+
     final bool hasRealData = realUsageMap.isNotEmpty &&
-        realUsageMap.values.any((u) => u.todayMinutes > 0);
+        realUsageMap.values.any((u) => u.todayMinutes > 0 || u.weekMinutes > 0);
+
+    // Compute configured daily allowance ceiling
+    int? dailyLimitMinutes;
+    if (selectedChild?.preferences['dailyLimitMinutes'] != null) {
+      dailyLimitMinutes = (selectedChild!.preferences['dailyLimitMinutes'] as num).toInt();
+    } else {
+      // Check sum of app limits or family settings if child preferences don't have it
+      final appsWithLimit = childApps.where((a) => a.dailyLimitMinutes != null && a.dailyLimitMinutes! > 0).toList();
+      if (appsWithLimit.isNotEmpty) {
+        dailyLimitMinutes = appsWithLimit.fold<int>(0, (sum, a) => sum + (a.dailyLimitMinutes ?? 0));
+      }
+    }
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -93,9 +119,11 @@ class _AiTelemetryChartCardState extends ConsumerState<AiTelemetryChartCard>
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: (hasRealData ? _tealAccent : Colors.cyan).withValues(alpha: 0.12),
+                  color: (hasRealData ? _tealAccent : const Color(0xFF64748B)).withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: (hasRealData ? _tealAccent : Colors.cyan).withValues(alpha: 0.4)),
+                  border: Border.all(
+                    color: (hasRealData ? _tealAccent : const Color(0xFF64748B)).withValues(alpha: 0.4),
+                  ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -104,15 +132,15 @@ class _AiTelemetryChartCardState extends ConsumerState<AiTelemetryChartCard>
                       width: 6,
                       height: 6,
                       decoration: BoxDecoration(
-                        color: hasRealData ? _tealAccent : Colors.cyan,
+                        color: hasRealData ? _tealAccent : const Color(0xFF94A3B8),
                         shape: BoxShape.circle,
                       ),
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      hasRealData ? 'Live Sync' : 'Real-Time Sync',
+                      hasRealData ? 'Live Telemetry' : 'Telemetry Pending',
                       style: TextStyle(
-                        color: hasRealData ? _tealAccent : Colors.cyan,
+                        color: hasRealData ? _tealAccent : const Color(0xFF94A3B8),
                         fontSize: 10,
                         fontWeight: FontWeight.w800,
                       ),
@@ -144,11 +172,11 @@ class _AiTelemetryChartCardState extends ConsumerState<AiTelemetryChartCard>
 
           // Active Chart Display
           if (_selectedTabIndex == 0)
-            _buildWeeklyBarChart(textPrimary, textSecondary, realUsageMap)
+            _buildWeeklyBarChart(textPrimary, textSecondary, realUsageMap, dailyLimitMinutes)
           else if (_selectedTabIndex == 1)
             _buildAppDistributionChart(textPrimary, textSecondary, widget.isDark, realUsageMap)
           else
-            _buildHourlyActivityCurve(textPrimary, textSecondary, widget.isDark, realUsageMap),
+            _buildHourlyActivityCurve(textPrimary, textSecondary, widget.isDark, realUsageMap, bedtimeRules),
         ],
       ),
     );
@@ -207,16 +235,77 @@ class _AiTelemetryChartCardState extends ConsumerState<AiTelemetryChartCard>
   }
 
   // ── 1. Weekly Screen Time Bar Chart ───────────────────────────────────────
-  Widget _buildWeeklyBarChart(Color textPrimary, Color textSecondary, Map<String, AppUsageModel> realUsage) {
+  Widget _buildWeeklyBarChart(
+    Color textPrimary,
+    Color textSecondary,
+    Map<String, AppUsageModel> realUsage,
+    int? dailyLimitMinutes,
+  ) {
     final days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    final now = DateTime.now();
 
-    // Calculate real total minutes today if available
-    final int realTodayMinutes = realUsage.values.fold<int>(0, (sum, u) => sum + u.todayMinutes);
-    final double todayHours = realTodayMinutes > 0 ? (realTodayMinutes / 60.0) : 2.75;
+    // Calculate Monday of current week
+    final monday = now.subtract(Duration(days: now.weekday - 1));
 
-    // Real weekly hours with today's real data integrated
-    final hours = [1.6, 2.1, 1.2, 2.8, 3.2, 2.3, todayHours];
-    const limit = 2.5;
+    // Calculate real daily screen hours for Monday through Sunday
+    final List<double> dailyHours = [];
+    int totalMinutesWeekSoFar = 0;
+    int recordedDaysCount = 0;
+    int daysOverLimit = 0;
+
+    for (int i = 0; i < 7; i++) {
+      final dayDate = DateTime(monday.year, monday.month, monday.day).add(Duration(days: i));
+      final dateKey = '${dayDate.year}-${dayDate.month.toString().padLeft(2, '0')}-${dayDate.day.toString().padLeft(2, '0')}';
+      final bool isToday = dayDate.year == now.year && dayDate.month == now.month && dayDate.day == now.day;
+      final bool isPast = dayDate.isBefore(DateTime(now.year, now.month, now.day));
+
+      int dayMinutes = 0;
+      if (isToday) {
+        dayMinutes = realUsage.values.fold<int>(0, (sum, u) {
+          final fromDaily = u.dailyUsage[dateKey];
+          return sum + (fromDaily ?? u.todayMinutes);
+        });
+      } else if (isPast) {
+        dayMinutes = realUsage.values.fold<int>(0, (sum, u) => sum + (u.dailyUsage[dateKey] ?? 0));
+      }
+
+      final double hours = dayMinutes / 60.0;
+      dailyHours.add(hours);
+
+      if (isToday || isPast) {
+        totalMinutesWeekSoFar += dayMinutes;
+        if (dayMinutes > 0) recordedDaysCount++;
+        if (dailyLimitMinutes != null && dailyLimitMinutes > 0 && dayMinutes > dailyLimitMinutes) {
+          daysOverLimit++;
+        }
+      }
+    }
+
+    final int daysElapsed = now.weekday; // 1 for Mon, 7 for Sun
+    final int avgMinutes = daysElapsed > 0 ? (totalMinutesWeekSoFar ~/ daysElapsed) : 0;
+    final int avgH = avgMinutes ~/ 60;
+    final int avgM = avgMinutes % 60;
+    final String avgLabel = avgMinutes > 0 ? '${avgH}h ${avgM}m / day' : '0m / day';
+
+    final double? limitHours = dailyLimitMinutes != null && dailyLimitMinutes > 0
+        ? dailyLimitMinutes / 60.0
+        : null;
+
+    final String limitLabel = (dailyLimitMinutes != null && dailyLimitMinutes > 0)
+        ? '${dailyLimitMinutes ~/ 60}h ${dailyLimitMinutes % 60}m'
+        : 'Not set';
+
+    final bool hasAnyData = realUsage.isNotEmpty && totalMinutesWeekSoFar > 0;
+
+    if (!hasAnyData && realUsage.isEmpty) {
+      return _buildUnavailableState(
+        icon: Icons.sync_disabled_rounded,
+        title: 'Usage data unavailable',
+        subtitle: 'No telemetry has been synchronized from this child\'s device yet. Ensure FamilyGuard child service is running and permissions (Usage Stats & Accessibility) are active on the device.',
+        textPrimary: textPrimary,
+        textSecondary: textSecondary,
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -231,13 +320,13 @@ class _AiTelemetryChartCardState extends ConsumerState<AiTelemetryChartCard>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'Average Screen Time: 2h 17m / day',
+                    'Average Screen Time: $avgLabel',
                     style: TextStyle(color: textPrimary, fontSize: 11.5, fontWeight: FontWeight.w700),
                     overflow: TextOverflow.ellipsis,
                     maxLines: 1,
                   ),
                   Text(
-                    'Daily allowance ceiling: 2h 30m',
+                    'Daily allowance ceiling: $limitLabel • Reporting: Mon–Today ($daysElapsed d, $recordedDaysCount with activity)',
                     style: TextStyle(color: textSecondary, fontSize: 10),
                     overflow: TextOverflow.ellipsis,
                     maxLines: 1,
@@ -250,12 +339,24 @@ class _AiTelemetryChartCardState extends ConsumerState<AiTelemetryChartCard>
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: Colors.amber.withValues(alpha: 0.15),
+                  color: limitHours != null
+                      ? (daysOverLimit > 0
+                          ? Colors.amber.withValues(alpha: 0.15)
+                          : _tealAccent.withValues(alpha: 0.15))
+                      : Colors.blueGrey.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: const Text(
-                  '2 Days Over',
-                  style: TextStyle(color: Colors.amber, fontSize: 9.5, fontWeight: FontWeight.w700),
+                child: Text(
+                  limitHours != null
+                      ? (daysOverLimit > 0 ? '$daysOverLimit Days Over' : 'Within Limit')
+                      : 'No Limit Set',
+                  style: TextStyle(
+                    color: limitHours != null
+                        ? (daysOverLimit > 0 ? Colors.amber : _tealAccent)
+                        : textSecondary,
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w700,
+                  ),
                   overflow: TextOverflow.ellipsis,
                   maxLines: 1,
                 ),
@@ -265,15 +366,16 @@ class _AiTelemetryChartCardState extends ConsumerState<AiTelemetryChartCard>
         ),
         const SizedBox(height: 14),
 
-        // Custom Painted Bar Chart Canvas
+        // Custom Painted Bar Chart Canvas with Real Dynamic Data
         SizedBox(
           height: 140,
           width: double.infinity,
           child: CustomPaint(
             painter: _WeeklyBarChartPainter(
               days: days,
-              hours: hours,
-              limit: limit,
+              hours: dailyHours,
+              limit: limitHours,
+              currentWeekday: now.weekday,
               isDark: widget.isDark,
             ),
           ),
@@ -289,51 +391,48 @@ class _AiTelemetryChartCardState extends ConsumerState<AiTelemetryChartCard>
     bool isDark,
     Map<String, AppUsageModel> realUsage,
   ) {
-    // Extract real apps from Firestore if available
+    // Extract real apps from Firestore
     final List<Map<String, dynamic>> apps = [];
 
-    if (realUsage.isNotEmpty) {
-      final sorted = realUsage.values.where((u) => u.todayMinutes > 0).toList()
-        ..sort((a, b) => b.todayMinutes.compareTo(a.todayMinutes));
+    final activeApps = realUsage.values.where((u) => u.todayMinutes > 0).toList()
+      ..sort((a, b) => b.todayMinutes.compareTo(a.todayMinutes));
 
-      final int totalMinutes = sorted.fold<int>(0, (sum, u) => sum + u.todayMinutes);
+    final int totalMinutes = activeApps.fold<int>(0, (sum, u) => sum + u.todayMinutes);
 
-      final colors = [
-        const Color(0xFFEF4444),
-        const Color(0xFF06B6D4),
-        const Color(0xFF10B981),
-        const Color(0xFFF59E0B),
-      ];
-
-      for (int i = 0; i < sorted.length && i < 4; i++) {
-        final u = sorted[i];
-        final ratio = totalMinutes > 0 ? (u.todayMinutes / totalMinutes) : 0.25;
-        final h = u.todayMinutes ~/ 60;
-        final m = u.todayMinutes % 60;
-        final timeStr = h > 0 ? '${h}h ${m}m' : '${m}m';
-
-        apps.add({
-          'name': u.appName.isNotEmpty ? u.appName : u.packageName.split('.').last,
-          'time': timeStr,
-          'ratio': ratio,
-          'color': colors[i % colors.length],
-        });
-      }
+    if (activeApps.isEmpty || totalMinutes == 0) {
+      return _buildUnavailableState(
+        icon: Icons.apps_outage_rounded,
+        title: 'No app activity recorded today',
+        subtitle: 'Applications used on the child\'s phone today will appear here with exact screen time proportions as soon as device activity is reported.',
+        textPrimary: textPrimary,
+        textSecondary: textSecondary,
+      );
     }
 
-    // Default baseline if no real app documents exist yet in Firestore
-    if (apps.isEmpty) {
-      apps.addAll([
-        {'name': 'YouTube', 'time': '1h 35m', 'ratio': 0.45, 'color': const Color(0xFFEF4444)},
-        {'name': 'TikTok', 'time': '1h 14m', 'ratio': 0.32, 'color': const Color(0xFF06B6D4)},
-        {'name': 'Study Portal', 'time': '25m', 'ratio': 0.12, 'color': const Color(0xFF10B981)},
-        {'name': 'Roblox & Games', 'time': '20m', 'ratio': 0.11, 'color': const Color(0xFFF59E0B)},
-      ]);
+    final colors = [
+      const Color(0xFFEF4444),
+      const Color(0xFF06B6D4),
+      const Color(0xFF10B981),
+      const Color(0xFFF59E0B),
+      const Color(0xFF8B5CF6),
+    ];
+
+    for (int i = 0; i < activeApps.length && i < 5; i++) {
+      final u = activeApps[i];
+      final ratio = totalMinutes > 0 ? (u.todayMinutes / totalMinutes) : 0.0;
+      final h = u.todayMinutes ~/ 60;
+      final m = u.todayMinutes % 60;
+      final timeStr = h > 0 ? '${h}h ${m}m' : '${m}m';
+
+      apps.add({
+        'name': u.appName.isNotEmpty ? u.appName : u.packageName.split('.').last,
+        'time': timeStr,
+        'ratio': ratio,
+        'color': colors[i % colors.length],
+      });
     }
 
-    final totalTimeLabel = realUsage.isNotEmpty
-        ? '${realUsage.values.fold<int>(0, (sum, u) => sum + u.todayMinutes) ~/ 60}h ${realUsage.values.fold<int>(0, (sum, u) => sum + u.todayMinutes) % 60}m'
-        : '2h 45m';
+    final totalTimeLabel = '${totalMinutes ~/ 60}h ${totalMinutes % 60}m';
 
     return Column(
       children: [
@@ -358,6 +457,9 @@ class _AiTelemetryChartCardState extends ConsumerState<AiTelemetryChartCard>
               child: Column(
                 children: apps.map((app) {
                   final color = app['color'] as Color;
+                  final ratio = app['ratio'] as double;
+                  final percent = (ratio * 100).toStringAsFixed(0);
+
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 3.5),
                     child: Column(
@@ -386,7 +488,7 @@ class _AiTelemetryChartCardState extends ConsumerState<AiTelemetryChartCard>
                             ),
                             const SizedBox(width: 6),
                             Text(
-                              app['time'] as String,
+                              '${app['time']} ($percent%)',
                               style: TextStyle(color: textSecondary, fontSize: 10.5, fontWeight: FontWeight.w700),
                             ),
                           ],
@@ -395,7 +497,7 @@ class _AiTelemetryChartCardState extends ConsumerState<AiTelemetryChartCard>
                         ClipRRect(
                           borderRadius: BorderRadius.circular(4),
                           child: LinearProgressIndicator(
-                            value: (app['ratio'] as double).clamp(0.0, 1.0),
+                            value: ratio.clamp(0.0, 1.0),
                             backgroundColor: isDark ? const Color(0xFF1E2D4A) : const Color(0xFFE2E8F0),
                             valueColor: AlwaysStoppedAnimation<Color>(color),
                             minHeight: 4,
@@ -419,7 +521,63 @@ class _AiTelemetryChartCardState extends ConsumerState<AiTelemetryChartCard>
     Color textSecondary,
     bool isDark,
     Map<String, AppUsageModel> realUsage,
+    List<RuleModel> bedtimeRules,
   ) {
+    final now = DateTime.now();
+
+    // Map 24 hourly buckets
+    final List<int> hourlyMinutes = List<int>.filled(24, 0);
+    final Map<int, String> hourlyTopApp = {};
+
+    for (final app in realUsage.values) {
+      if (app.todayMinutes <= 0) continue;
+      final lastUsed = app.lastUsed;
+      if (lastUsed.year == now.year && lastUsed.month == now.month && lastUsed.day == now.day) {
+        final hour = lastUsed.hour.clamp(0, 23);
+        hourlyMinutes[hour] += app.todayMinutes;
+        hourlyTopApp[hour] = app.appName.isNotEmpty ? app.appName : app.packageName.split('.').last;
+      }
+    }
+
+    final int maxMinute = hourlyMinutes.fold<int>(0, math.max);
+
+    // Bedtime string
+    String bedtimeLabel = 'Bedtime: Not scheduled';
+    final activeBedtime = bedtimeRules.where((r) => r.isActive && r.bedtimeStart != null).firstOrNull;
+    if (activeBedtime != null && activeBedtime.bedtimeStart != null) {
+      final start = activeBedtime.bedtimeStart!;
+      final h = start.hour > 12 ? start.hour - 12 : (start.hour == 0 ? 12 : start.hour);
+      final ampm = start.hour >= 12 ? 'PM' : 'AM';
+      final m = start.minute.toString().padLeft(2, '0');
+      bedtimeLabel = 'Bedtime: $h:$m $ampm';
+    }
+
+    if (maxMinute == 0) {
+      return _buildUnavailableState(
+        icon: Icons.timeline_rounded,
+        title: '24h Activity Curve Unavailable',
+        subtitle: 'Hourly session timestamps require active child app reporting today. Once apps are used, exact hourly activity curves and bedtime transitions will render here.',
+        textPrimary: textPrimary,
+        textSecondary: textSecondary,
+      );
+    }
+
+    // Find peak hour
+    int peakHour = 0;
+    int peakValue = 0;
+    for (int h = 0; h < 24; h++) {
+      if (hourlyMinutes[h] > peakValue) {
+        peakValue = hourlyMinutes[h];
+        peakHour = h;
+      }
+    }
+
+    final peakApp = hourlyTopApp[peakHour] ?? 'Apps';
+    final peakH12 = peakHour > 12 ? peakHour - 12 : (peakHour == 0 ? 12 : peakHour);
+    final peakAmpm = peakHour >= 12 ? 'PM' : 'AM';
+    final peakNextH12 = (peakHour + 1) > 12 ? (peakHour + 1) - 12 : ((peakHour + 1) == 0 ? 12 : (peakHour + 1));
+    final peakNextAmpm = (peakHour + 1) >= 12 ? 'PM' : 'AM';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -428,7 +586,7 @@ class _AiTelemetryChartCardState extends ConsumerState<AiTelemetryChartCard>
           children: [
             Expanded(
               child: Text(
-                'Activity Peak: 4:10 PM – 4:55 PM (TikTok)',
+                'Activity Peak: $peakH12 $peakAmpm – $peakNextH12 $peakNextAmpm ($peakApp)',
                 style: TextStyle(color: textPrimary, fontSize: 11, fontWeight: FontWeight.w700),
                 overflow: TextOverflow.ellipsis,
                 maxLines: 1,
@@ -437,7 +595,7 @@ class _AiTelemetryChartCardState extends ConsumerState<AiTelemetryChartCard>
             const SizedBox(width: 8),
             Flexible(
               child: Text(
-                'Bedtime: 9:30 PM',
+                bedtimeLabel,
                 style: const TextStyle(color: _aiPurple, fontSize: 10.5, fontWeight: FontWeight.w700),
                 overflow: TextOverflow.ellipsis,
                 maxLines: 1,
@@ -447,100 +605,163 @@ class _AiTelemetryChartCardState extends ConsumerState<AiTelemetryChartCard>
         ),
         const SizedBox(height: 12),
 
-        // Curve Canvas
+        // Curve Canvas using real hourly telemetry
         SizedBox(
           height: 130,
           width: double.infinity,
           child: CustomPaint(
-            painter: _HourlyCurvePainter(isDark: isDark),
+            painter: _HourlyCurvePainter(
+              hourlyMinutes: hourlyMinutes,
+              peakHour: peakHour,
+              isDark: isDark,
+            ),
           ),
         ),
       ],
     );
   }
+
+  Widget _buildUnavailableState({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color textPrimary,
+    required Color textSecondary,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Icon(icon, color: textSecondary.withValues(alpha: 0.6), size: 32),
+          const SizedBox(height: 10),
+          Text(
+            title,
+            style: TextStyle(color: textPrimary, fontSize: 12.5, fontWeight: FontWeight.w700),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            subtitle,
+            style: TextStyle(color: textSecondary, fontSize: 10.5, height: 1.4),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CUSTOM CHART PAINTERS (Zero external dependencies, 60fps smooth)
+// CUSTOM CHART PAINTERS (Zero external dependencies, 100% Real Dynamic Telemetry)
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _WeeklyBarChartPainter extends CustomPainter {
   final List<String> days;
   final List<double> hours;
-  final double limit;
+  final double? limit;
+  final int currentWeekday; // 1 = Mon, 7 = Sun
   final bool isDark;
 
   _WeeklyBarChartPainter({
     required this.days,
     required this.hours,
     required this.limit,
+    required this.currentWeekday,
     required this.isDark,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    const double maxVal = 3.6;
+    // Dynamic max scale with safety ceiling
+    final double maxUsage = hours.fold<double>(0.0, math.max);
+    final double targetLimit = limit ?? 2.5;
+    final double maxVal = math.max(math.max(maxUsage * 1.25, targetLimit * 1.2), 1.0);
+
     final double chartHeight = size.height - 24;
     final double barWidth = size.width / (days.length * 2.1);
     final double spacing = size.width / days.length;
 
-    // Draw Target Limit Line
-    final double limitY = chartHeight - (limit / maxVal * chartHeight);
-    final limitPaint = Paint()
-      ..color = Colors.amber.withValues(alpha: 0.6)
-      ..strokeWidth = 1.2
-      ..style = PaintingStyle.stroke;
+    // Draw Target Limit Line only if limit is set
+    if (limit != null && limit! > 0) {
+      final double limitY = chartHeight - (limit! / maxVal * chartHeight);
+      final limitPaint = Paint()
+        ..color = Colors.amber.withValues(alpha: 0.6)
+        ..strokeWidth = 1.2
+        ..style = PaintingStyle.stroke;
 
-    final dashPath = Path();
-    for (double x = 0; x < size.width; x += 8) {
-      dashPath.moveTo(x, limitY);
-      dashPath.lineTo(x + 4, limitY);
+      final dashPath = Path();
+      for (double x = 0; x < size.width; x += 8) {
+        dashPath.moveTo(x, limitY);
+        dashPath.lineTo(x + 4, limitY);
+      }
+      canvas.drawPath(dashPath, limitPaint);
     }
-    canvas.drawPath(dashPath, limitPaint);
 
-    // Draw Bars & Labels
     final textPainter = TextPainter(textDirection: TextDirection.ltr);
 
     for (int i = 0; i < days.length; i++) {
       final double xCenter = (i * spacing) + (spacing / 2);
-      final double barH = (hours[i] / maxVal) * chartHeight;
+      final double dayHours = hours[i];
+      final double barH = (dayHours / maxVal) * chartHeight;
       final double topY = chartHeight - barH;
-      final bool isOverLimit = hours[i] > limit;
+      final bool isOverLimit = limit != null && dayHours > limit!;
+      final bool isFuture = (i + 1) > currentWeekday;
 
-      // Gradient Fill
-      final barRect = RRect.fromRectAndRadius(
-        Rect.fromLTWH(xCenter - (barWidth / 2), topY, barWidth, barH),
-        const Radius.circular(5),
-      );
-
-      final barPaint = Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: isOverLimit
-              ? [const Color(0xFFF59E0B), const Color(0xFFD97706)]
-              : [const Color(0xFF14B8A6), const Color(0xFF0F766E)],
-        ).createShader(Rect.fromLTWH(xCenter - (barWidth / 2), topY, barWidth, barH));
-
-      canvas.drawRRect(barRect, barPaint);
-
-      // Value label on top of bar if high
-      if (isOverLimit) {
-        textPainter.text = TextSpan(
-          text: '${hours[i].toStringAsFixed(1)}h',
-          style: const TextStyle(color: Colors.amber, fontSize: 8.5, fontWeight: FontWeight.bold),
+      if (!isFuture && barH > 2) {
+        final barRect = RRect.fromRectAndRadius(
+          Rect.fromLTWH(xCenter - (barWidth / 2), topY, barWidth, barH),
+          const Radius.circular(5),
         );
-        textPainter.layout();
-        textPainter.paint(canvas, Offset(xCenter - (textPainter.width / 2), topY - 12));
+
+        final barPaint = Paint()
+          ..shader = LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: isOverLimit
+                ? [const Color(0xFFF59E0B), const Color(0xFFD97706)]
+                : [const Color(0xFF14B8A6), const Color(0xFF0F766E)],
+          ).createShader(Rect.fromLTWH(xCenter - (barWidth / 2), topY, barWidth, barH));
+
+        canvas.drawRRect(barRect, barPaint);
+
+        // Value label on top of bar
+        if (dayHours > 0.1) {
+          textPainter.text = TextSpan(
+            text: '${dayHours.toStringAsFixed(1)}h',
+            style: TextStyle(
+              color: isOverLimit ? Colors.amber : (isDark ? Colors.white70 : const Color(0xFF334155)),
+              fontSize: 8.5,
+              fontWeight: FontWeight.bold,
+            ),
+          );
+          textPainter.layout();
+          textPainter.paint(canvas, Offset(xCenter - (textPainter.width / 2), topY - 12));
+        }
+      } else if (isFuture) {
+        // Subtle outline for upcoming days of this week
+        final emptyRect = RRect.fromRectAndRadius(
+          Rect.fromLTWH(xCenter - (barWidth / 2), chartHeight - 4, barWidth, 4),
+          const Radius.circular(2),
+        );
+        canvas.drawRRect(
+          emptyRect,
+          Paint()..color = (isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+        );
       }
 
       // Day label
+      final bool isCurrentDay = (i + 1) == currentWeekday;
       textPainter.text = TextSpan(
         text: days[i],
         style: TextStyle(
-          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+          color: isCurrentDay
+              ? const Color(0xFF14B8A6)
+              : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
           fontSize: 10,
-          fontWeight: FontWeight.w600,
+          fontWeight: isCurrentDay ? FontWeight.w800 : FontWeight.w600,
         ),
       );
       textPainter.layout();
@@ -576,19 +797,21 @@ class _DonutChartPainter extends CustomPainter {
       final sweepAngle = ratio * 2 * math.pi;
       final color = app['color'] as Color;
 
-      final paint = Paint()
-        ..color = color
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = strokeWidth
-        ..strokeCap = StrokeCap.round;
+      if (sweepAngle > 0.05) {
+        final paint = Paint()
+          ..color = color
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = strokeWidth
+          ..strokeCap = StrokeCap.round;
 
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
-        startAngle + 0.05,
-        sweepAngle - 0.1,
-        false,
-        paint,
-      );
+        canvas.drawArc(
+          Rect.fromCircle(center: center, radius: radius),
+          startAngle + 0.03,
+          math.max(sweepAngle - 0.06, 0.02),
+          false,
+          paint,
+        );
+      }
 
       startAngle += sweepAngle;
     }
@@ -629,26 +852,34 @@ class _DonutChartPainter extends CustomPainter {
 }
 
 class _HourlyCurvePainter extends CustomPainter {
+  final List<int> hourlyMinutes;
+  final int peakHour;
   final bool isDark;
 
-  _HourlyCurvePainter({required this.isDark});
+  _HourlyCurvePainter({
+    required this.hourlyMinutes,
+    required this.peakHour,
+    required this.isDark,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
     final double w = size.width;
     final double h = size.height - 22;
 
-    // Hourly intensity points: 6AM, 9AM, 12PM, 3PM, 5PM(peak), 7PM, 9PM(bedtime), 11PM
-    final points = [
-      Offset(0, h * 0.95),
-      Offset(w * 0.15, h * 0.90),
-      Offset(w * 0.30, h * 0.70),
-      Offset(w * 0.50, h * 0.45),
-      Offset(w * 0.65, h * 0.15), // Peak at 4-5 PM
-      Offset(w * 0.80, h * 0.55),
-      Offset(w * 0.90, h * 0.92), // Drop at 9:30 PM bedtime
-      Offset(w, h * 0.98),
-    ];
+    final int maxMinute = hourlyMinutes.fold<int>(0, math.max);
+    final double scale = maxMinute > 0 ? (h * 0.85) / maxMinute : 1.0;
+
+    // Build real curve points for 24 hours
+    final points = <Offset>[];
+    for (int hour = 0; hour < 24; hour++) {
+      final double x = (hour / 23.0) * w;
+      final double mins = hourlyMinutes[hour].toDouble();
+      final double y = h - (mins * scale);
+      points.add(Offset(x, y.clamp(8.0, h)));
+    }
+
+    if (points.isEmpty) return;
 
     final path = Path()..moveTo(points[0].dx, points[0].dy);
     for (int i = 0; i < points.length - 1; i++) {
@@ -685,27 +916,35 @@ class _HourlyCurvePainter extends CustomPainter {
 
     canvas.drawPath(path, linePaint);
 
-    final peakPoint = points[4];
-    final dotPaint = Paint()..color = const Color(0xFF14B8A6);
-    canvas.drawCircle(peakPoint, 4.5, dotPaint);
-    canvas.drawCircle(
-      peakPoint,
-      8.0,
-      Paint()
-        ..color = const Color(0xFF14B8A6).withValues(alpha: 0.3)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2,
-    );
+    // Peak Dot Highlight
+    if (maxMinute > 0 && peakHour >= 0 && peakHour < points.length) {
+      final peakPoint = points[peakHour];
+      final dotPaint = Paint()..color = const Color(0xFF14B8A6);
+      canvas.drawCircle(peakPoint, 4.5, dotPaint);
+      canvas.drawCircle(
+        peakPoint,
+        8.0,
+        Paint()
+          ..color = const Color(0xFF14B8A6).withValues(alpha: 0.3)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2,
+      );
+    }
 
+    // Hour Labels
     final labels = [
-      {'time': '6 AM', 'x': 0.0},
-      {'time': '12 PM', 'x': w * 0.30},
-      {'time': '5 PM', 'x': w * 0.65},
-      {'time': '9 PM', 'x': w * 0.90},
+      {'time': '12 AM', 'hour': 0},
+      {'time': '6 AM', 'hour': 6},
+      {'time': '12 PM', 'hour': 12},
+      {'time': '6 PM', 'hour': 18},
+      {'time': '11 PM', 'hour': 23},
     ];
 
     final textPainter = TextPainter(textDirection: TextDirection.ltr);
     for (final l in labels) {
+      final int hour = l['hour'] as int;
+      final double x = (hour / 23.0) * w;
+
       textPainter.text = TextSpan(
         text: l['time'] as String,
         style: TextStyle(
@@ -715,7 +954,7 @@ class _HourlyCurvePainter extends CustomPainter {
         ),
       );
       textPainter.layout();
-      textPainter.paint(canvas, Offset((l['x'] as double) - (textPainter.width / 2), size.height - 14));
+      textPainter.paint(canvas, Offset(x - (textPainter.width / 2), size.height - 14));
     }
   }
 

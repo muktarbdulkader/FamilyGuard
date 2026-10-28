@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../../../core/providers/meta_ai_provider.dart';
 import '../../../../core/providers/family_provider.dart';
 import '../../../../core/services/meta_ai_service.dart';
+import '../../../../core/services/education_service.dart';
+import '../../../../core/models/educational_task_model.dart';
 import '../widgets/ai_telemetry_chart_card.dart';
 
 class MetaGuardianAiScreen extends ConsumerStatefulWidget {
@@ -26,19 +29,36 @@ class _MetaGuardianAiScreenState extends ConsumerState<MetaGuardianAiScreen>
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
 
-    // Trigger initial agent analysis on load if messages are empty
+    // Trigger initial agent analysis on load only if provider is configured and messages are empty
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final state = ref.read(metaAiGuardianProvider);
       final selectedChild = ref.read(selectedChildProvider);
-      final childName = selectedChild?.displayName ?? 'Leo';
+      final childName = selectedChild?.displayName ?? 'Child';
 
-      if (state.messages.isEmpty) {
-        ref.read(metaAiGuardianProvider.notifier).triggerAgent(
-              childName: childName,
-              prompt: 'Nighttime schedule check and safety audit',
-            );
+      if (state.messages.isEmpty && MetaAiService.instance.isConfigured) {
+        _triggerWithRealContext('Perform initial safety & daily screen-time quota evaluation for $childName');
       }
     });
+  }
+
+  void _triggerWithRealContext(String prompt) {
+    final selectedChild = ref.read(selectedChildProvider);
+    final childName = selectedChild?.displayName ?? 'Child';
+    final childId = selectedChild?.id ?? '';
+    final usageMap = ref.read(childAppUsageProvider(childId)).asData?.value ?? {};
+
+    final activeApps = usageMap.values.where((u) => u.todayMinutes > 0).toList();
+    final String usageSummary = activeApps.isNotEmpty
+        ? activeApps.map((u) => '${u.appName.isNotEmpty ? u.appName : u.packageName}: ${u.todayMinutes}m (${u.openCount} opens)').join(', ')
+        : 'No app activity recorded on device today';
+
+    ref.read(metaAiGuardianProvider.notifier).triggerAgent(
+          childName: childName,
+          childAge: 12,
+          contextInfo: 'Live Telemetry for $childName: $usageSummary',
+          prompt: prompt,
+        );
+    _scrollToBottom();
   }
 
   @override
@@ -179,7 +199,6 @@ class _MetaGuardianAiScreenState extends ConsumerState<MetaGuardianAiScreen>
 
   // ── Tab 1: Autonomous Agent & Interactive Chat View ───────────────────────
   Widget _buildAgentView(MetaAiGuardianState state, String childName, bool isDark) {
-    final selectedChild = ref.watch(selectedChildProvider);
     final surfaceColor = isDark ? const Color(0xFF111E33) : Colors.white;
     final cardBorder = isDark ? const Color(0xFF1E2D4A) : const Color(0xFFE2E8F0);
     final textPrimary = isDark ? Colors.white : const Color(0xFF0F172A);
@@ -236,13 +255,9 @@ class _MetaGuardianAiScreenState extends ConsumerState<MetaGuardianAiScreen>
                         label: 'Bedtime Wind-Down',
                         color: Colors.indigoAccent,
                         isDark: isDark,
-                        onTap: () {
-                          ref.read(metaAiGuardianProvider.notifier).triggerAgent(
-                                childName: childName,
-                                prompt: 'Check bedtime compliance and lock entertainment apps for night wind-down',
-                              );
-                          _scrollToBottom();
-                        },
+                        onTap: () => _triggerWithRealContext(
+                          'Check bedtime compliance and propose wind-down restrictions for entertainment apps',
+                        ),
                       ),
                       const SizedBox(width: 8),
                       _buildQuickActionChip(
@@ -250,13 +265,9 @@ class _MetaGuardianAiScreenState extends ConsumerState<MetaGuardianAiScreen>
                         label: 'Study Focus Mode',
                         color: Colors.teal,
                         isDark: isDark,
-                        onTap: () {
-                          ref.read(metaAiGuardianProvider.notifier).triggerAgent(
-                                childName: childName,
-                                prompt: 'Activate Study Focus Shield for homework and mute gaming distractions',
-                              );
-                          _scrollToBottom();
-                        },
+                        onTap: () => _triggerWithRealContext(
+                          'Activate Study Focus Shield and propose locking gaming and social distractions for study time',
+                        ),
                       ),
                       const SizedBox(width: 8),
                       _buildQuickActionChip(
@@ -264,13 +275,9 @@ class _MetaGuardianAiScreenState extends ConsumerState<MetaGuardianAiScreen>
                         label: 'Social Risk Scan',
                         color: Colors.deepOrangeAccent,
                         isDark: isDark,
-                        onTap: () {
-                          ref.read(metaAiGuardianProvider.notifier).triggerAgent(
-                                childName: childName,
-                                prompt: 'Scan social chat interactions and external link risks via Llama Guard',
-                              );
-                          _scrollToBottom();
-                        },
+                        onTap: () => _triggerWithRealContext(
+                          'Scan social interaction telemetry and recommend communication safety safeguards',
+                        ),
                       ),
                       const SizedBox(width: 8),
                       _buildQuickActionChip(
@@ -278,13 +285,9 @@ class _MetaGuardianAiScreenState extends ConsumerState<MetaGuardianAiScreen>
                         label: 'Screen Time Audit',
                         color: Colors.purpleAccent,
                         isDark: isDark,
-                        onTap: () {
-                          ref.read(metaAiGuardianProvider.notifier).triggerAgent(
-                                childName: childName,
-                                prompt: 'Audit screen time and daily quota usage across apps',
-                              );
-                          _scrollToBottom();
-                        },
+                        onTap: () => _triggerWithRealContext(
+                          'Perform comprehensive screen time and daily quota audit across active apps',
+                        ),
                       ),
                     ],
                   ),
@@ -323,6 +326,87 @@ class _MetaGuardianAiScreenState extends ConsumerState<MetaGuardianAiScreen>
                   ],
                 ),
                 const SizedBox(height: 12),
+
+                // API Configuration Banner if not yet configured
+                if (!MetaAiService.instance.isConfigured)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          _tealAccent.withValues(alpha: isDark ? 0.2 : 0.1),
+                          _aiPurple.withValues(alpha: isDark ? 0.2 : 0.1),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: _tealAccent.withValues(alpha: 0.4)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.key_rounded, color: _tealAccent, size: 24),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Connect Meta AI Provider',
+                                style: TextStyle(color: textPrimary, fontSize: 13, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Enter your Meta Model API, Groq, or Fireworks key to activate real AI reasoning.',
+                                style: TextStyle(color: textSecondary, fontSize: 11),
+                              ),
+                            ],
+                          ),
+                        ),
+                        ElevatedButton(
+                          onPressed: () => _showModelSettingsDialog(context, state, isDark),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _tealAccent,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: const Text('Configure', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                // Actionable Error Banner if remote call failed
+                if (state.errorMessage != null)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.red.withValues(alpha: 0.35)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.only(top: 2),
+                          child: Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 18),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            state.errorMessage!,
+                            style: const TextStyle(color: Colors.redAccent, fontSize: 11.5, height: 1.35),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () => _showModelSettingsDialog(context, state, isDark),
+                          child: const Text('Settings', style: TextStyle(color: _tealAccent, fontSize: 12, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                  ),
 
                 // Message Thread
                 if (state.messages.isEmpty && !state.isLoading)
@@ -458,18 +542,8 @@ class _MetaGuardianAiScreenState extends ConsumerState<MetaGuardianAiScreen>
                             ),
                             onSubmitted: (val) {
                               if (val.trim().isNotEmpty && !state.isLoading) {
-                                final usageMap = ref.read(childAppUsageProvider(selectedChild?.id ?? '')).asData?.value ?? {};
-                                final usageSummary = usageMap.isNotEmpty
-                                    ? usageMap.values.map((u) => '${u.appName}: ${u.todayMinutes}m (${u.openCount} opens)').join(', ')
-                                    : 'Active on device today';
-
-                                ref.read(metaAiGuardianProvider.notifier).triggerAgent(
-                                      childName: childName,
-                                      contextInfo: 'Live Firestore Telemetry: $usageSummary',
-                                      prompt: val.trim(),
-                                    );
+                                _triggerWithRealContext(val.trim());
                                 _promptController.clear();
-                                _scrollToBottom();
                               }
                             },
                           ),
@@ -504,18 +578,8 @@ class _MetaGuardianAiScreenState extends ConsumerState<MetaGuardianAiScreen>
                       }
                       final text = _promptController.text.trim();
                       if (text.isNotEmpty) {
-                        final usageMap = ref.read(childAppUsageProvider(selectedChild?.id ?? '')).asData?.value ?? {};
-                        final usageSummary = usageMap.isNotEmpty
-                            ? usageMap.values.map((u) => '${u.appName}: ${u.todayMinutes}m (${u.openCount} opens)').join(', ')
-                            : 'Active on device today';
-
-                        ref.read(metaAiGuardianProvider.notifier).triggerAgent(
-                              childName: childName,
-                              contextInfo: 'Live Firestore Telemetry: $usageSummary',
-                              prompt: text,
-                            );
+                        _triggerWithRealContext(text);
                         _promptController.clear();
-                        _scrollToBottom();
                       }
                     },
                   ),
@@ -870,9 +934,9 @@ class _MetaGuardianAiScreenState extends ConsumerState<MetaGuardianAiScreen>
           ),
           const SizedBox(height: 18),
 
-          // Simulated Device Screen with SAM 3.1 Overlay
+          // Active Device Screen Canvas
           Container(
-            height: 240,
+            height: 220,
             width: double.infinity,
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF070D17) : const Color(0xFF0F172A),
@@ -885,55 +949,55 @@ class _MetaGuardianAiScreenState extends ConsumerState<MetaGuardianAiScreen>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.phone_android_rounded, size: 56, color: Colors.white.withValues(alpha: 0.2)),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Child Active Screen Canvas',
-                        style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 12),
+                      Icon(Icons.screen_search_desktop_rounded, size: 52, color: Colors.cyan.withValues(alpha: 0.4)),
+                      const SizedBox(height: 10),
+                      const Text(
+                        'Child Screen Canvas',
+                        style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 4),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: Text(
+                          visualResult?.requiresSetup == true
+                              ? 'Screen streaming requires Screen Mirroring / Accessibility permissions enabled on the child device.'
+                              : (visualResult != null && visualResult.segments.isEmpty
+                                  ? 'No predatory patterns or risk markers detected on screen.'
+                                  : 'Tap "Run SAM 3.1 Visual Safety Audit" to evaluate active screen captures.'),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.white60, fontSize: 11),
+                        ),
                       ),
                     ],
                   ),
                 ),
-                Positioned(
-                  top: 20,
-                  right: 18,
-                  width: 90,
-                  height: 38,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.amber, width: 2),
-                      color: Colors.amber.withValues(alpha: 0.25),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Center(
-                      child: Text(
-                        'SAM: Chat Icon\n[Warning 91%]',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.amber, fontSize: 8, fontWeight: FontWeight.bold),
+                if (visualResult != null && visualResult.segments.isNotEmpty)
+                  ...visualResult.segments.map((seg) {
+                    final b = seg.boundingBox;
+                    return Positioned(
+                      left: b.isNotEmpty ? (b[0] * 260).clamp(10.0, 240.0) : 20,
+                      top: b.length > 1 ? (b[1] * 180).clamp(10.0, 160.0) : 20,
+                      width: b.length > 2 ? (b[2] * 260).clamp(40.0, 200.0) : 80,
+                      height: b.length > 3 ? (b[3] * 180).clamp(30.0, 120.0) : 40,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: seg.riskLevel == 'critical' ? Colors.redAccent : Colors.amber,
+                            width: 2,
+                          ),
+                          color: (seg.riskLevel == 'critical' ? Colors.redAccent : Colors.amber).withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Center(
+                          child: Text(
+                            'SAM: ${seg.label}\n[${(seg.confidence * 100).toInt()}%]',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  bottom: 20,
-                  left: 20,
-                  right: 20,
-                  height: 48,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.redAccent, width: 2),
-                      color: Colors.redAccent.withValues(alpha: 0.25),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Center(
-                      child: Text(
-                        'SAM 3.1 Segmented: Microtransaction Dark Pattern [Critical 96%]',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800),
-                      ),
-                    ),
-                  ),
-                ),
+                    );
+                  }),
               ],
             ),
           ),
@@ -945,28 +1009,29 @@ class _MetaGuardianAiScreenState extends ConsumerState<MetaGuardianAiScreen>
               style: TextStyle(color: textPrimary, fontSize: 14, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
-            ...visualResult.segments.map((seg) => _buildSegmentItem(seg, isDark)),
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: surfaceColor,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: cardBorder),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.lightbulb_outline_rounded, color: _tealAccent, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      visualResult.recommendation,
-                      style: TextStyle(color: textPrimary, fontSize: 12),
+            if (visualResult.segments.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: surfaceColor,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: cardBorder),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.check_circle_outline_rounded, color: _tealAccent, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        visualResult.recommendation,
+                        style: TextStyle(color: textPrimary, fontSize: 12),
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ),
+                  ],
+                ),
+              )
+            else
+              ...visualResult.segments.map((seg) => _buildSegmentItem(seg, isDark)),
           ],
         ],
       ),
@@ -1026,7 +1091,20 @@ class _MetaGuardianAiScreenState extends ConsumerState<MetaGuardianAiScreen>
             child: Column(
               children: [
                 GestureDetector(
-                  onTap: () => ref.read(metaAiGuardianProvider.notifier).simulateVoiceCommand('en'),
+                  onTap: () async {
+                    final status = await Permission.microphone.request();
+                    if (!mounted) return;
+                    if (status.isGranted) {
+                      ref.read(metaAiGuardianProvider.notifier).recordVoiceCommand(context);
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Microphone permission is required for voice commands.'),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  },
                   child: Container(
                     width: 84,
                     height: 84,
@@ -1065,7 +1143,7 @@ class _MetaGuardianAiScreenState extends ConsumerState<MetaGuardianAiScreen>
           const SizedBox(height: 24),
 
           Text(
-            'Test Multilingual Voice Samples',
+            'Preset Multilingual Voice Prompts',
             style: TextStyle(color: textPrimary, fontSize: 13.5, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 8),
@@ -1073,7 +1151,7 @@ class _MetaGuardianAiScreenState extends ConsumerState<MetaGuardianAiScreen>
             spacing: 8,
             runSpacing: 8,
             children: [
-              _buildLangChip('English', 'en', isDark),
+              _buildLangChip('English: Focus Lock', 'en', isDark),
               _buildLangChip('አማርኛ (Amharic)', 'am', isDark),
               _buildLangChip('Afaan Oromoo', 'om', isDark),
               _buildLangChip('العربية (Arabic)', 'ar', isDark),
@@ -1110,12 +1188,7 @@ class _MetaGuardianAiScreenState extends ConsumerState<MetaGuardianAiScreen>
                   const SizedBox(height: 12),
                   ElevatedButton.icon(
                     onPressed: () {
-                      final selectedChild = ref.read(selectedChildProvider);
-                      final childName = selectedChild?.displayName ?? 'Leo';
-                      ref.read(metaAiGuardianProvider.notifier).triggerAgent(
-                            childName: childName,
-                            prompt: state.voiceTranscription!,
-                          );
+                      _triggerWithRealContext(state.voiceTranscription!);
                       _tabController.animateTo(0);
                     },
                     icon: const Icon(Icons.play_arrow_rounded, size: 16),
@@ -1141,6 +1214,18 @@ class _MetaGuardianAiScreenState extends ConsumerState<MetaGuardianAiScreen>
     final cardBorder = isDark ? const Color(0xFF1E2D4A) : const Color(0xFFE2E8F0);
     final textPrimary = isDark ? Colors.white : const Color(0xFF0F172A);
     final textSecondary = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+
+    final family = ref.watch(selectedFamilyProvider);
+    final selectedChild = ref.watch(selectedChildProvider);
+    final familyId = family?.id ?? '';
+    final childId = selectedChild?.id ?? '';
+
+    // Watch real educational tasks from Firestore
+    final tasksAsync = ref.watch(childEducationTasksProvider((familyId: familyId, childId: childId)));
+    final tasks = tasksAsync.asData?.value ?? <EducationalTask>[];
+    final completedTasks = tasks.where((t) => t.isCompleted).toList();
+    final int totalPoints = completedTasks.length * 50; // 50 reward points per completed milestone
+    final EducationalTask? latestCompleted = completedTasks.isNotEmpty ? completedTasks.first : null;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -1173,7 +1258,7 @@ class _MetaGuardianAiScreenState extends ConsumerState<MetaGuardianAiScreen>
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Generates tailored 3D achievement badges to celebrate completed study milestones.',
+                        'Generates tailored 3D achievement badges to celebrate real completed study milestones.',
                         style: TextStyle(color: textSecondary, fontSize: 11.5),
                       ),
                     ],
@@ -1184,19 +1269,72 @@ class _MetaGuardianAiScreenState extends ConsumerState<MetaGuardianAiScreen>
           ),
           const SizedBox(height: 18),
 
+          // Real Points & Completed Milestone Overview
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: surfaceColor,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: cardBorder),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.stars_rounded, color: Colors.amber, size: 28),
+                    const SizedBox(width: 10),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '$totalPoints Reward Points',
+                          style: TextStyle(color: textPrimary, fontSize: 14, fontWeight: FontWeight.w800),
+                        ),
+                        Text(
+                          '${completedTasks.length} Completed Tasks in Firestore',
+                          style: TextStyle(color: textSecondary, fontSize: 11),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '${tasks.length - completedTasks.length} Pending',
+                    style: const TextStyle(color: Colors.amber, fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
           SizedBox(
             width: double.infinity,
             height: 46,
             child: ElevatedButton.icon(
               onPressed: state.isLoading
                   ? null
-                  : () => ref
-                      .read(metaAiGuardianProvider.notifier)
-                      .generateRewardBadge('Math Geometry Master'),
+                  : () {
+                      final title = latestCompleted?.title ?? 'Daily Study Dedication';
+                      ref.read(metaAiGuardianProvider.notifier).generateRewardBadge(
+                            achievementTitle: title,
+                            childInterest: latestCompleted?.subject.isNotEmpty == true
+                                ? latestCompleted!.subject
+                                : 'General Learning',
+                            childName: childName,
+                          );
+                    },
               icon: const Icon(Icons.star_rounded, color: Colors.white, size: 18),
-              label: const Text(
-                'Generate Custom Achievement Crest',
-                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5),
+              label: Text(
+                state.isLoading ? 'Generating Honor Crest...' : 'Generate Custom Achievement Crest',
+                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFD97706),
@@ -1243,7 +1381,10 @@ class _MetaGuardianAiScreenState extends ConsumerState<MetaGuardianAiScreen>
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  '$childName\'s Gold Math Crest',
+                  latestCompleted != null
+                      ? '$childName\'s ${latestCompleted.title} Honor'
+                      : '$childName\'s Educational Honor Crest',
+                  textAlign: TextAlign.center,
                   style: TextStyle(
                     color: textPrimary,
                     fontSize: 16,
@@ -1252,13 +1393,15 @@ class _MetaGuardianAiScreenState extends ConsumerState<MetaGuardianAiScreen>
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Rendered via Meta Muse Image Generator',
+                  'Powered by Meta Model Generative Studio',
                   style: TextStyle(color: textSecondary, fontSize: 11),
                 ),
                 const SizedBox(height: 10),
                 Text(
                   state.generatedBadgeMessage ??
-                      'Awarded for completing 3 modules in Algebra without screen-time distraction penalties!',
+                      (latestCompleted != null
+                          ? 'Ready to generate a tailored positive reinforcement citation for completing "${latestCompleted.title}"!'
+                          : 'Complete tasks in the Study Portal to generate custom positive reinforcement achievement crests for $childName.'),
                   textAlign: TextAlign.center,
                   style: TextStyle(color: textSecondary, fontSize: 12.5, height: 1.35),
                 ),
