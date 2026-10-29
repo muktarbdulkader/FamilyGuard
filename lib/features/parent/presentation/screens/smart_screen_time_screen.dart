@@ -1,3 +1,4 @@
+import '../../../../core/widgets/family_page_header.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -1073,13 +1074,9 @@ class _SmartScreenTimeScreenState
           floating: false,
           pinned: true,
           elevation: 0,
-          leading: IconButton(
-            onPressed: () => Navigator.pop(context),
-            icon: Icon(
-              Icons.arrow_back_ios_new_rounded,
-              color: colors.textPrimary,
-              size: 20,
-            ),
+          leading: const Padding(
+            padding: EdgeInsets.all(8.0),
+            child: FamilyBackButton(),
           ),
           flexibleSpace: FlexibleSpaceBar(
             titlePadding:

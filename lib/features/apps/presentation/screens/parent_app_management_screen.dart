@@ -1,3 +1,5 @@
+import '../../../../core/widgets/family_page_header.dart';
+import '../../../../core/widgets/family_bottom_navigation.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -16,15 +18,19 @@ import '../../../../l10n/app_localizations.dart';
 class ParentAppManagementScreen extends ConsumerStatefulWidget {
   final String familyId;
   final String childId;
+  final String? childName;
   final String? initialPackageName;
   final String? initialUsageDate;
+  final bool isEmbedded;
 
   const ParentAppManagementScreen({
     super.key,
     required this.familyId,
     required this.childId,
+    this.childName,
     this.initialPackageName,
     this.initialUsageDate,
+    this.isEmbedded = false,
   });
 
   @override
@@ -438,6 +444,143 @@ class _ParentAppManagementScreenState
     customMinutesController.dispose();
   }
 
+  Widget _buildBatchActionsMenu(
+    BuildContext context,
+    List<AppInfo> apps, {
+    bool isMini = false,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final buttonChild = isMini
+        ? Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF132238) : const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isDark ? const Color(0xFF1E3554) : const Color(0xFFE2E8F0),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.tune_rounded,
+                  size: 18,
+                  color: isDark ? const Color(0xFF2DD4BF) : const Color(0xFF4F46E5),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.arrow_drop_down_rounded,
+                  size: 18,
+                  color: isDark ? Colors.white70 : const Color(0xFF475569),
+                ),
+              ],
+            ),
+          )
+        : null;
+
+    return PopupMenuButton<String>(
+      tooltip: 'Batch Actions',
+      icon: buttonChild == null ? const Icon(Icons.more_vert_rounded) : null,
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      color: isDark ? const Color(0xFF132238) : Colors.white,
+      onSelected: (action) {
+        if (action == 'block_all') {
+          _batchApplyRule(apps, AppControlRule.block);
+        } else if (action == 'allow_all') {
+          _batchApplyRule(apps, AppControlRule.allow);
+        } else if (action == 'ask_all') {
+          _batchApplyRule(apps, AppControlRule.ask);
+        } else if (action == 'toggle_system') {
+          setState(() => _hideSystemApps = !_hideSystemApps);
+        }
+      },
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          value: 'toggle_system',
+          child: Row(
+            children: [
+              Icon(
+                _hideSystemApps
+                    ? Icons.visibility_rounded
+                    : Icons.visibility_off_rounded,
+                size: 20,
+                color: Colors.blueGrey,
+              ),
+              const SizedBox(width: 12),
+              Flexible(
+                child: Text(
+                  _hideSystemApps ? 'Show System Apps' : 'Hide System Apps',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
+        const PopupMenuItem(
+          value: 'block_all',
+          child: Row(
+            children: [
+              Icon(Icons.block_rounded, size: 20, color: Colors.red),
+              SizedBox(width: 12),
+              Flexible(
+                child: Text(
+                  'Block All User Apps',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'ask_all',
+          child: Row(
+            children: [
+              Icon(
+                Icons.notifications_active_rounded,
+                size: 20,
+                color: Colors.amber,
+              ),
+              SizedBox(width: 12),
+              Flexible(
+                child: Text(
+                  'Set All User Apps to Ask/Notify',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'allow_all',
+          child: Row(
+            children: [
+              Icon(
+                Icons.check_circle_rounded,
+                size: 20,
+                color: Colors.green,
+              ),
+              SizedBox(width: 12),
+              Flexible(
+                child: Text(
+                  'Allow All User Apps',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+      child: buttonChild,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final familyId = _resolveFamilyId();
@@ -457,137 +600,7 @@ class _ParentAppManagementScreenState
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final l10n = AppLocalizations.of(context);
 
-    return Scaffold(
-      backgroundColor: isDark
-          ? const Color(0xFF0C1829)
-          : const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        title: Text(
-          l10n.control,
-          style: const TextStyle(
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.2,
-          ),
-        ),
-        backgroundColor: isDark
-            ? const Color(0xFF0C1829)
-            : const Color(0xFF4F46E5),
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: isDark
-                  ? [const Color(0xFF063D39), const Color(0xFF0B253A)]
-                  : [const Color(0xFF4F46E5), const Color(0xFF7C3AED)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
-        foregroundColor: Colors.white,
-        elevation: 0,
-        actions: [
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert_rounded),
-            tooltip: 'Batch Actions',
-            onSelected: (action) {
-              final apps = appsAsync.value ?? [];
-              if (action == 'block_all') {
-                _batchApplyRule(apps, AppControlRule.block);
-              } else if (action == 'allow_all') {
-                _batchApplyRule(apps, AppControlRule.allow);
-              } else if (action == 'ask_all') {
-                _batchApplyRule(apps, AppControlRule.ask);
-              } else if (action == 'toggle_system') {
-                setState(() => _hideSystemApps = !_hideSystemApps);
-              }
-            },
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: 'toggle_system',
-                child: Row(
-                  children: [
-                    Icon(
-                      _hideSystemApps
-                          ? Icons.visibility_rounded
-                          : Icons.visibility_off_rounded,
-                      size: 20,
-                      color: Colors.blueGrey,
-                    ),
-                    const SizedBox(width: 12),
-                    Flexible(
-                      child: Text(
-                        _hideSystemApps
-                            ? 'Show System Apps'
-                            : 'Hide System Apps',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const PopupMenuDivider(),
-              const PopupMenuItem(
-                value: 'block_all',
-                child: Row(
-                  children: [
-                    Icon(Icons.block_rounded, size: 20, color: Colors.red),
-                    SizedBox(width: 12),
-                    Flexible(
-                      child: Text(
-                        'Block All User Apps',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'ask_all',
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.notifications_active_rounded,
-                      size: 20,
-                      color: Colors.amber,
-                    ),
-                    SizedBox(width: 12),
-                    Flexible(
-                      child: Text(
-                        'Set All User Apps to Ask/Notify',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'allow_all',
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.check_circle_rounded,
-                      size: 20,
-                      color: Colors.green,
-                    ),
-                    SizedBox(width: 12),
-                    Flexible(
-                      child: Text(
-                        'Allow All User Apps',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-      body: appsAsync.when(
+    final Widget mainContent = appsAsync.when(
         loading: () => const Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -781,78 +794,88 @@ class _ParentAppManagementScreenState
                           ),
                         ),
                         const SizedBox(height: 12),
-                        // Search Bar
-                        TextField(
-                          controller: _searchController,
-                          style: TextStyle(
-                            color: isDark ? Colors.white : Colors.black87,
-                          ),
-                          decoration: InputDecoration(
-                            hintText: 'Search apps or package name...',
-                            hintStyle: TextStyle(
-                              color: isDark
-                                  ? const Color(0xFF8BA0B8)
-                                  : Colors.grey,
-                            ),
-                            prefixIcon: Icon(
-                              Icons.search_rounded,
-                              size: 20,
-                              color: isDark
-                                  ? const Color(0xFF8BA0B8)
-                                  : Colors.grey,
-                            ),
-                            suffixIcon: _searchQuery.isNotEmpty
-                                ? IconButton(
-                                    icon: Icon(
-                                      Icons.clear_rounded,
-                                      size: 18,
+                        // Search Bar & Batch Actions Row
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: _searchController,
+                                style: TextStyle(
+                                  color: isDark ? Colors.white : Colors.black87,
+                                ),
+                                decoration: InputDecoration(
+                                  hintText: 'Search apps or package name...',
+                                  hintStyle: TextStyle(
+                                    color: isDark
+                                        ? const Color(0xFF8BA0B8)
+                                        : Colors.grey,
+                                  ),
+                                  prefixIcon: Icon(
+                                    Icons.search_rounded,
+                                    size: 20,
+                                    color: isDark
+                                        ? const Color(0xFF8BA0B8)
+                                        : Colors.grey,
+                                  ),
+                                  suffixIcon: _searchQuery.isNotEmpty
+                                      ? IconButton(
+                                          icon: Icon(
+                                            Icons.clear_rounded,
+                                            size: 18,
+                                            color: isDark
+                                                ? const Color(0xFF8BA0B8)
+                                                : Colors.grey,
+                                          ),
+                                          onPressed: () {
+                                            _searchController.clear();
+                                            setState(() => _searchQuery = '');
+                                          },
+                                        )
+                                      : null,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 0,
+                                  ),
+                                  filled: true,
+                                  fillColor: isDark
+                                      ? const Color(0xFF132238)
+                                      : const Color(0xFFF1F5F9),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide(
                                       color: isDark
-                                          ? const Color(0xFF8BA0B8)
-                                          : Colors.grey,
+                                          ? const Color(0xFF1E3554)
+                                          : Colors.transparent,
                                     ),
-                                    onPressed: () {
-                                      _searchController.clear();
-                                      setState(() => _searchQuery = '');
-                                    },
-                                  )
-                                : null,
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 0,
-                            ),
-                            filled: true,
-                            fillColor: isDark
-                                ? const Color(0xFF132238)
-                                : const Color(0xFFF1F5F9),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(
-                                color: isDark
-                                    ? const Color(0xFF1E3554)
-                                    : Colors.transparent,
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide(
+                                      color: isDark
+                                          ? const Color(0xFF1E3554)
+                                          : Colors.transparent,
+                                    ),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide(
+                                      color: isDark
+                                          ? const Color(0xFF2DD4BF)
+                                          : const Color(0xFF4F46E5),
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                ),
+                                onChanged: (query) {
+                                  setState(() => _searchQuery = query);
+                                },
                               ),
                             ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(
-                                color: isDark
-                                    ? const Color(0xFF1E3554)
-                                    : Colors.transparent,
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(
-                                color: isDark
-                                    ? const Color(0xFF2DD4BF)
-                                    : const Color(0xFF4F46E5),
-                                width: 1.5,
-                              ),
-                            ),
-                          ),
-                          onChanged: (query) {
-                            setState(() => _searchQuery = query);
-                          },
+                            if (widget.isEmbedded) ...[
+                              const SizedBox(width: 8),
+                              _buildBatchActionsMenu(context, allApps, isMini: true),
+                            ],
+                          ],
                         ),
                       ],
                     ),
@@ -877,9 +900,42 @@ class _ParentAppManagementScreenState
             ),
           );
         },
+      );
+
+    if (widget.isEmbedded) {
+      return mainContent;
+    }
+
+    final childSubtitle = widget.childName != null && widget.childName!.isNotEmpty
+        ? 'App rules & monitoring for ${widget.childName}'
+        : 'Child Application Rules & Limits';
+
+    return Scaffold(
+      backgroundColor: isDark
+          ? const Color(0xFF0C1829)
+          : const Color(0xFFF8FAFC),
+      body: SafeArea(
+        child: Column(
+          children: [
+            FamilyPageHeader(
+              title: l10n.control,
+              subtitle: childSubtitle,
+              icon: Icons.tune_rounded,
+              actions: [
+                _buildBatchActionsMenu(context, appsAsync.value ?? []),
+              ],
+            ),
+            Expanded(child: mainContent),
+          ],
+        ),
+      ),
+      bottomNavigationBar: const FamilyBottomNavigation(
+        isParent: true,
+        selected: FamilyNavDestination.apps,
       ),
     );
   }
+
 
   Widget _buildMetricChip({
     required String label,

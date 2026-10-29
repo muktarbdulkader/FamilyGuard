@@ -53,7 +53,7 @@ class FamilyBottomNavigation extends ConsumerWidget {
             ),
             _NavigationItem(
               FamilyNavDestination.apps,
-              Icons.grid_view_rounded,
+              Icons.tune_rounded,
               l10n.control,
               AppRoutes.parentApps,
             ),

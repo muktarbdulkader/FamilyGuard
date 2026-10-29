@@ -180,6 +180,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => ParentAppManagementScreen(
           familyId: state.uri.queryParameters['familyId'] ?? '',
           childId: state.pathParameters['childId']!,
+          childName: state.pathParameters['childName'],
           initialPackageName: state.uri.queryParameters['packageName'],
           initialUsageDate: state.uri.queryParameters['usageDate'],
         ),
