@@ -365,6 +365,32 @@ class SmartScreenTimeL10n {
     }
   }
 
+  String get manageAction {
+    switch (languageCode) {
+      case 'am':
+        return 'አስተዳድር';
+      case 'om':
+        return 'Bulchi';
+      case 'ar':
+        return 'إدارة';
+      default:
+        return 'Manage';
+    }
+  }
+
+  String get addLimitAction {
+    switch (languageCode) {
+      case 'am':
+        return 'ገደብ አክል';
+      case 'om':
+        return 'Daangaa Dabaladhu';
+      case 'ar':
+        return 'إضافة حد';
+      default:
+        return 'Add Limit';
+    }
+  }
+
   String get activeRulesStat {
     switch (languageCode) {
       case 'am':

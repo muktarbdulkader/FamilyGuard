@@ -1,9 +1,15 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../../../../core/models/app_info.dart';
 import '../../../../core/models/rule_model.dart';
+import '../../../../core/providers/family_provider.dart';
 import '../../../../core/providers/rules_provider.dart';
+import '../../../../core/providers/user_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../localization/smart_screen_time_l10n.dart';
+import '../widgets/app_rule_editor_sheet.dart';
 
 // ─────────────────────────────────────────────────────────────
 // Screen entry point — receives child info from caller
@@ -170,10 +176,10 @@ class _SmartScreenTimeScreenState
                 ),
                 const SizedBox(height: 20),
                 _sheetTitle(
-                  Icons.timer_rounded,
-                  teal,
-                  l10n.dailyLimitTitle,
-                  colors,
+                  icon: Icons.timer_rounded,
+                  color: teal,
+                  text: l10n.dailyLimitTitle,
+                  colors: colors,
                 ),
                 const SizedBox(height: 20),
 
@@ -366,10 +372,10 @@ class _SmartScreenTimeScreenState
                 ),
                 const SizedBox(height: 20),
                 _sheetTitle(
-                  Icons.bedtime_rounded,
-                  indigo,
-                  l10n.bedtimeTitle,
-                  colors,
+                  icon: Icons.bedtime_rounded,
+                  color: indigo,
+                  text: l10n.bedtimeTitle,
+                  colors: colors,
                 ),
                 const SizedBox(height: 6),
                 Text(
@@ -554,10 +560,10 @@ class _SmartScreenTimeScreenState
                   ),
                   const SizedBox(height: 20),
                   _sheetTitle(
-                    Icons.menu_book_rounded,
-                    amber,
-                    l10n.focusBlockSingular,
-                    colors,
+                    icon: Icons.menu_book_rounded,
+                    color: amber,
+                    text: l10n.focusBlockSingular,
+                    colors: colors,
                   ),
                   const SizedBox(height: 6),
                   Text(
@@ -727,12 +733,12 @@ class _SmartScreenTimeScreenState
   }
 
   // ── reusable sub-widgets ────────────────────────────────────
-  Widget _sheetTitle(
-    IconData icon,
-    Color color,
-    String text,
-    AppColors colors,
-  ) {
+  Widget _sheetTitle({
+    required IconData icon,
+    required Color color,
+    required String text,
+    required AppColors colors,
+  }) {
     return Row(
       children: [
         Container(
@@ -879,7 +885,18 @@ class _SmartScreenTimeScreenState
   // ─────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
+    final userFamily = ref.watch(selectedFamilyProvider)?.id ??
+        ref.watch(currentUserDataProvider).value?.familyId ??
+        '';
+    final effectiveFamilyId =
+        widget.familyId.isNotEmpty ? widget.familyId : userFamily;
+
     final rulesAsync = ref.watch(childRulesProvider(widget.childId));
+    final appsAsync = effectiveFamilyId.isNotEmpty
+        ? ref.watch(familyChildAppsProvider(
+            FamilyChildParams(familyId: effectiveFamilyId, childId: widget.childId)))
+        : ref.watch(childAppsProvider(widget.childId));
+
     final colors = AppColors.of(context);
     final l10n = SmartScreenTimeL10n.of(context);
 
@@ -895,7 +912,13 @@ class _SmartScreenTimeScreenState
             ),
           ),
           error: (e, _) => _buildError(e.toString(), colors, l10n),
-          data: (rules) => _buildBody(rules, colors, l10n),
+          data: (rules) => _buildBody(
+            rules: rules,
+            apps: appsAsync.value ?? [],
+            familyId: effectiveFamilyId,
+            colors: colors,
+            l10n: l10n,
+          ),
         ),
       ),
     );
@@ -1009,19 +1032,31 @@ class _SmartScreenTimeScreenState
     );
   }
 
-  Widget _buildBody(
-    List<RuleModel> rules,
-    AppColors colors,
-    SmartScreenTimeL10n l10n,
-  ) {
+  Widget _buildBody({
+    required List<RuleModel> rules,
+    required List<AppInfo> apps,
+    required String familyId,
+    required AppColors colors,
+    required SmartScreenTimeL10n l10n,
+  }) {
     final screenTimeRule = _ruleOf(rules, RuleType.screenTime);
     final bedtimeRule = _ruleOf(rules, RuleType.bedtime);
     final focusRules = rules
         .where((r) => r.type == RuleType.appSchedule)
         .toList();
-    final appLimitRules = rules
-        .where((r) => r.type == RuleType.appLimit)
-        .toList();
+
+    // ── Apps with limits configured from App Management ──────────
+    final timeLimitedApps = apps.where((app) =>
+        app.rule == AppControlRule.timeLimited ||
+        app.rule == AppControlRule.timeRestricted ||
+        (app.dailyLimitMinutes != null && app.dailyLimitMinutes! > 0)
+    ).toList();
+
+    // ── Standalone rules from rules collection (if any) ─────────
+    final standaloneAppRules = rules.where((r) =>
+        r.type == RuleType.appLimit &&
+        !timeLimitedApps.any((a) => a.packageName == r.appPackageName)
+    ).toList();
 
     final teal = _tealAccent(colors);
     final indigo = _indigoAccent(colors);
@@ -1098,6 +1133,7 @@ class _SmartScreenTimeScreenState
                   screenTime: screenTimeRule,
                   bedtime: bedtimeRule,
                   focus: focusRules,
+                  timeLimitedAppsCount: timeLimitedApps.length + standaloneAppRules.length,
                   colors: colors,
                   l10n: l10n,
                 ),
@@ -1172,24 +1208,69 @@ class _SmartScreenTimeScreenState
                   l10n.appTimeLimitsTitle,
                   Icons.apps_rounded,
                   rose,
+                  trailing: GestureDetector(
+                    onTap: () => context.push(
+                      '/parent-apps/${widget.childId}/${widget.childName}?familyId=$familyId',
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: rose.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.tune_rounded, color: rose, size: 14),
+                          const SizedBox(width: 4),
+                          Text(
+                            l10n.manageAction,
+                            style: TextStyle(
+                              color: rose,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 10),
-                if (appLimitRules.isEmpty)
+                if (timeLimitedApps.isEmpty && standaloneAppRules.isEmpty)
                   _buildEmptyCard(
                     icon: Icons.hourglass_empty_rounded,
                     color: rose,
                     title: l10n.noAppLimitsTitle,
                     subtitle: l10n.setAppLimitsFromManagementSubtitle,
-                    onAdd: null,
+                    onAdd: () => context.push(
+                      '/parent-apps/${widget.childId}/${widget.childName}?familyId=$familyId',
+                    ),
+                    addLabel: l10n.addLimitAction,
                     colors: colors,
                   )
-                else
-                  ...appLimitRules.map(
+                else ...[
+                  // Render Apps from App Management
+                  ...timeLimitedApps.map(
+                    (app) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: _buildAppInfoCard(
+                        app: app,
+                        familyId: familyId,
+                        colors: colors,
+                        l10n: l10n,
+                      ),
+                    ),
+                  ),
+                  // Render any standalone rules
+                  ...standaloneAppRules.map(
                     (r) => Padding(
                       padding: const EdgeInsets.only(bottom: 8),
                       child: _buildAppLimitCard(r, colors, l10n),
                     ),
                   ),
+                ],
 
                 const SizedBox(height: 40),
               ],
@@ -1206,10 +1287,11 @@ class _SmartScreenTimeScreenState
     required RuleModel? screenTime,
     required RuleModel? bedtime,
     required List<RuleModel> focus,
+    required int timeLimitedAppsCount,
     required AppColors colors,
     required SmartScreenTimeL10n l10n,
   }) {
-    final activeCount = rules.where((r) => r.isActive).length;
+    final activeCount = rules.where((r) => r.isActive).length + timeLimitedAppsCount;
     final dailyLimit = screenTime?.totalScreenTimeMinutes;
     final bedtimeActive =
         bedtime != null && bedtime.status == RuleStatus.active;
@@ -1465,7 +1547,101 @@ class _SmartScreenTimeScreenState
     );
   }
 
-  // ── App limit card (read-only here) ──────────────────────────
+  // ── App limit card for AppInfo (from App Management) ─────────
+  Widget _buildAppInfoCard({
+    required AppInfo app,
+    required String familyId,
+    required AppColors colors,
+    required SmartScreenTimeL10n l10n,
+  }) {
+    final rose = _roseAccent(colors);
+    final isRuleActive = app.rule == AppControlRule.timeLimited ||
+        app.rule == AppControlRule.timeRestricted;
+    final effectiveLimit = app.effectiveDailyLimit(DateTime.now());
+
+    String subtitle;
+    if (app.rule == AppControlRule.timeRestricted) {
+      subtitle = '${app.allowedFrom ?? ""} – ${app.allowedUntil ?? ""}';
+    } else if (effectiveLimit > 0) {
+      subtitle =
+          '${_fmtMins(effectiveLimit, l10n)} / ${l10n.dailyLimitStat} · ${isRuleActive ? l10n.activeStatus : l10n.pausedStatus}';
+    } else if (app.dailyLimitMinutes != null && app.dailyLimitMinutes! > 0) {
+      subtitle =
+          '${_fmtMins(app.dailyLimitMinutes!, l10n)} / ${l10n.dailyLimitStat} · ${isRuleActive ? l10n.activeStatus : l10n.pausedStatus}';
+    } else {
+      subtitle = isRuleActive ? l10n.activeStatus : l10n.pausedStatus;
+    }
+
+    Widget? leadingWidget;
+    if (app.iconBase64 != null && app.iconBase64!.isNotEmpty) {
+      try {
+        final bytes = base64Decode(app.iconBase64!);
+        leadingWidget = ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Image.memory(
+            bytes,
+            width: 42,
+            height: 42,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: rose.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(Icons.apps_rounded, color: rose, size: 20),
+            ),
+          ),
+        );
+      } catch (_) {}
+    }
+
+    return _ruleCard(
+      color: rose,
+      icon: Icons.hourglass_bottom_rounded,
+      leading: leadingWidget,
+      title: app.displayName,
+      subtitle: subtitle,
+      statusColor: isRuleActive ? rose : colors.textSecondary,
+      statusLabel: isRuleActive ? l10n.activeStatus : l10n.pausedStatus,
+      colors: colors,
+      trailing: Switch(
+        value: isRuleActive,
+        activeColor: rose,
+        onChanged: (enable) async {
+          if (familyId.isEmpty) return;
+          final targetRule =
+              enable ? AppControlRule.timeLimited : AppControlRule.allow;
+          await ref.read(appRuleServiceProvider).updateAppRule(
+                familyId: familyId,
+                childId: widget.childId,
+                packageName: app.packageName,
+                rule: targetRule,
+                dailyLimitMinutes: app.dailyLimitMinutes ?? 60,
+                usageAlertThresholdPercent: app.usageAlertThresholdPercent,
+                allowedFrom: app.allowedFrom,
+                allowedUntil: app.allowedUntil,
+              );
+        },
+      ),
+      onTap: () {
+        if (familyId.isEmpty) return;
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (ctx) => AppRuleEditorSheet(
+            appWithUsage: AppWithUsage(app: app),
+            familyId: familyId,
+            childId: widget.childId,
+          ),
+        );
+      },
+    );
+  }
+
+  // ── App limit card (for standalone rules) ───────────────────
   Widget _buildAppLimitCard(
     RuleModel rule,
     AppColors colors,
@@ -1497,7 +1673,8 @@ class _SmartScreenTimeScreenState
   // ── Generic rule card ─────────────────────────────────────────
   Widget _ruleCard({
     required Color color,
-    required IconData icon,
+    IconData? icon,
+    Widget? leading,
     required String title,
     required String subtitle,
     required Color statusColor,
@@ -1531,15 +1708,17 @@ class _SmartScreenTimeScreenState
         ),
         child: Row(
           children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: color, size: 20),
-            ),
+            leading ??
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon ?? Icons.shield_rounded,
+                      color: color, size: 20),
+                ),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
