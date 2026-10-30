@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -33,7 +34,9 @@ class ChildHomeScreen extends ConsumerStatefulWidget {
   ConsumerState<ChildHomeScreen> createState() => _ChildHomeScreenState();
 }
 
-class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
+class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen>
+    with WidgetsBindingObserver {
+  Timer? _permissionPollingTimer;
   bool _hasTriggeredSync = false;
   bool _hasUsageStats = true;
   bool _hasOverlay = true;
@@ -52,7 +55,26 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _checkPermissions();
+    _permissionPollingTimer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => _checkPermissions(),
+    );
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _permissionPollingTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkPermissions();
+    }
   }
 
   Future<void> _checkPermissions() async {
@@ -66,6 +88,62 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
         _hasLocationPermission = locInfo.canShareLocation;
       });
     }
+
+    await _syncPermissionsToFirestore(
+      overlay: overlay,
+      usage: usage,
+      location: locInfo.canShareLocation,
+    );
+  }
+
+  Future<void> _syncPermissionsToFirestore({
+    required bool overlay,
+    required bool usage,
+    required bool location,
+  }) async {
+    try {
+      final user = ref.read(currentUserDataProvider).value;
+      if (user == null) return;
+      final familyId = user.familyId;
+      final childId = user.uid;
+      final childName = user.displayName.isEmpty ? 'Child' : user.displayName;
+      if (familyId == null || familyId.isEmpty || childId.isEmpty) return;
+
+      // Update child document in family
+      await FirebaseFirestore.instance
+          .collection('families')
+          .doc(familyId)
+          .collection('children')
+          .doc(childId)
+          .set({
+        'hasOverlayPermission': overlay,
+        'hasUsageStatsPermission': usage,
+        'hasLocationPermission': location,
+        'lastPermissionCheck': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      // If Display Over Other Apps was turned OFF, urgently notify parents!
+      if (!overlay) {
+        await NotificationService.instance.sendPermissionDisabledNotification(
+          familyId: familyId,
+          childId: childId,
+          childName: childName,
+          permission: 'Display Over Other Apps (App Blocking)',
+        );
+      }
+
+      // If Usage Stats was turned OFF, notify parents
+      if (!usage) {
+        await NotificationService.instance.sendPermissionDisabledNotification(
+          familyId: familyId,
+          childId: childId,
+          childName: childName,
+          permission: 'Usage Access (Screen Time)',
+        );
+      }
+    } catch (e) {
+      debugPrint('Error syncing permissions to Firestore: $e');
+    }
   }
 
   void _triggerBackgroundSync(dynamic user) {
@@ -75,7 +153,7 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen> {
     final familyId = user.familyId as String?;
     final childId = user.uid as String?;
     final childName =
-        (user.displayName as String?) ?? (user.name as String?) ?? 'Child';
+        user.displayName ?? 'Child';
     if (familyId == null || childId == null) return;
 
     NotificationService.instance.startChildNotificationListener(childId);

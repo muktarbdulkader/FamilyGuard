@@ -731,6 +731,44 @@ class _ParentAppManagementScreenState
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
                     child: Column(
                       children: [
+                        Consumer(
+                          builder: (context, ref, _) {
+                            final selChild = ref.watch(selectedChildProvider);
+                            if (selChild != null && (!selChild.hasOverlayPermission || !selChild.hasUsageStatsPermission)) {
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEF4444).withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                    color: const Color(0xFFEF4444).withOpacity(0.35),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444), size: 20),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        !selChild.hasOverlayPermission
+                                            ? 'Display over other apps is disabled on ${selChild.displayName}\'s device. App blocking & limit screens will not appear.'
+                                            : 'Usage Access is disabled on ${selChild.displayName}\'s device. App limits cannot be tracked.',
+                                        style: const TextStyle(
+                                          color: Color(0xFFEF4444),
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+                            return const SizedBox.shrink();
+                          },
+                        ),
                         // FIX 2: five chips (incl. Timed) in a horizontal scroller.
                         SingleChildScrollView(
                           scrollDirection: Axis.horizontal,

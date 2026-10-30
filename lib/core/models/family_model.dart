@@ -131,6 +131,8 @@ class ChildModel {
   final DateTime? lastSeen;
   final String? deviceInfo;
   final Map<String, dynamic> preferences;
+  final bool hasOverlayPermission;
+  final bool hasUsageStatsPermission;
 
   ChildModel({
     required this.id,
@@ -143,6 +145,8 @@ class ChildModel {
     this.lastSeen,
     this.deviceInfo,
     this.preferences = const {},
+    this.hasOverlayPermission = true,
+    this.hasUsageStatsPermission = true,
   }) : _reportedOnline = isOnline;
 
   static const onlineThreshold = ChildPresence.onlineThreshold;
@@ -190,6 +194,8 @@ class ChildModel {
       lastSeen: lastSeen,
       deviceInfo: data['deviceInfo'],
       preferences: Map<String, dynamic>.from(data['preferences'] ?? {}),
+      hasOverlayPermission: data['hasOverlayPermission'] as bool? ?? true,
+      hasUsageStatsPermission: data['hasUsageStatsPermission'] as bool? ?? true,
     );
   }
 
@@ -205,6 +211,8 @@ class ChildModel {
       if (lastSeen != null) 'lastSeen': Timestamp.fromDate(lastSeen!),
       'deviceInfo': deviceInfo,
       'preferences': preferences,
+      'hasOverlayPermission': hasOverlayPermission,
+      'hasUsageStatsPermission': hasUsageStatsPermission,
     };
   }
 
@@ -220,6 +228,8 @@ class ChildModel {
     DateTime? lastSeen,
     String? deviceInfo,
     Map<String, dynamic>? preferences,
+    bool? hasOverlayPermission,
+    bool? hasUsageStatsPermission,
   }) {
     return ChildModel(
       id: id ?? this.id,
@@ -232,6 +242,8 @@ class ChildModel {
       lastSeen: lastSeen ?? this.lastSeen,
       deviceInfo: deviceInfo ?? this.deviceInfo,
       preferences: preferences ?? this.preferences,
+      hasOverlayPermission: hasOverlayPermission ?? this.hasOverlayPermission,
+      hasUsageStatsPermission: hasUsageStatsPermission ?? this.hasUsageStatsPermission,
     );
   }
 

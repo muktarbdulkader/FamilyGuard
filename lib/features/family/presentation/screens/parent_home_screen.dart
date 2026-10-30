@@ -602,6 +602,68 @@ class ParentHomeScreen extends ConsumerWidget {
                       ),
                     ],
                   ),
+                  if (!child.hasOverlayPermission || !child.hasUsageStatsPermission) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 9,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEF4444).withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: const Color(0xFFEF4444).withOpacity(0.35),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(5),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFEF4444),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.warning_amber_rounded,
+                              color: Colors.white,
+                              size: 14,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  !child.hasOverlayPermission
+                                      ? 'Display Over Apps Disabled'
+                                      : 'Usage Access Disabled',
+                                  style: const TextStyle(
+                                    color: Color(0xFFEF4444),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                const SizedBox(height: 1),
+                                Text(
+                                  !child.hasOverlayPermission
+                                      ? 'App limits & lockouts cannot be displayed on ${child.displayName}\'s phone.'
+                                      : 'Screen time cannot be calculated on ${child.displayName}\'s phone.',
+                                  style: TextStyle(
+                                    color: _colors(context).textSecondary,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   // Three action buttons
                   Row(
