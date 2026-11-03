@@ -1241,6 +1241,156 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count} unread'**
   String chatUnreadCount(int count);
+
+  /// No description provided for @deviceHealthTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Device health'**
+  String get deviceHealthTitle;
+
+  /// No description provided for @refreshDeviceStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh device status'**
+  String get refreshDeviceStatus;
+
+  /// No description provided for @monitoringStatusUnverified.
+  ///
+  /// In en, this message translates to:
+  /// **'Monitoring status unverified'**
+  String get monitoringStatusUnverified;
+
+  /// No description provided for @monitoringStatusActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Monitoring reported active'**
+  String get monitoringStatusActive;
+
+  /// No description provided for @monitoringStatusUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Monitoring reported unavailable'**
+  String get monitoringStatusUnavailable;
+
+  /// No description provided for @deviceHealthNeverReported.
+  ///
+  /// In en, this message translates to:
+  /// **'This device has not reported its health status yet.'**
+  String get deviceHealthNeverReported;
+
+  /// No description provided for @deviceHealthStale.
+  ///
+  /// In en, this message translates to:
+  /// **'Last report {time}. Current status is unknown.'**
+  String deviceHealthStale(String time);
+
+  /// No description provided for @deviceHealthLastReported.
+  ///
+  /// In en, this message translates to:
+  /// **'Last report {time}.'**
+  String deviceHealthLastReported(String time);
+
+  /// No description provided for @usageAccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Usage access'**
+  String get usageAccess;
+
+  /// No description provided for @appBlocking.
+  ///
+  /// In en, this message translates to:
+  /// **'App blocking'**
+  String get appBlocking;
+
+  /// No description provided for @locationPermission.
+  ///
+  /// In en, this message translates to:
+  /// **'Location'**
+  String get locationPermission;
+
+  /// No description provided for @notificationPermission.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get notificationPermission;
+
+  /// No description provided for @batteryOptimization.
+  ///
+  /// In en, this message translates to:
+  /// **'Battery optimization'**
+  String get batteryOptimization;
+
+  /// No description provided for @deviceConnection.
+  ///
+  /// In en, this message translates to:
+  /// **'Device connection'**
+  String get deviceConnection;
+
+  /// No description provided for @statusOn.
+  ///
+  /// In en, this message translates to:
+  /// **'On'**
+  String get statusOn;
+
+  /// No description provided for @statusOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get statusOff;
+
+  /// No description provided for @statusUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get statusUnknown;
+
+  /// No description provided for @restorePermissionsInstruction.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask your child to open Monitoring Status on their device and follow the steps for any missing permission.'**
+  String get restorePermissionsInstruction;
+
+  /// No description provided for @safetyCheckIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Safety'**
+  String get safetyCheckIn;
+
+  /// No description provided for @sosRecordedWaiting.
+  ///
+  /// In en, this message translates to:
+  /// **'SOS recorded. Delivery is not confirmed until a parent acknowledges it.'**
+  String get sosRecordedWaiting;
+
+  /// No description provided for @sosRecordedNotificationPending.
+  ///
+  /// In en, this message translates to:
+  /// **'SOS recorded, but the parent notification is pending. Delivery is not confirmed.'**
+  String get sosRecordedNotificationPending;
+
+  /// No description provided for @sosQueuedOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'No connection. SOS is saved on this device and will retry when the app is online.'**
+  String get sosQueuedOffline;
+
+  /// No description provided for @checkInRecordedWaiting.
+  ///
+  /// In en, this message translates to:
+  /// **'Safety check-in recorded. Delivery is not confirmed.'**
+  String get checkInRecordedWaiting;
+
+  /// No description provided for @checkInNotificationPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Safety check-in recorded, but parent notification is pending.'**
+  String get checkInNotificationPending;
+
+  /// No description provided for @checkInQueuedOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'No connection. Check-in is saved on this device and will retry when online.'**
+  String get checkInQueuedOffline;
 }
 
 class _AppLocalizationsDelegate

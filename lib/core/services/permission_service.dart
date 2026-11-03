@@ -249,13 +249,10 @@ class PermissionService {
       if (result is Map) {
         return Map<String, dynamic>.from(result);
       }
-    } catch (_) {}
-    return {
-      'batteryLevel': -1,
-      'isCharging': false,
-      'networkType': 'Online',
-      'isMonitoringActive': false,
-    };
+      throw const FormatException('Device health response was not a map.');
+    } catch (e) {
+      throw PermissionException('Failed to retrieve device health: $e');
+    }
   }
 }
 

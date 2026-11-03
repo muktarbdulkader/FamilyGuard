@@ -190,6 +190,45 @@
   "chatOpen": "افتح المحادثة",
   "chatLatestMessage": "آخر رسالة",
   "chatUnreadCount": "{count} غير مقروءة",
+  "deviceHealthTitle": "حالة الجهاز",
+  "refreshDeviceStatus": "تحديث حالة الجهاز",
+  "monitoringStatusUnverified": "حالة المراقبة غير مؤكدة",
+  "monitoringStatusActive": "أُبلغ أن المراقبة نشطة",
+  "monitoringStatusUnavailable": "أُبلغ أن المراقبة غير متاحة",
+  "deviceHealthNeverReported": "لم يُرسل هذا الجهاز تقريرًا عن حالته بعد.",
+  "deviceHealthStale": "آخر تقرير {time}. الحالة الحالية غير معروفة.",
+  "deviceHealthLastReported": "آخر تقرير {time}.",
+  "usageAccess": "الوصول إلى الاستخدام",
+  "appBlocking": "حظر التطبيقات",
+  "locationPermission": "الموقع",
+  "notificationPermission": "الإشعارات",
+  "batteryOptimization": "تحسين البطارية",
+  "deviceConnection": "اتصال الجهاز",
+  "statusOn": "مفعّل",
+  "statusOff": "متوقف",
+  "statusUnknown": "غير معروف",
+  "restorePermissionsInstruction": "اطلب من طفلك فتح حالة المراقبة على جهازه واتباع خطوات تفعيل أي إذن مفقود.",
+  "safetyCheckIn": "السلامة",
+  "sosRecordedWaiting": "تم تسجيل تنبيه الطوارئ. لا يتأكد وصوله حتى يقرّ أحد الوالدين باستلامه.",
+  "sosRecordedNotificationPending": "تم تسجيل تنبيه الطوارئ، لكن إشعار الوالد ما زال قيد الانتظار.",
+  "sosQueuedOffline": "لا يوجد اتصال. حُفظ التنبيه على هذا الجهاز وسيُعاد إرساله عند اتصال التطبيق بالإنترنت.",
+  "checkInRecordedWaiting": "تم تسجيل رسالة الاطمئنان. لم يتم تأكيد وصولها بعد.",
+  "checkInNotificationPending": "تم تسجيل رسالة الاطمئنان، لكن إشعار الوالد ما زال قيد الانتظار.",
+  "checkInQueuedOffline": "لا يوجد اتصال. حُفظت الرسالة على هذا الجهاز وستُعاد عند الاتصال بالإنترنت.",
+  "@deviceHealthStale": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "@deviceHealthLastReported": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
   "@chatUnreadCount": {
     "placeholders": {
       "count": {

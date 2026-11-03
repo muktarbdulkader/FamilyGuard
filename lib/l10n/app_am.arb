@@ -190,6 +190,45 @@
   "chatOpen": "ውይይት ክፈት",
   "chatLatestMessage": "የቅርብ ጊዜ መልዕክት",
   "chatUnreadCount": "{count} ያልተነበቡ",
+  "deviceHealthTitle": "የመሣሪያ ጤና",
+  "refreshDeviceStatus": "የመሣሪያ ሁኔታን አድስ",
+  "monitoringStatusUnverified": "የክትትል ሁኔታ አልተረጋገጠም",
+  "monitoringStatusActive": "ክትትሉ ንቁ መሆኑ ተዘግቧል",
+  "monitoringStatusUnavailable": "ክትትሉ አይገኝም ተብሎ ተዘግቧል",
+  "deviceHealthNeverReported": "ይህ መሣሪያ የጤና ሁኔታውን ገና አላሳወቀም።",
+  "deviceHealthStale": "የመጨረሻ ሪፖርት {time}። የአሁኑ ሁኔታ አይታወቅም።",
+  "deviceHealthLastReported": "የመጨረሻ ሪፖርት {time}።",
+  "usageAccess": "የአጠቃቀም ፈቃድ",
+  "appBlocking": "መተግበሪያ ማገድ",
+  "locationPermission": "አካባቢ",
+  "notificationPermission": "ማሳወቂያዎች",
+  "batteryOptimization": "የባትሪ ማመቻቸት",
+  "deviceConnection": "የመሣሪያ ግንኙነት",
+  "statusOn": "በርቷል",
+  "statusOff": "ጠፍቷል",
+  "statusUnknown": "አይታወቅም",
+  "restorePermissionsInstruction": "ልጅዎ በመሣሪያው ላይ የክትትል ሁኔታን እንዲከፍትና የጎደሉ ፈቃዶችን እንዲያነቃ ይጠይቁ።",
+  "safetyCheckIn": "ደህንነት",
+  "sosRecordedWaiting": "የSOS ማሳወቂያ ተመዝግቧል። ወላጅ እስኪያረጋግጥ ድረስ መድረሱ አልተረጋገጠም።",
+  "sosRecordedNotificationPending": "የSOS ማሳወቂያ ተመዝግቧል፣ ግን ለወላጅ የሚላከው ማሳወቂያ በመጠባበቅ ላይ ነው።",
+  "sosQueuedOffline": "ግንኙነት የለም። SOS በዚህ መሣሪያ ላይ ተቀምጧል፤ መተግበሪያው ከበይነመረብ ጋር ሲገናኝ እንደገና ይላካል።",
+  "checkInRecordedWaiting": "የደህንነት ማረጋገጫ ተመዝግቧል፤ መድረሱ አልተረጋገጠም።",
+  "checkInNotificationPending": "የደህንነት ማረጋገጫ ተመዝግቧል፣ ግን የወላጅ ማሳወቂያ በመጠባበቅ ላይ ነው።",
+  "checkInQueuedOffline": "ግንኙነት የለም። ማረጋገጫው በመሣሪያው ላይ ተቀምጧል፤ መተግበሪያው ከበይነመረብ ጋር ሲገናኝ እንደገና ይላካል።",
+  "@deviceHealthStale": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "@deviceHealthLastReported": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
   "@chatUnreadCount": {
     "placeholders": {
       "count": {

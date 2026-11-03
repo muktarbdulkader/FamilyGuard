@@ -141,6 +141,7 @@ class ChildModel {
   final bool hasNotificationPermission;
   final bool hasBatteryOptimizationDisabled;
   final DateTime? lastSyncTimestamp;
+  final DateTime? lastPermissionCheck;
 
   ChildModel({
     required this.id,
@@ -163,6 +164,7 @@ class ChildModel {
     this.hasNotificationPermission = false,
     this.hasBatteryOptimizationDisabled = false,
     this.lastSyncTimestamp,
+    this.lastPermissionCheck,
   }) : _reportedOnline = isOnline;
 
   static const onlineThreshold = ChildPresence.onlineThreshold;
@@ -197,6 +199,7 @@ class ChildModel {
 
     final lastSeen = parseOptionalTimestamp(data['lastSeen']);
     final lastSyncTimestamp = parseOptionalTimestamp(data['lastSyncTimestamp'] ?? data['lastHeartbeat']);
+    final lastPermissionCheck = parseOptionalTimestamp(data['lastPermissionCheck']);
 
     return ChildModel(
       id: doc.id,
@@ -221,6 +224,7 @@ class ChildModel {
       hasNotificationPermission: data['hasNotificationPermission'] as bool? ?? false,
       hasBatteryOptimizationDisabled: data['hasBatteryOptimizationDisabled'] as bool? ?? false,
       lastSyncTimestamp: lastSyncTimestamp,
+      lastPermissionCheck: lastPermissionCheck,
     );
   }
 
@@ -246,6 +250,8 @@ class ChildModel {
       'hasNotificationPermission': hasNotificationPermission,
       'hasBatteryOptimizationDisabled': hasBatteryOptimizationDisabled,
       if (lastSyncTimestamp != null) 'lastSyncTimestamp': Timestamp.fromDate(lastSyncTimestamp!),
+      if (lastPermissionCheck != null)
+        'lastPermissionCheck': Timestamp.fromDate(lastPermissionCheck!),
     };
   }
 
@@ -271,6 +277,7 @@ class ChildModel {
     bool? hasNotificationPermission,
     bool? hasBatteryOptimizationDisabled,
     DateTime? lastSyncTimestamp,
+    DateTime? lastPermissionCheck,
   }) {
     return ChildModel(
       id: id ?? this.id,
@@ -293,6 +300,7 @@ class ChildModel {
       hasNotificationPermission: hasNotificationPermission ?? this.hasNotificationPermission,
       hasBatteryOptimizationDisabled: hasBatteryOptimizationDisabled ?? this.hasBatteryOptimizationDisabled,
       lastSyncTimestamp: lastSyncTimestamp ?? this.lastSyncTimestamp,
+      lastPermissionCheck: lastPermissionCheck ?? this.lastPermissionCheck,
     );
   }
 

@@ -190,6 +190,45 @@
   "chatOpen": "Haasa'a bani",
   "chatLatestMessage": "Ergaa dhumaa",
   "chatUnreadCount": "{count} hin dubbifamne",
+  "deviceHealthTitle": "Fayyaa meeshaa",
+  "refreshDeviceStatus": "Haala meeshaa haaromsi",
+  "monitoringStatusUnverified": "Haalli hordoffii hin mirkanoofne",
+  "monitoringStatusActive": "Hordoffiin hojii irra jira jedhamee gabaafame",
+  "monitoringStatusUnavailable": "Hordoffiin hin jiru jedhamee gabaafame",
+  "deviceHealthNeverReported": "Meeshaan kun haala fayyaa isaa hanga ammaatti hin gabaasne.",
+  "deviceHealthStale": "Gabaasni dhumaa {time}. Haalli ammaa hin beekamu.",
+  "deviceHealthLastReported": "Gabaasni dhumaa {time}.",
+  "usageAccess": "Hayyama fayyadama",
+  "appBlocking": "Appii ittisuu",
+  "locationPermission": "Bakka",
+  "notificationPermission": "Beeksisawwan",
+  "batteryOptimization": "Fooyya'iinsa baatirii",
+  "deviceConnection": "Walqunnamtii meeshaa",
+  "statusOn": "Banaa",
+  "statusOff": "Cufaa",
+  "statusUnknown": "Hin beekamu",
+  "restorePermissionsInstruction": "Mucaan kee Meeshaa irratti Haala Hordoffii akka banuu fi hayyama dhabame akka deebisee kennu gaafadhu.",
+  "safetyCheckIn": "Nageenya",
+  "sosRecordedWaiting": "SOS galmaa'eera. Maatiin hanga mirkaneessutti ergaan geesse jechuun hin mirkanoofne.",
+  "sosRecordedNotificationPending": "SOS galmaa'eera, garuu beeksisni maatiif ergamu eegaa jira.",
+  "sosQueuedOffline": "Walqunnamtiin hin jiru. SOS meeshaa kana irratti kuufameera; yeroo appiin toora interneetii argatu irra deebi'ee ni ergame.",
+  "checkInRecordedWaiting": "Mirkaneessi nageenyaa galmaa'eera. Ergaan geesse jechuun hin mirkanoofne.",
+  "checkInNotificationPending": "Mirkaneessi nageenyaa galmaa'eera, garuu beeksisni maatiif ergamu eegaa jira.",
+  "checkInQueuedOffline": "Walqunnamtiin hin jiru. Mirkaneessi meeshaa kana irratti kuufameera; yeroo toora interneetii argamu irra deebi'ee ni ergame.",
+  "@deviceHealthStale": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "@deviceHealthLastReported": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
   "@chatUnreadCount": {
     "placeholders": {
       "count": {

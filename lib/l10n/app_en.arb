@@ -197,6 +197,45 @@
   "chatOpen": "Open chat",
   "chatLatestMessage": "Latest message",
   "chatUnreadCount": "{count} unread",
+  "deviceHealthTitle": "Device health",
+  "refreshDeviceStatus": "Refresh device status",
+  "monitoringStatusUnverified": "Monitoring status unverified",
+  "monitoringStatusActive": "Monitoring reported active",
+  "monitoringStatusUnavailable": "Monitoring reported unavailable",
+  "deviceHealthNeverReported": "This device has not reported its health status yet.",
+  "deviceHealthStale": "Last report {time}. Current status is unknown.",
+  "deviceHealthLastReported": "Last report {time}.",
+  "usageAccess": "Usage access",
+  "appBlocking": "App blocking",
+  "locationPermission": "Location",
+  "notificationPermission": "Notifications",
+  "batteryOptimization": "Battery optimization",
+  "deviceConnection": "Device connection",
+  "statusOn": "On",
+  "statusOff": "Off",
+  "statusUnknown": "Unknown",
+  "restorePermissionsInstruction": "Ask your child to open Monitoring Status on their device and follow the steps for any missing permission.",
+  "safetyCheckIn": "Safety",
+  "sosRecordedWaiting": "SOS recorded. Delivery is not confirmed until a parent acknowledges it.",
+  "sosRecordedNotificationPending": "SOS recorded, but the parent notification is pending. Delivery is not confirmed.",
+  "sosQueuedOffline": "No connection. SOS is saved on this device and will retry when the app is online.",
+  "checkInRecordedWaiting": "Safety check-in recorded. Delivery is not confirmed.",
+  "checkInNotificationPending": "Safety check-in recorded, but parent notification is pending.",
+  "checkInQueuedOffline": "No connection. Check-in is saved on this device and will retry when online.",
+  "@deviceHealthStale": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "@deviceHealthLastReported": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
   "@chatUnreadCount": {
     "placeholders": {
       "count": {

@@ -597,4 +597,93 @@ class AppLocalizationsOm extends AppLocalizations {
   String chatUnreadCount(int count) {
     return '$count hin dubbifamne';
   }
+
+  @override
+  String get deviceHealthTitle => 'Fayyaa meeshaa';
+
+  @override
+  String get refreshDeviceStatus => 'Haala meeshaa haaromsi';
+
+  @override
+  String get monitoringStatusUnverified => 'Haalli hordoffii hin mirkanoofne';
+
+  @override
+  String get monitoringStatusActive =>
+      'Hordoffiin hojii irra jira jedhamee gabaafame';
+
+  @override
+  String get monitoringStatusUnavailable =>
+      'Hordoffiin hin jiru jedhamee gabaafame';
+
+  @override
+  String get deviceHealthNeverReported =>
+      'Meeshaan kun haala fayyaa isaa hanga ammaatti hin gabaasne.';
+
+  @override
+  String deviceHealthStale(String time) {
+    return 'Gabaasni dhumaa $time. Haalli ammaa hin beekamu.';
+  }
+
+  @override
+  String deviceHealthLastReported(String time) {
+    return 'Gabaasni dhumaa $time.';
+  }
+
+  @override
+  String get usageAccess => 'Hayyama fayyadama';
+
+  @override
+  String get appBlocking => 'Appii ittisuu';
+
+  @override
+  String get locationPermission => 'Bakka';
+
+  @override
+  String get notificationPermission => 'Beeksisawwan';
+
+  @override
+  String get batteryOptimization => 'Fooyya\'iinsa baatirii';
+
+  @override
+  String get deviceConnection => 'Walqunnamtii meeshaa';
+
+  @override
+  String get statusOn => 'Banaa';
+
+  @override
+  String get statusOff => 'Cufaa';
+
+  @override
+  String get statusUnknown => 'Hin beekamu';
+
+  @override
+  String get restorePermissionsInstruction =>
+      'Mucaan kee Meeshaa irratti Haala Hordoffii akka banuu fi hayyama dhabame akka deebisee kennu gaafadhu.';
+
+  @override
+  String get safetyCheckIn => 'Nageenya';
+
+  @override
+  String get sosRecordedWaiting =>
+      'SOS galmaa\'eera. Maatiin hanga mirkaneessutti ergaan geesse jechuun hin mirkanoofne.';
+
+  @override
+  String get sosRecordedNotificationPending =>
+      'SOS galmaa\'eera, garuu beeksisni maatiif ergamu eegaa jira.';
+
+  @override
+  String get sosQueuedOffline =>
+      'Walqunnamtiin hin jiru. SOS meeshaa kana irratti kuufameera; yeroo appiin toora interneetii argatu irra deebi\'ee ni ergame.';
+
+  @override
+  String get checkInRecordedWaiting =>
+      'Mirkaneessi nageenyaa galmaa\'eera. Ergaan geesse jechuun hin mirkanoofne.';
+
+  @override
+  String get checkInNotificationPending =>
+      'Mirkaneessi nageenyaa galmaa\'eera, garuu beeksisni maatiif ergamu eegaa jira.';
+
+  @override
+  String get checkInQueuedOffline =>
+      'Walqunnamtiin hin jiru. Mirkaneessi meeshaa kana irratti kuufameera; yeroo toora interneetii argamu irra deebi\'ee ni ergame.';
 }

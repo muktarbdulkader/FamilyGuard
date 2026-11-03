@@ -591,4 +591,91 @@ class AppLocalizationsEn extends AppLocalizations {
   String chatUnreadCount(int count) {
     return '$count unread';
   }
+
+  @override
+  String get deviceHealthTitle => 'Device health';
+
+  @override
+  String get refreshDeviceStatus => 'Refresh device status';
+
+  @override
+  String get monitoringStatusUnverified => 'Monitoring status unverified';
+
+  @override
+  String get monitoringStatusActive => 'Monitoring reported active';
+
+  @override
+  String get monitoringStatusUnavailable => 'Monitoring reported unavailable';
+
+  @override
+  String get deviceHealthNeverReported =>
+      'This device has not reported its health status yet.';
+
+  @override
+  String deviceHealthStale(String time) {
+    return 'Last report $time. Current status is unknown.';
+  }
+
+  @override
+  String deviceHealthLastReported(String time) {
+    return 'Last report $time.';
+  }
+
+  @override
+  String get usageAccess => 'Usage access';
+
+  @override
+  String get appBlocking => 'App blocking';
+
+  @override
+  String get locationPermission => 'Location';
+
+  @override
+  String get notificationPermission => 'Notifications';
+
+  @override
+  String get batteryOptimization => 'Battery optimization';
+
+  @override
+  String get deviceConnection => 'Device connection';
+
+  @override
+  String get statusOn => 'On';
+
+  @override
+  String get statusOff => 'Off';
+
+  @override
+  String get statusUnknown => 'Unknown';
+
+  @override
+  String get restorePermissionsInstruction =>
+      'Ask your child to open Monitoring Status on their device and follow the steps for any missing permission.';
+
+  @override
+  String get safetyCheckIn => 'Safety';
+
+  @override
+  String get sosRecordedWaiting =>
+      'SOS recorded. Delivery is not confirmed until a parent acknowledges it.';
+
+  @override
+  String get sosRecordedNotificationPending =>
+      'SOS recorded, but the parent notification is pending. Delivery is not confirmed.';
+
+  @override
+  String get sosQueuedOffline =>
+      'No connection. SOS is saved on this device and will retry when the app is online.';
+
+  @override
+  String get checkInRecordedWaiting =>
+      'Safety check-in recorded. Delivery is not confirmed.';
+
+  @override
+  String get checkInNotificationPending =>
+      'Safety check-in recorded, but parent notification is pending.';
+
+  @override
+  String get checkInQueuedOffline =>
+      'No connection. Check-in is saved on this device and will retry when online.';
 }

@@ -44,6 +44,9 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen>
   bool _hasOverlay = true;
   bool _hasLocationPermission = true;
   bool _sosCooldown = false;
+  Map<String, bool>? _lastSyncedPermissionState;
+  DateTime? _lastDeviceStatusSyncAt;
+  bool? _lastKnownMonitoringActive;
   final _permissionService = PermissionService();
 
   AppColors get _colors => AppColors.of(context);
@@ -60,10 +63,10 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _checkPermissions();
-    _permissionPollingTimer = Timer.periodic(
-      const Duration(seconds: 30),
-      (_) => _checkPermissions(),
-    );
+    _permissionPollingTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      _checkPermissions();
+      _retryPendingEmergencyAlerts();
+    });
   }
 
   @override
@@ -77,6 +80,16 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _checkPermissions();
+      _retryPendingEmergencyAlerts();
+    }
+  }
+
+  void _retryPendingEmergencyAlerts() {
+    final familyId = ref.read(currentUserDataProvider).value?.familyId;
+    if (familyId != null && familyId.isNotEmpty) {
+      unawaited(
+        EmergencyService.instance.processPendingOfflineAlerts(familyId),
+      );
     }
   }
 
@@ -84,6 +97,9 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen>
     final usage = await _permissionService.hasUsageStatsPermission();
     final overlay = await _permissionService.hasOverlayPermission();
     final locInfo = await LocationService().checkLocationPermission();
+    final notifications = await _permissionService.hasNotificationPermission();
+    final batteryOptimizationDisabled = await _permissionService
+        .isBatteryOptimizationDisabled();
     if (mounted) {
       setState(() {
         _hasUsageStats = usage;
@@ -92,41 +108,83 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen>
       });
     }
 
-    await _syncPermissionsToFirestore(
-      overlay: overlay,
-      usage: usage,
-      location: locInfo.canShareLocation,
-    );
+    final permissionState = {
+      'overlay': overlay,
+      'usage': usage,
+      'location': locInfo.canShareLocation,
+      'notifications': notifications,
+      'batteryOptimizationDisabled': batteryOptimizationDisabled,
+    };
+    final previousState = _lastSyncedPermissionState;
+    final changed =
+        previousState == null ||
+        permissionState.entries.any(
+          (entry) => previousState[entry.key] != entry.value,
+        );
+    final lastSync = _lastDeviceStatusSyncAt;
+    final refreshDue =
+        lastSync == null ||
+        DateTime.now().difference(lastSync) >= const Duration(minutes: 5);
+
+    if (changed || refreshDue) {
+      final synced = await _syncPermissionsToFirestore(
+        overlay: overlay,
+        usage: usage,
+        location: locInfo.canShareLocation,
+        notifications: notifications,
+        batteryOptimizationDisabled: batteryOptimizationDisabled,
+        previousState: previousState,
+      );
+      if (synced) {
+        _lastSyncedPermissionState = permissionState;
+        _lastDeviceStatusSyncAt = DateTime.now();
+      }
+    }
   }
 
-  Future<void> _syncPermissionsToFirestore({
+  Future<bool> _syncPermissionsToFirestore({
     required bool overlay,
     required bool usage,
     required bool location,
+    required bool notifications,
+    required bool batteryOptimizationDisabled,
+    required Map<String, bool>? previousState,
   }) async {
     try {
       final user = ref.read(currentUserDataProvider).value;
-      if (user == null) return;
+      if (user == null) return false;
       final familyId = user.familyId;
       final childId = user.uid;
       final childName = user.displayName.isEmpty ? 'Child' : user.displayName;
-      if (familyId == null || familyId.isEmpty || childId.isEmpty) return;
+      if (familyId == null || familyId.isEmpty || childId.isEmpty) return false;
 
-      // Update child document in family
-      await FirebaseFirestore.instance
-          .collection('families')
-          .doc(familyId)
-          .collection('children')
-          .doc(childId)
-          .set({
-            'hasOverlayPermission': overlay,
-            'hasUsageStatsPermission': usage,
-            'hasLocationPermission': location,
-            'lastPermissionCheck': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
+      final permissionStatus = {
+        'hasOverlayPermission': overlay,
+        'hasUsageStatsPermission': usage,
+        'hasLocationPermission': location,
+        'hasNotificationPermission': notifications,
+        'hasBatteryOptimizationDisabled': batteryOptimizationDisabled,
+        'lastPermissionCheck': FieldValue.serverTimestamp(),
+      };
+      final firestore = FirebaseFirestore.instance;
+      final batch = firestore.batch()
+        ..set(
+          firestore
+              .collection('families')
+              .doc(familyId)
+              .collection('children')
+              .doc(childId),
+          permissionStatus,
+          SetOptions(merge: true),
+        )
+        ..set(
+          firestore.collection('users').doc(childId),
+          permissionStatus,
+          SetOptions(merge: true),
+        );
+      await batch.commit();
 
-      // If Display Over Other Apps was turned OFF, urgently notify parents!
-      if (!overlay) {
+      if (!overlay && previousState?['overlay'] != false) {
         await NotificationService.instance.sendPermissionDisabledNotification(
           familyId: familyId,
           childId: childId,
@@ -135,8 +193,7 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen>
         );
       }
 
-      // If Usage Stats was turned OFF, notify parents
-      if (!usage) {
+      if (!usage && previousState?['usage'] != false) {
         await NotificationService.instance.sendPermissionDisabledNotification(
           familyId: familyId,
           childId: childId,
@@ -144,8 +201,75 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen>
           permission: 'Usage Access (Screen Time)',
         );
       }
+
+      if (!location && previousState?['location'] != false) {
+        await NotificationService.instance.sendPermissionDisabledNotification(
+          familyId: familyId,
+          childId: childId,
+          childName: childName,
+          permission: 'Location Sharing',
+        );
+      }
+
+      if (!notifications && previousState?['notifications'] != false) {
+        await NotificationService.instance.sendPermissionDisabledNotification(
+          familyId: familyId,
+          childId: childId,
+          childName: childName,
+          permission: 'Notifications',
+        );
+      }
+
+      try {
+        final health = await _permissionService.getDeviceHealth();
+        final monitoringActive = health['isMonitoringActive'];
+        if (monitoringActive is! bool) {
+          throw const FormatException(
+            'Device health did not include a monitoring status.',
+          );
+        }
+        final healthStatus = {
+          'batteryLevel': health['batteryLevel'],
+          'isCharging': health['isCharging'],
+          'networkType': health['networkType'],
+          'isMonitoringActive': monitoringActive,
+          'lastSeen': FieldValue.serverTimestamp(),
+          'lastSyncTimestamp': FieldValue.serverTimestamp(),
+          'lastHeartbeat': FieldValue.serverTimestamp(),
+        };
+        final healthBatch = firestore.batch()
+          ..set(
+            firestore
+                .collection('families')
+                .doc(familyId)
+                .collection('children')
+                .doc(childId),
+            healthStatus,
+            SetOptions(merge: true),
+          )
+          ..set(
+            firestore.collection('users').doc(childId),
+            healthStatus,
+            SetOptions(merge: true),
+          );
+        await healthBatch.commit();
+
+        if (_lastKnownMonitoringActive == true && !monitoringActive) {
+          await NotificationService.instance.sendServiceUnavailableNotification(
+            familyId: familyId,
+            childId: childId,
+            childName: childName,
+            service: 'Device monitoring',
+          );
+        }
+        _lastKnownMonitoringActive = monitoringActive;
+      } catch (e) {
+        debugPrint('Could not sync device health: $e');
+      }
+      return true;
     } catch (e) {
       debugPrint('Error syncing permissions to Firestore: $e');
+      return false;
     }
   }
 
@@ -180,21 +304,33 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen>
           childId: childId,
           childName: childName,
         );
-        // Sync device health to Firestore
+        // Sync device health after monitoring and location services start.
         final health = await _permissionService.getDeviceHealth();
-        await FirebaseFirestore.instance
-            .collection('families')
-            .doc(familyId)
-            .collection('children')
-            .doc(childId)
-            .set({
-              'batteryLevel': health['batteryLevel'],
-              'isCharging': health['isCharging'],
-              'networkType': health['networkType'],
-              'isMonitoringActive': health['isMonitoringActive'],
-              'lastSyncTimestamp': FieldValue.serverTimestamp(),
-              'lastHeartbeat': FieldValue.serverTimestamp(),
-            }, SetOptions(merge: true));
+        final healthStatus = {
+          'batteryLevel': health['batteryLevel'],
+          'isCharging': health['isCharging'],
+          'networkType': health['networkType'],
+          'isMonitoringActive': health['isMonitoringActive'],
+          'lastSyncTimestamp': FieldValue.serverTimestamp(),
+          'lastHeartbeat': FieldValue.serverTimestamp(),
+        };
+        final firestore = FirebaseFirestore.instance;
+        final batch = firestore.batch()
+          ..set(
+            firestore
+                .collection('families')
+                .doc(familyId)
+                .collection('children')
+                .doc(childId),
+            healthStatus,
+            SetOptions(merge: true),
+          )
+          ..set(
+            firestore.collection('users').doc(childId),
+            healthStatus,
+            SetOptions(merge: true),
+          );
+        await batch.commit();
       } catch (e) {
         debugPrint('Auto sync in ChildHomeScreen error: $e');
       }
@@ -320,6 +456,7 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen>
     String childId,
     String childName,
   ) async {
+    final l10n = AppLocalizations.of(context);
     setState(() => _sosCooldown = true);
     Future.delayed(const Duration(minutes: 5), () {
       if (mounted) setState(() => _sosCooldown = false);
@@ -334,7 +471,7 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen>
         ),
       );
 
-      await EmergencyService.instance.triggerEmergencySos(
+      final result = await EmergencyService.instance.triggerEmergencySos(
         familyId: familyId,
         childId: childId,
         childName: childName,
@@ -342,9 +479,18 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen>
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✓ SOS alert sent to your family!'),
-            backgroundColor: Color(0xFF16A34A),
+          SnackBar(
+            content: Text(switch (result.status) {
+              EmergencySubmissionStatus.recorded => l10n.sosRecordedWaiting,
+              EmergencySubmissionStatus.notificationPending =>
+                l10n.sosRecordedNotificationPending,
+              EmergencySubmissionStatus.queuedOffline => l10n.sosQueuedOffline,
+            }),
+            backgroundColor:
+                result.status == EmergencySubmissionStatus.queuedOffline
+                ? const Color(0xFFDC2626)
+                : const Color(0xFF16A34A),
+            duration: const Duration(seconds: 6),
           ),
         );
       }
@@ -431,22 +577,29 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen>
                 padding: const EdgeInsets.only(bottom: 10),
                 child: ElevatedButton.icon(
                   onPressed: () async {
+                    final l10n = AppLocalizations.of(context);
                     Navigator.pop(sheetCtx);
-                    await EmergencyService.instance.sendSafetyPing(
-                      familyId: familyId,
-                      childId: childId,
-                      childName: childName,
-                      pingType: pingType.$1,
+                    final result = await EmergencyService.instance
+                        .sendSafetyPing(
+                          familyId: familyId,
+                          childId: childId,
+                          childName: childName,
+                          pingType: pingType.$1,
+                        );
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(switch (result.status) {
+                          EmergencySubmissionStatus.recorded =>
+                            l10n.checkInRecordedWaiting,
+                          EmergencySubmissionStatus.notificationPending =>
+                            l10n.checkInNotificationPending,
+                          EmergencySubmissionStatus.queuedOffline =>
+                            l10n.checkInQueuedOffline,
+                        }),
+                        duration: const Duration(seconds: 5),
+                      ),
                     );
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            '✓ "${pingType.$4}" sent to your family',
-                          ),
-                        ),
-                      );
-                    }
                   },
                   icon: Icon(pingType.$2),
                   label: Text(pingType.$4),

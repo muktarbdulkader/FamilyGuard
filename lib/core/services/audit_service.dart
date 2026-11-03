@@ -40,6 +40,7 @@ class AuditService {
     required String title,
     required String description,
     Map<String, dynamic> metadata = const {},
+    String? eventId,
   }) async {
     if (familyId.isEmpty) return;
 
@@ -60,7 +61,12 @@ class AuditService {
     );
 
     try {
-      await _logsCollection(familyId).add(log.toFirestore());
+      final collection = _logsCollection(familyId);
+      if (eventId == null) {
+        await collection.add(log.toFirestore());
+      } else {
+        await collection.doc(eventId).set(log.toFirestore());
+      }
     } catch (e) {
       debugPrint('Error logging audit activity: $e');
     }
@@ -92,4 +98,3 @@ class AuditService {
     });
   }
 }
-

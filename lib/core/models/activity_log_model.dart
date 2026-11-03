@@ -7,6 +7,7 @@ enum ActivityType {
   routineToggle,
   permissionTamper,
   emergencySos,
+  safetyCheckIn,
   quizCompleted;
 
   String get displayName => switch (this) {
@@ -15,6 +16,7 @@ enum ActivityType {
         ActivityType.routineToggle => 'Routine Changed',
         ActivityType.permissionTamper => 'Security / Permission Warning',
         ActivityType.emergencySos => 'Emergency SOS Alert',
+        ActivityType.safetyCheckIn => 'Safety Check-in',
         ActivityType.quizCompleted => 'Quiz Completed',
       };
 
@@ -24,6 +26,7 @@ enum ActivityType {
         ActivityType.routineToggle => Icons.schedule_rounded,
         ActivityType.permissionTamper => Icons.warning_amber_rounded,
         ActivityType.emergencySos => Icons.emergency_rounded,
+        ActivityType.safetyCheckIn => Icons.health_and_safety_rounded,
         ActivityType.quizCompleted => Icons.school_rounded,
       };
 
@@ -33,6 +36,7 @@ enum ActivityType {
         ActivityType.routineToggle => const Color(0xFF8B5CF6),
         ActivityType.permissionTamper => const Color(0xFFEF4444),
         ActivityType.emergencySos => const Color(0xFFDC2626),
+        ActivityType.safetyCheckIn => const Color(0xFF0D9488),
         ActivityType.quizCompleted => const Color(0xFFF59E0B),
       };
 
@@ -42,6 +46,7 @@ enum ActivityType {
       'routine_toggle' || 'routinetoggle' => ActivityType.routineToggle,
       'permission_tamper' || 'permissiontamper' => ActivityType.permissionTamper,
       'emergency_sos' || 'emergencysos' || 'sos' => ActivityType.emergencySos,
+      'safety_checkin' || 'safetycheckin' => ActivityType.safetyCheckIn,
       'quiz_completed' || 'quizcompleted' => ActivityType.quizCompleted,
       _ => ActivityType.ruleChange,
     };
@@ -53,6 +58,7 @@ enum ActivityType {
         ActivityType.routineToggle => 'routine_toggle',
         ActivityType.permissionTamper => 'permission_tamper',
         ActivityType.emergencySos => 'emergency_sos',
+        ActivityType.safetyCheckIn => 'safety_checkin',
         ActivityType.quizCompleted => 'quiz_completed',
       };
 }
@@ -128,4 +134,3 @@ class ActivityLogModel {
     };
   }
 }
-

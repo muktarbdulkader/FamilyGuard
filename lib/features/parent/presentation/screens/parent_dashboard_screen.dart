@@ -495,6 +495,15 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                           final initial = child.displayName.isNotEmpty
                               ? child.displayName[0].toUpperCase()
                               : 'C';
+                          final permissionAge = child.lastPermissionCheck == null
+                              ? null
+                              : DateTime.now().difference(
+                                  child.lastPermissionCheck!,
+                                );
+                          final hasRecentPermissionReport =
+                              permissionAge != null &&
+                              !permissionAge.isNegative &&
+                              permissionAge <= ChildPresence.onlineThreshold;
 
                           return InkWell(
                             borderRadius: BorderRadius.circular(24),
@@ -584,8 +593,10 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                                           ),
                                         ),
                                       ),
-                                      // Tamper Warning Dot (if overlay or usage access disabled)
-                                      if (!child.hasOverlayPermission || !child.hasUsageStatsPermission)
+                                      // Do not infer tampering from missing or stale permission reports.
+                                      if (hasRecentPermissionReport &&
+                                          (!child.hasOverlayPermission ||
+                                              !child.hasUsageStatsPermission))
                                         Positioned(
                                           top: -3,
                                           left: -3,
@@ -1261,11 +1272,18 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
 
   Widget _buildDeviceHealthCard(ChildModel child) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     final lastSync = child.lastSyncTimestamp;
     final age = lastSync == null ? null : DateTime.now().difference(lastSync);
     final isFresh =
         age != null && !age.isNegative && age <= ChildPresence.onlineThreshold;
     final isStale = age != null && age > ChildPresence.onlineThreshold;
+    final permissionAge = child.lastPermissionCheck == null
+        ? null
+        : DateTime.now().difference(child.lastPermissionCheck!);
+    final permissionsAreFresh = permissionAge != null &&
+        !permissionAge.isNegative &&
+        permissionAge <= ChildPresence.onlineThreshold;
     final monitoringStatus = !isFresh
         ? null
         : child.isMonitoringActive;
@@ -1294,14 +1312,14 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Device health',
+                    l10n.deviceHealthTitle,
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
                 IconButton(
-                  tooltip: 'Refresh device status',
+                  tooltip: l10n.refreshDeviceStatus,
                   visualDensity: VisualDensity.compact,
                   onPressed: () => ref.invalidate(familyChildrenProvider),
                   icon: const Icon(Icons.refresh_rounded),
@@ -1311,10 +1329,10 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
             const SizedBox(height: 4),
             Text(
               monitoringStatus == null
-                  ? 'Monitoring status unverified'
+                  ? l10n.monitoringStatusUnverified
                   : monitoringStatus
-                  ? 'Monitoring reported active'
-                  : 'Monitoring reported unavailable',
+                  ? l10n.monitoringStatusActive
+                  : l10n.monitoringStatusUnavailable,
               style: TextStyle(
                 color: statusColor,
                 fontWeight: FontWeight.w700,
@@ -1323,10 +1341,12 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
             const SizedBox(height: 4),
             Text(
               lastSync == null
-                  ? 'This device has not reported its health status yet.'
+                  ? l10n.deviceHealthNeverReported
                   : isStale
-                  ? 'Last report ${_formatTimestampAgo(lastSync)}. Current status is unknown.'
-                  : 'Last report ${_formatTimestampAgo(lastSync)}.',
+                  ? l10n.deviceHealthStale(_formatDeviceTimestamp(lastSync))
+                  : l10n.deviceHealthLastReported(
+                      _formatDeviceTimestamp(lastSync),
+                    ),
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -1337,35 +1357,41 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
               runSpacing: 8,
               children: [
                 _healthStatusChip(
-                  'Usage access',
-                  isFresh ? child.hasUsageStatsPermission : null,
+                  l10n.usageAccess,
+                  permissionsAreFresh ? child.hasUsageStatsPermission : null,
                 ),
                 _healthStatusChip(
-                  'App blocking',
-                  isFresh ? child.hasOverlayPermission : null,
+                  l10n.appBlocking,
+                  permissionsAreFresh ? child.hasOverlayPermission : null,
                 ),
                 _healthStatusChip(
-                  'Location',
-                  isFresh ? child.hasLocationPermission : null,
+                  l10n.locationPermission,
+                  permissionsAreFresh ? child.hasLocationPermission : null,
                 ),
                 _healthStatusChip(
-                  'Notifications',
-                  isFresh ? child.hasNotificationPermission : null,
+                  l10n.notificationPermission,
+                  permissionsAreFresh ? child.hasNotificationPermission : null,
                 ),
                 _healthStatusChip(
-                  'Device connection',
+                  l10n.batteryOptimization,
+                  permissionsAreFresh
+                      ? child.hasBatteryOptimizationDisabled
+                      : null,
+                ),
+                _healthStatusChip(
+                  l10n.deviceConnection,
                   child.lastSeen == null ? null : child.isOnline,
                 ),
               ],
             ),
-            if (isFresh &&
+            if (permissionsAreFresh &&
                 (!child.hasUsageStatsPermission ||
                     !child.hasOverlayPermission ||
                     !child.hasLocationPermission ||
                     !child.hasNotificationPermission)) ...[
               const SizedBox(height: 12),
               Text(
-                'Ask your child to open Monitoring Status on their device and follow the steps for any missing permission.',
+                l10n.restorePermissionsInstruction,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -1395,10 +1421,15 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
   }
 
   Widget _healthStatusChip(String label, bool? isEnabled) {
+    final l10n = AppLocalizations.of(context);
     final (icon, color, status) = switch (isEnabled) {
-      true => (Icons.check_circle_rounded, const Color(0xFF059669), 'On'),
-      false => (Icons.error_rounded, const Color(0xFFDC2626), 'Off'),
-      null => (Icons.help_rounded, const Color(0xFFD97706), 'Unknown'),
+      true => (
+        Icons.check_circle_rounded,
+        const Color(0xFF059669),
+        l10n.statusOn,
+      ),
+      false => (Icons.error_rounded, const Color(0xFFDC2626), l10n.statusOff),
+      null => (Icons.help_rounded, const Color(0xFFD97706), l10n.statusUnknown),
     };
 
     return Container(
@@ -1424,6 +1455,13 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
         ],
       ),
     );
+  }
+
+  String _formatDeviceTimestamp(DateTime timestamp) {
+    final local = timestamp.toLocal();
+    final materialLocalizations = MaterialLocalizations.of(context);
+    return '${materialLocalizations.formatMediumDate(local)} '
+        '${materialLocalizations.formatTimeOfDay(TimeOfDay.fromDateTime(local))}';
   }
 
   // ── Send Education Card ──────────────────────────────────────────────────
@@ -3170,7 +3208,7 @@ class _EmergencyAlertBanner extends ConsumerWidget {
       data: (alerts) {
         if (alerts.isEmpty) return const SizedBox.shrink();
 
-        final sosAlerts = alerts.where((a) => a.isSos && a.isPending).toList();
+        final sosAlerts = alerts.where((a) => a.isSos).toList();
         if (sosAlerts.isEmpty) return const SizedBox.shrink();
 
         final alert = sosAlerts.first;
@@ -3219,8 +3257,8 @@ class _EmergencyAlertBanner extends ConsumerWidget {
                     color: Colors.white.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Text(
-                    'Respond',
+                  child: Text(
+                    alert.isPending ? 'Respond' : 'Continue',
                     style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -3269,18 +3307,22 @@ class _EmergencyAlertBanner extends ConsumerWidget {
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              await EmergencyService.instance.acknowledgeAlert(
-                familyId: alert.familyId,
-                alertId: alert.id,
-                parentId: auth?.uid ?? '',
-                parentName: parentName,
-              );
-            },
-            child: const Text('Acknowledge', style: TextStyle(color: Colors.orangeAccent)),
-          ),
+          if (alert.isPending)
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(ctx);
+                await EmergencyService.instance.acknowledgeAlert(
+                  familyId: alert.familyId,
+                  alertId: alert.id,
+                  parentId: auth?.uid ?? '',
+                  parentName: parentName,
+                );
+              },
+              child: const Text(
+                'Acknowledge',
+                style: TextStyle(color: Colors.orangeAccent),
+              ),
+            ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF16A34A),
@@ -3341,6 +3383,7 @@ class _ActivityHistoryTabState extends ConsumerState<_ActivityHistoryTab> {
     ('rule_change', 'Rules'),
     ('time_extension', 'Screen Time'),
     ('emergency_sos', 'Emergency'),
+    ('safety_checkin', 'Safety'),
     ('quiz_completed', 'Quizzes'),
     ('permission_tamper', 'Security'),
   ];

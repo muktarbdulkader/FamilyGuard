@@ -585,4 +585,89 @@ class AppLocalizationsAm extends AppLocalizations {
   String chatUnreadCount(int count) {
     return '$count ያልተነበቡ';
   }
+
+  @override
+  String get deviceHealthTitle => 'የመሣሪያ ጤና';
+
+  @override
+  String get refreshDeviceStatus => 'የመሣሪያ ሁኔታን አድስ';
+
+  @override
+  String get monitoringStatusUnverified => 'የክትትል ሁኔታ አልተረጋገጠም';
+
+  @override
+  String get monitoringStatusActive => 'ክትትሉ ንቁ መሆኑ ተዘግቧል';
+
+  @override
+  String get monitoringStatusUnavailable => 'ክትትሉ አይገኝም ተብሎ ተዘግቧል';
+
+  @override
+  String get deviceHealthNeverReported => 'ይህ መሣሪያ የጤና ሁኔታውን ገና አላሳወቀም።';
+
+  @override
+  String deviceHealthStale(String time) {
+    return 'የመጨረሻ ሪፖርት $time። የአሁኑ ሁኔታ አይታወቅም።';
+  }
+
+  @override
+  String deviceHealthLastReported(String time) {
+    return 'የመጨረሻ ሪፖርት $time።';
+  }
+
+  @override
+  String get usageAccess => 'የአጠቃቀም ፈቃድ';
+
+  @override
+  String get appBlocking => 'መተግበሪያ ማገድ';
+
+  @override
+  String get locationPermission => 'አካባቢ';
+
+  @override
+  String get notificationPermission => 'ማሳወቂያዎች';
+
+  @override
+  String get batteryOptimization => 'የባትሪ ማመቻቸት';
+
+  @override
+  String get deviceConnection => 'የመሣሪያ ግንኙነት';
+
+  @override
+  String get statusOn => 'በርቷል';
+
+  @override
+  String get statusOff => 'ጠፍቷል';
+
+  @override
+  String get statusUnknown => 'አይታወቅም';
+
+  @override
+  String get restorePermissionsInstruction =>
+      'ልጅዎ በመሣሪያው ላይ የክትትል ሁኔታን እንዲከፍትና የጎደሉ ፈቃዶችን እንዲያነቃ ይጠይቁ።';
+
+  @override
+  String get safetyCheckIn => 'ደህንነት';
+
+  @override
+  String get sosRecordedWaiting =>
+      'የSOS ማሳወቂያ ተመዝግቧል። ወላጅ እስኪያረጋግጥ ድረስ መድረሱ አልተረጋገጠም።';
+
+  @override
+  String get sosRecordedNotificationPending =>
+      'የSOS ማሳወቂያ ተመዝግቧል፣ ግን ለወላጅ የሚላከው ማሳወቂያ በመጠባበቅ ላይ ነው።';
+
+  @override
+  String get sosQueuedOffline =>
+      'ግንኙነት የለም። SOS በዚህ መሣሪያ ላይ ተቀምጧል፤ መተግበሪያው ከበይነመረብ ጋር ሲገናኝ እንደገና ይላካል።';
+
+  @override
+  String get checkInRecordedWaiting => 'የደህንነት ማረጋገጫ ተመዝግቧል፤ መድረሱ አልተረጋገጠም።';
+
+  @override
+  String get checkInNotificationPending =>
+      'የደህንነት ማረጋገጫ ተመዝግቧል፣ ግን የወላጅ ማሳወቂያ በመጠባበቅ ላይ ነው።';
+
+  @override
+  String get checkInQueuedOffline =>
+      'ግንኙነት የለም። ማረጋገጫው በመሣሪያው ላይ ተቀምጧል፤ መተግበሪያው ከበይነመረብ ጋር ሲገናኝ እንደገና ይላካል።';
 }

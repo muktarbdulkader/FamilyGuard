@@ -587,4 +587,91 @@ class AppLocalizationsAr extends AppLocalizations {
   String chatUnreadCount(int count) {
     return '$count غير مقروءة';
   }
+
+  @override
+  String get deviceHealthTitle => 'حالة الجهاز';
+
+  @override
+  String get refreshDeviceStatus => 'تحديث حالة الجهاز';
+
+  @override
+  String get monitoringStatusUnverified => 'حالة المراقبة غير مؤكدة';
+
+  @override
+  String get monitoringStatusActive => 'أُبلغ أن المراقبة نشطة';
+
+  @override
+  String get monitoringStatusUnavailable => 'أُبلغ أن المراقبة غير متاحة';
+
+  @override
+  String get deviceHealthNeverReported =>
+      'لم يُرسل هذا الجهاز تقريرًا عن حالته بعد.';
+
+  @override
+  String deviceHealthStale(String time) {
+    return 'آخر تقرير $time. الحالة الحالية غير معروفة.';
+  }
+
+  @override
+  String deviceHealthLastReported(String time) {
+    return 'آخر تقرير $time.';
+  }
+
+  @override
+  String get usageAccess => 'الوصول إلى الاستخدام';
+
+  @override
+  String get appBlocking => 'حظر التطبيقات';
+
+  @override
+  String get locationPermission => 'الموقع';
+
+  @override
+  String get notificationPermission => 'الإشعارات';
+
+  @override
+  String get batteryOptimization => 'تحسين البطارية';
+
+  @override
+  String get deviceConnection => 'اتصال الجهاز';
+
+  @override
+  String get statusOn => 'مفعّل';
+
+  @override
+  String get statusOff => 'متوقف';
+
+  @override
+  String get statusUnknown => 'غير معروف';
+
+  @override
+  String get restorePermissionsInstruction =>
+      'اطلب من طفلك فتح حالة المراقبة على جهازه واتباع خطوات تفعيل أي إذن مفقود.';
+
+  @override
+  String get safetyCheckIn => 'السلامة';
+
+  @override
+  String get sosRecordedWaiting =>
+      'تم تسجيل تنبيه الطوارئ. لا يتأكد وصوله حتى يقرّ أحد الوالدين باستلامه.';
+
+  @override
+  String get sosRecordedNotificationPending =>
+      'تم تسجيل تنبيه الطوارئ، لكن إشعار الوالد ما زال قيد الانتظار.';
+
+  @override
+  String get sosQueuedOffline =>
+      'لا يوجد اتصال. حُفظ التنبيه على هذا الجهاز وسيُعاد إرساله عند اتصال التطبيق بالإنترنت.';
+
+  @override
+  String get checkInRecordedWaiting =>
+      'تم تسجيل رسالة الاطمئنان. لم يتم تأكيد وصولها بعد.';
+
+  @override
+  String get checkInNotificationPending =>
+      'تم تسجيل رسالة الاطمئنان، لكن إشعار الوالد ما زال قيد الانتظار.';
+
+  @override
+  String get checkInQueuedOffline =>
+      'لا يوجد اتصال. حُفظت الرسالة على هذا الجهاز وستُعاد عند الاتصال بالإنترنت.';
 }

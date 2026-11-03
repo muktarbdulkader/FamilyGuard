@@ -6,6 +6,23 @@ void main() {
   group('Child presence', () {
     final now = DateTime(2026, 10, 19, 12);
 
+    test('device protection defaults to unverified and inactive', () {
+      final child = ChildModel(
+        id: 'child',
+        displayName: 'Child',
+        email: 'child@example.com',
+        familyId: 'family',
+        joinedAt: now,
+        lastActiveAt: now,
+      );
+
+      expect(child.lastSyncTimestamp, isNull);
+      expect(child.lastPermissionCheck, isNull);
+      expect(child.isMonitoringActive, isFalse);
+      expect(child.hasUsageStatsPermission, isFalse);
+      expect(child.hasOverlayPermission, isFalse);
+    });
+
     test('a heartbeat up to seven minutes old is online', () {
       expect(
         ChildPresence.isOnlineAt(
