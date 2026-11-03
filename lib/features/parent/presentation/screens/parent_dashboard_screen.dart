@@ -9,9 +9,13 @@ import '../../../../core/constants/app_routes.dart';
 import '../../../../core/models/app_info.dart';
 import '../../../../core/models/family_model.dart';
 import '../../../../core/models/location_model.dart';
+import '../../../../core/models/emergency_sos_model.dart';
+import '../../../../core/models/activity_log_model.dart';
 import '../../../../core/providers/family_provider.dart';
 import '../../../../core/services/location_service.dart';
 import '../../../../core/services/geocoding_service.dart';
+import '../../../../core/services/emergency_service.dart';
+import '../../../../core/services/audit_service.dart';
 import '../widgets/app_usage_indicator.dart';
 import '../widgets/app_rule_editor_sheet.dart';
 import '../../../apps/presentation/screens/parent_app_management_screen.dart';
@@ -43,7 +47,7 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _presenceRefreshTimer = Timer.periodic(const Duration(minutes: 1), (_) {
       if (mounted) setState(() {});
     });
@@ -642,6 +646,9 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                 },
               ),
             ),
+            // ── Emergency Alert Banner ─────────────────────────────
+            if (effectiveFamilyId.isNotEmpty)
+              _EmergencyAlertBanner(familyId: effectiveFamilyId),
             // ── Tab Bar — always visible ──────────────────────────
             Container(
               decoration: BoxDecoration(
@@ -684,6 +691,10 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                   Tab(
                     text: l10n.location,
                     icon: const Icon(Icons.location_on_rounded, size: 20),
+                  ),
+                  const Tab(
+                    text: 'History',
+                    icon: Icon(Icons.history_rounded, size: 20),
                   ),
                 ],
               ),
@@ -731,6 +742,14 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                     childId: effectiveChildId,
                     child: activeSelectedChild,
                   ),
+
+                  // History Tab
+                  _buildHistoryTab(
+                    familyId: effectiveFamilyId,
+                    childId: hasSelection ? effectiveChildId : null,
+                    children: children,
+                    selectedChild: activeSelectedChild,
+                  ),
                 ],
               ),
             ),
@@ -741,6 +760,29 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
         isParent: true,
         selected: FamilyNavDestination.apps,
       ),
+    );
+  }
+
+  // ── Activity History Tab ──────────────────────────────────────────────────
+  Widget _buildHistoryTab({
+    required String familyId,
+    String? childId,
+    required List<ChildModel> children,
+    ChildModel? selectedChild,
+  }) {
+    if (familyId.isEmpty) {
+      return _buildNoSelectionPrompt(
+        icon: Icons.history_rounded,
+        color: const Color(0xFF8B5CF6),
+        title: 'No Family Selected',
+        subtitle: 'Select a family to view activity history.',
+      );
+    }
+    return _ActivityHistoryTab(
+      familyId: familyId,
+      childId: childId,
+      children: children,
+      selectedChild: selectedChild,
     );
   }
 
@@ -844,6 +886,8 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
       child: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [
+          if (child != null) _buildDeviceHealthCard(child),
+          if (child != null) const SizedBox(height: 16),
           // ── Child Screen Time Hero Card ───────────────────────────
           usageAsync.when(
             loading: () => Container(
@@ -1210,6 +1254,173 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
             },
           ),
           const SizedBox(height: 40),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDeviceHealthCard(ChildModel child) {
+    final theme = Theme.of(context);
+    final lastSync = child.lastSyncTimestamp;
+    final age = lastSync == null ? null : DateTime.now().difference(lastSync);
+    final isFresh =
+        age != null && !age.isNegative && age <= ChildPresence.onlineThreshold;
+    final isStale = age != null && age > ChildPresence.onlineThreshold;
+    final monitoringStatus = !isFresh
+        ? null
+        : child.isMonitoringActive;
+    final statusColor = monitoringStatus == null
+        ? const Color(0xFFD97706)
+        : monitoringStatus
+        ? const Color(0xFF059669)
+        : const Color(0xFFDC2626);
+
+    return Card(
+      margin: EdgeInsets.zero,
+      elevation: 0,
+      color: theme.colorScheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.health_and_safety_rounded, color: statusColor),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Device health',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Refresh device status',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => ref.invalidate(familyChildrenProvider),
+                  icon: const Icon(Icons.refresh_rounded),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              monitoringStatus == null
+                  ? 'Monitoring status unverified'
+                  : monitoringStatus
+                  ? 'Monitoring reported active'
+                  : 'Monitoring reported unavailable',
+              style: TextStyle(
+                color: statusColor,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              lastSync == null
+                  ? 'This device has not reported its health status yet.'
+                  : isStale
+                  ? 'Last report ${_formatTimestampAgo(lastSync)}. Current status is unknown.'
+                  : 'Last report ${_formatTimestampAgo(lastSync)}.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _healthStatusChip(
+                  'Usage access',
+                  isFresh ? child.hasUsageStatsPermission : null,
+                ),
+                _healthStatusChip(
+                  'App blocking',
+                  isFresh ? child.hasOverlayPermission : null,
+                ),
+                _healthStatusChip(
+                  'Location',
+                  isFresh ? child.hasLocationPermission : null,
+                ),
+                _healthStatusChip(
+                  'Notifications',
+                  isFresh ? child.hasNotificationPermission : null,
+                ),
+                _healthStatusChip(
+                  'Device connection',
+                  child.lastSeen == null ? null : child.isOnline,
+                ),
+              ],
+            ),
+            if (isFresh &&
+                (!child.hasUsageStatsPermission ||
+                    !child.hasOverlayPermission ||
+                    !child.hasLocationPermission ||
+                    !child.hasNotificationPermission)) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Ask your child to open Monitoring Status on their device and follow the steps for any missing permission.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+            if (isFresh &&
+                (child.batteryLevel != null && child.batteryLevel! >= 0 ||
+                    child.networkType != null)) ...[
+              const SizedBox(height: 10),
+              Text(
+                [
+                  if (child.batteryLevel != null && child.batteryLevel! >= 0)
+                    'Battery ${child.batteryLevel}%${child.isCharging ? ' (charging)' : ''}',
+                  if (child.networkType != null &&
+                      child.networkType!.trim().isNotEmpty)
+                    'Network ${child.networkType}',
+                ].join(' • '),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _healthStatusChip(String label, bool? isEnabled) {
+    final (icon, color, status) = switch (isEnabled) {
+      true => (Icons.check_circle_rounded, const Color(0xFF059669), 'On'),
+      false => (Icons.error_rounded, const Color(0xFFDC2626), 'Off'),
+      null => (Icons.help_rounded, const Color(0xFFD97706), 'Unknown'),
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.25)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 5),
+          Text(
+            '$label: $status',
+            style: TextStyle(
+              color: color,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
     );
@@ -2941,5 +3152,489 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
 
   void _showInviteChildDialog() {
     context.push(AppRoutes.familySetup);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Emergency Alert Banner — shown when there are active/pending SOS alerts
+// ─────────────────────────────────────────────────────────────────────────────
+class _EmergencyAlertBanner extends ConsumerWidget {
+  final String familyId;
+  const _EmergencyAlertBanner({required this.familyId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final alertsAsync = ref.watch(activeEmergencyAlertsProvider(familyId));
+
+    return alertsAsync.when(
+      data: (alerts) {
+        if (alerts.isEmpty) return const SizedBox.shrink();
+
+        final sosAlerts = alerts.where((a) => a.isSos && a.isPending).toList();
+        if (sosAlerts.isEmpty) return const SizedBox.shrink();
+
+        final alert = sosAlerts.first;
+        return GestureDetector(
+          onTap: () => _showAlertDialog(context, ref, alert),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF7F1D1D), Color(0xFFDC2626)],
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.emergency_rounded, color: Colors.white, size: 22),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '🚨 EMERGENCY SOS: ${alert.childName}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        alert.address ?? 'Location: gathering...',
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 11.5,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    'Respond',
+                    style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+
+  void _showAlertDialog(BuildContext context, WidgetRef ref, EmergencyAlert alert) {
+    final auth = ref.read(authStateProvider).value;
+    final parentName = auth?.displayName ?? 'Parent';
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1A0A0A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          '🚨 Emergency SOS — ${alert.childName}',
+          style: const TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.w900),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (alert.address != null) ...[
+              const Text('📍 Location:', style: TextStyle(color: Colors.white70, fontSize: 12)),
+              const SizedBox(height: 4),
+              Text(alert.address!, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 12),
+            ],
+            Text(
+              'Status: ${alert.status.displayName}',
+              style: const TextStyle(color: Colors.white54, fontSize: 12),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Sent: ${_relativeTime(alert.timestamp)}',
+              style: const TextStyle(color: Colors.white54, fontSize: 12),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await EmergencyService.instance.acknowledgeAlert(
+                familyId: alert.familyId,
+                alertId: alert.id,
+                parentId: auth?.uid ?? '',
+                parentName: parentName,
+              );
+            },
+            child: const Text('Acknowledge', style: TextStyle(color: Colors.orangeAccent)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF16A34A),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await EmergencyService.instance.resolveAlert(
+                familyId: alert.familyId,
+                alertId: alert.id,
+                parentId: auth?.uid ?? '',
+                parentName: parentName,
+                resolutionNotes: 'Resolved by parent',
+              );
+            },
+            child: const Text('Mark Resolved'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _relativeTime(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inSeconds < 60) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    return '${diff.inDays}d ago';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Activity History Tab
+// ─────────────────────────────────────────────────────────────────────────────
+class _ActivityHistoryTab extends ConsumerStatefulWidget {
+  final String familyId;
+  final String? childId;
+  final List<ChildModel> children;
+  final ChildModel? selectedChild;
+
+  const _ActivityHistoryTab({
+    required this.familyId,
+    this.childId,
+    required this.children,
+    this.selectedChild,
+  });
+
+  @override
+  ConsumerState<_ActivityHistoryTab> createState() => _ActivityHistoryTabState();
+}
+
+class _ActivityHistoryTabState extends ConsumerState<_ActivityHistoryTab> {
+  String? _filterChildId;
+  String? _filterType;
+  final _allTypes = [
+    ('all', 'All Events'),
+    ('rule_change', 'Rules'),
+    ('time_extension', 'Screen Time'),
+    ('emergency_sos', 'Emergency'),
+    ('quiz_completed', 'Quizzes'),
+    ('permission_tamper', 'Security'),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _filterChildId = widget.childId;
+  }
+
+  String _relativeTime(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inSeconds < 60) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ${diff.inMinutes % 60}m ago';
+    return '${dt.month}/${dt.day} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final logsAsync = ref.watch(familyActivityLogsProvider((
+      familyId: widget.familyId,
+      childId: _filterChildId,
+      type: _filterType,
+    )));
+
+    return Column(
+      children: [
+        // Filter bar
+        Container(
+          color: isDark ? const Color(0xFF0C1829) : Colors.white,
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+          child: Row(
+            children: [
+              // Child filter
+              if (widget.children.isNotEmpty)
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _FilterChip(
+                          label: 'All Children',
+                          selected: _filterChildId == null,
+                          onTap: () => setState(() => _filterChildId = null),
+                          isDark: isDark,
+                        ),
+                        const SizedBox(width: 6),
+                        for (final child in widget.children)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: _FilterChip(
+                              label: child.displayName,
+                              selected: _filterChildId == child.id,
+                              onTap: () => setState(() => _filterChildId = child.id),
+                              isDark: isDark,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        // Type filter
+        Container(
+          height: 36,
+          color: isDark ? const Color(0xFF0C1829) : const Color(0xFFF8FAFC),
+          padding: const EdgeInsets.only(left: 12, right: 12, bottom: 6),
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            separatorBuilder: (_, __) => const SizedBox(width: 6),
+            itemCount: _allTypes.length,
+            itemBuilder: (ctx, i) {
+              final (type, label) = _allTypes[i];
+              final isSelected = (type == 'all' && _filterType == null) ||
+                  (_filterType == type);
+              return _FilterChip(
+                label: label,
+                selected: isSelected,
+                onTap: () => setState(() =>
+                    _filterType = type == 'all' ? null : type),
+                isDark: isDark,
+                accent: const Color(0xFF8B5CF6),
+              );
+            },
+          ),
+        ),
+        // Log list
+        Expanded(
+          child: logsAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, _) => Center(
+              child: Text('Error loading history: $e',
+                  style: const TextStyle(color: Color(0xFFEF4444))),
+            ),
+            data: (logs) {
+              if (logs.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.history_rounded,
+                          size: 56,
+                          color: isDark ? Colors.white24 : Colors.grey[300]),
+                      const SizedBox(height: 12),
+                      Text(
+                        'No activity history yet',
+                        style: TextStyle(
+                          color: isDark ? Colors.white54 : Colors.grey[600],
+                          fontSize: 15,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              return ListView.builder(
+                padding: const EdgeInsets.all(12),
+                itemCount: logs.length,
+                itemBuilder: (ctx, i) {
+                  final log = logs[i];
+                  return _ActivityLogCard(log: log, relativeTime: _relativeTime(log.timestamp), isDark: isDark);
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _FilterChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final bool isDark;
+  final Color accent;
+
+  const _FilterChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    required this.isDark,
+    this.accent = const Color(0xFF4F46E5),
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+        decoration: BoxDecoration(
+          color: selected
+              ? accent
+              : (isDark ? const Color(0xFF132238) : const Color(0xFFF1F5F9)),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected ? accent : (isDark ? const Color(0xFF1E3554) : const Color(0xFFE2E8F0)),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+            fontSize: 12,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ActivityLogCard extends StatelessWidget {
+  final ActivityLogModel log;
+  final String relativeTime;
+  final bool isDark;
+
+  const _ActivityLogCard({required this.log, required this.relativeTime, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    final type = log.type;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF132238) : Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isDark ? const Color(0xFF1E3554) : const Color(0xFFE2E8F0),
+        ),
+        boxShadow: [
+          if (!isDark)
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: type.color.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(type.icon, color: type.color, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        log.title,
+                        style: TextStyle(
+                          color: isDark ? Colors.white : Colors.black87,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      relativeTime,
+                      style: TextStyle(
+                        color: isDark ? Colors.white38 : Colors.grey[500],
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  log.description,
+                  style: TextStyle(
+                    color: isDark ? Colors.white60 : Colors.grey[600],
+                    fontSize: 12,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: type.color.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        type.displayName,
+                        style: TextStyle(color: type.color, fontSize: 10, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'by ${log.actorName}',
+                      style: TextStyle(
+                        color: isDark ? Colors.white38 : Colors.grey[400],
+                        fontSize: 10,
+                      ),
+                    ),
+                    if (log.childName.isNotEmpty && log.childName != 'Child') ...[
+                      const SizedBox(width: 6),
+                      Text(
+                        '• ${log.childName}',
+                        style: TextStyle(
+                          color: isDark ? Colors.white38 : Colors.grey[400],
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

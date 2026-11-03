@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/routine_model.dart';
 import '../constants/app_constants.dart';
@@ -101,4 +100,3 @@ class RoutineService {
     }
   }
 }
-

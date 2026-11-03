@@ -1326,6 +1326,10 @@ class _ChildNotificationCard extends ConsumerWidget {
         return const Color(0xFFDC2626);
       case NotificationType.deviceOnline:
         return const Color(0xFF10B981);
+      case NotificationType.emergencySos:
+        return const Color(0xFFDC2626);
+      case NotificationType.safetyPing:
+        return const Color(0xFF2563EB);
     }
   }
 
@@ -1352,6 +1356,10 @@ class _ChildNotificationCard extends ConsumerWidget {
         return Icons.security_update_warning_rounded;
       case NotificationType.serviceUnavailable:
         return Icons.warning_amber_rounded;
+      case NotificationType.emergencySos:
+        return Icons.sos_rounded;
+      case NotificationType.safetyPing:
+        return Icons.health_and_safety_rounded;
     }
   }
 

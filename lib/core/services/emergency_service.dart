@@ -8,7 +8,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/emergency_sos_model.dart';
 import '../models/notification_model.dart';
 import 'geocoding_service.dart';
-import 'notification_service.dart';
 
 final emergencyServiceProvider = Provider<EmergencyService>((ref) {
   return EmergencyService.instance;
@@ -53,7 +52,9 @@ class EmergencyService {
       );
       lat = pos.latitude;
       lng = pos.longitude;
-      address = await GeocodingService.getAddressFromCoordinates(lat, lng);
+      address =
+          (await GeocodingService.instance.getPlaceName(pos.latitude, pos.longitude)) ??
+          address;
     } catch (e) {
       debugPrint('Could not retrieve current GPS position for SOS: $e');
     }
@@ -64,8 +65,8 @@ class EmergencyService {
       'childName': childName,
       'timestamp': Timestamp.fromDate(now),
       'createdAt': Timestamp.fromDate(now),
-      if (lat != null) 'latitude': lat,
-      if (lng != null) 'longitude': lng,
+      'latitude': ?lat,
+      'longitude': ?lng,
       'address': address,
       'status': AlertStatus.pending.name,
       'type': AlertType.sos.toDbString(),
@@ -121,7 +122,9 @@ class EmergencyService {
       );
       lat = pos.latitude;
       lng = pos.longitude;
-      address = await GeocodingService.getAddressFromCoordinates(lat, lng);
+      address =
+          (await GeocodingService.instance.getPlaceName(pos.latitude, pos.longitude)) ??
+          address;
     } catch (_) {}
 
     final alertData = {
@@ -130,8 +133,8 @@ class EmergencyService {
       'childName': childName,
       'timestamp': Timestamp.fromDate(now),
       'createdAt': Timestamp.fromDate(now),
-      if (lat != null) 'latitude': lat,
-      if (lng != null) 'longitude': lng,
+      'latitude': ?lat,
+      'longitude': ?lng,
       'address': address,
       'status': AlertStatus.acknowledged.name, // check-in doesn't block
       'type': pingType.toDbString(),
@@ -185,7 +188,7 @@ class EmergencyService {
       'status': AlertStatus.resolved.name,
       'resolvedBy': parentName,
       'resolvedAt': Timestamp.fromDate(now),
-      if (resolutionNotes != null) 'resolutionNotes': resolutionNotes,
+      'resolutionNotes': ?resolutionNotes,
     });
   }
 
@@ -283,4 +286,3 @@ class EmergencyService {
     } catch (_) {}
   }
 }
-

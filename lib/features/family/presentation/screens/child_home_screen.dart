@@ -17,6 +17,8 @@ import '../../../../core/services/permission_service.dart';
 import '../../../../core/services/location_service.dart';
 import '../../../../core/services/education_service.dart';
 import '../../../../core/services/notification_service.dart';
+import '../../../../core/services/emergency_service.dart';
+import '../../../../core/models/emergency_sos_model.dart';
 import '../../../../core/providers/locale_provider.dart';
 import '../../../../l10n/app_localizations.dart';
 
@@ -41,6 +43,7 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen>
   bool _hasUsageStats = true;
   bool _hasOverlay = true;
   bool _hasLocationPermission = true;
+  bool _sosCooldown = false;
   final _permissionService = PermissionService();
 
   AppColors get _colors => AppColors.of(context);
@@ -116,11 +119,11 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen>
           .collection('children')
           .doc(childId)
           .set({
-        'hasOverlayPermission': overlay,
-        'hasUsageStatsPermission': usage,
-        'hasLocationPermission': location,
-        'lastPermissionCheck': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+            'hasOverlayPermission': overlay,
+            'hasUsageStatsPermission': usage,
+            'hasLocationPermission': location,
+            'lastPermissionCheck': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
 
       // If Display Over Other Apps was turned OFF, urgently notify parents!
       if (!overlay) {
@@ -152,8 +155,7 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen>
 
     final familyId = user.familyId as String?;
     final childId = user.uid as String?;
-    final childName =
-        user.displayName ?? 'Child';
+    final childName = user.displayName ?? 'Child';
     if (familyId == null || childId == null) return;
 
     NotificationService.instance.startChildNotificationListener(childId);
@@ -178,10 +180,290 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen>
           childId: childId,
           childName: childName,
         );
+        // Sync device health to Firestore
+        final health = await _permissionService.getDeviceHealth();
+        await FirebaseFirestore.instance
+            .collection('families')
+            .doc(familyId)
+            .collection('children')
+            .doc(childId)
+            .set({
+              'batteryLevel': health['batteryLevel'],
+              'isCharging': health['isCharging'],
+              'networkType': health['networkType'],
+              'isMonitoringActive': health['isMonitoringActive'],
+              'lastSyncTimestamp': FieldValue.serverTimestamp(),
+              'lastHeartbeat': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
       } catch (e) {
         debugPrint('Auto sync in ChildHomeScreen error: $e');
       }
     }());
+  }
+
+  /// Show confirmation dialog before triggering SOS
+  Future<void> _showSosConfirmationDialog(
+    BuildContext context,
+    String familyId,
+    String childId,
+    String childName,
+  ) async {
+    if (_sosCooldown) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'SOS was already sent. Please wait before sending again.',
+          ),
+          backgroundColor: Color(0xFFDC2626),
+        ),
+      );
+      return;
+    }
+
+    int countdown = 5;
+    bool cancelled = false;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialog) {
+            // Auto-trigger countdown
+            Timer? timer;
+            timer = Timer.periodic(const Duration(seconds: 1), (t) {
+              if (cancelled || !ctx.mounted) {
+                t.cancel();
+                return;
+              }
+              setDialog(() {
+                countdown--;
+                if (countdown <= 0) {
+                  t.cancel();
+                  Navigator.of(dialogCtx).pop(true);
+                }
+              });
+            });
+
+            return AlertDialog(
+              backgroundColor: const Color(0xFF1A0A0A),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              title: const Text(
+                '🚨 Emergency SOS',
+                style: TextStyle(
+                  color: Color(0xFFEF4444),
+                  fontWeight: FontWeight.w900,
+                  fontSize: 20,
+                ),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Sending SOS in $countdown seconds...',
+                    style: const TextStyle(color: Colors.white70, fontSize: 15),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Your family and current location will be shared immediately.',
+                    style: TextStyle(color: Colors.white54, fontSize: 13),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    cancelled = true;
+                    timer?.cancel();
+                    Navigator.of(dialogCtx).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('SOS cancelled.')),
+                    );
+                  },
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(color: Colors.white70, fontSize: 15),
+                  ),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFEF4444),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  onPressed: () {
+                    timer?.cancel();
+                    cancelled = false;
+                    Navigator.of(dialogCtx).pop(true);
+                  },
+                  child: const Text('Send SOS Now'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (!cancelled && context.mounted) {
+      await _triggerSos(context, familyId, childId, childName);
+    }
+  }
+
+  Future<void> _triggerSos(
+    BuildContext context,
+    String familyId,
+    String childId,
+    String childName,
+  ) async {
+    setState(() => _sosCooldown = true);
+    Future.delayed(const Duration(minutes: 5), () {
+      if (mounted) setState(() => _sosCooldown = false);
+    });
+
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('🚨 Sending SOS alert to your family...'),
+          backgroundColor: Color(0xFFDC2626),
+          duration: Duration(seconds: 3),
+        ),
+      );
+
+      await EmergencyService.instance.triggerEmergencySos(
+        familyId: familyId,
+        childId: childId,
+        childName: childName,
+      );
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✓ SOS alert sent to your family!'),
+            backgroundColor: Color(0xFF16A34A),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error sending SOS: $e'),
+            backgroundColor: const Color(0xFFEF4444),
+          ),
+        );
+      }
+    }
+  }
+
+  /// Quick safety ping sheet
+  Future<void> _showSafetyPingSheet(
+    BuildContext context,
+    String familyId,
+    String childId,
+    String childName,
+  ) async {
+    final colors = AppColors.of(context);
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) => Container(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          border: Border.all(color: colors.border),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: colors.textSecondary.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              '📍 Send Safety Check-in',
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Let your family know how you\'re doing',
+              style: TextStyle(color: colors.textSecondary, fontSize: 13),
+            ),
+            const SizedBox(height: 20),
+            for (final pingType in [
+              (
+                AlertType.checkinSafe,
+                Icons.check_circle_rounded,
+                const Color(0xFF16A34A),
+                "I'm Safe",
+              ),
+              (
+                AlertType.checkinCall,
+                Icons.phone_rounded,
+                const Color(0xFF2563EB),
+                'Please Call Me',
+              ),
+              (
+                AlertType.checkinPickup,
+                Icons.directions_car_rounded,
+                const Color(0xFFD97706),
+                'Pick Me Up',
+              ),
+            ])
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    Navigator.pop(sheetCtx);
+                    await EmergencyService.instance.sendSafetyPing(
+                      familyId: familyId,
+                      childId: childId,
+                      childName: childName,
+                      pingType: pingType.$1,
+                    );
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            '✓ "${pingType.$4}" sent to your family',
+                          ),
+                        ),
+                      );
+                    }
+                  },
+                  icon: Icon(pingType.$2),
+                  label: Text(pingType.$4),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: pingType.$3,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(double.infinity, 50),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -296,6 +578,56 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen>
                               ],
                             ),
                           ),
+                          const SizedBox(width: 8),
+                          // SOS button
+                          if (user?.hasFamily == true && user?.familyId != null)
+                            InkWell(
+                              onTap: () => _showSafetyPingSheet(
+                                context,
+                                user!.familyId!,
+                                user.uid,
+                                user.displayName.isEmpty
+                                    ? 'Child'
+                                    : user.displayName,
+                              ),
+                              onLongPress: () => _showSosConfirmationDialog(
+                                context,
+                                user!.familyId!,
+                                user.uid,
+                                user.displayName.isEmpty
+                                    ? 'Child'
+                                    : user.displayName,
+                              ),
+                              borderRadius: BorderRadius.circular(14),
+                              child: Tooltip(
+                                message:
+                                    'Tap: Safety Check-in\nHold: Emergency SOS',
+                                child: Container(
+                                  width: 44,
+                                  height: 44,
+                                  decoration: BoxDecoration(
+                                    color: _sosCooldown
+                                        ? const Color(0xFF991B1B)
+                                        : const Color(0xFFEF4444),
+                                    borderRadius: BorderRadius.circular(14),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: const Color(
+                                          0xFFEF4444,
+                                        ).withOpacity(0.4),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: const Icon(
+                                    Icons.emergency_rounded,
+                                    color: Colors.white,
+                                    size: 22,
+                                  ),
+                                ),
+                              ),
+                            ),
                           const SizedBox(width: 8),
                           // Settings & Sign Out button
                           InkWell(
