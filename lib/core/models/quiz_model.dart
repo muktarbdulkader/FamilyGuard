@@ -20,16 +20,21 @@ class QuizQuestion {
       id: id.isNotEmpty ? id : (map['id'] as String? ?? ''),
       questionText: (map['questionText'] as String?) ?? (map['question'] as String?) ?? '',
       options: List<String>.from(map['options'] ?? []),
-      correctOptionIndex: (map['correctOptionIndex'] as num?)?.toInt() ?? 0,
+      correctOptionIndex: (map['correctOptionIndex'] as num?)?.toInt() ?? -1,
       explanation: map['explanation'] as String?,
     );
   }
 
-  Map<String, dynamic> toMap() {
+  Map<String, dynamic> toPublicMap() {
     return {
       'id': id,
       'questionText': questionText,
       'options': options,
+    };
+  }
+
+  Map<String, dynamic> toAnswerMap() {
+    return {
       'correctOptionIndex': correctOptionIndex,
       if (explanation != null) 'explanation': explanation,
     };
@@ -87,10 +92,16 @@ class QuizModel {
       'familyId': familyId,
       'title': title,
       if (description != null) 'description': description,
-      'questions': questions.map((q) => q.toMap()).toList(),
+      'questions': questions.map((q) => q.toPublicMap()).toList(),
       'passingScorePercent': passingScorePercent,
       'rewardExtraScreenTimeMinutes': rewardExtraScreenTimeMinutes,
       'createdAt': Timestamp.fromDate(createdAt),
+    };
+  }
+
+  Map<String, dynamic> toAnswerKeyFirestore() {
+    return {
+      'answers': questions.map((question) => question.toAnswerMap()).toList(),
     };
   }
 }
@@ -199,4 +210,3 @@ class ChildLearningStreak {
     };
   }
 }
-

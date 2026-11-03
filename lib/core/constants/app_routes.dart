@@ -17,6 +17,7 @@ class AppRoutes {
   static const String parentLocation = '/parent-location';
   static const String parentRequests = '/parent-requests';
   static const String parentEducation = '/parent-education';
+  static const String routinePlanner = '/routine-planner';
   static const String metaAiGuardian = '/meta-ai-guardian';
   static const String smartScreenTime = '/smart-screen-time';
 

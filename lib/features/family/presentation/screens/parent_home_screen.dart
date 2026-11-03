@@ -200,6 +200,30 @@ class ParentHomeScreen extends ConsumerWidget {
                                 ),
                               ),
                               const SizedBox(width: 8),
+                              InkWell(
+                                onTap: familyId == null || familyId.isEmpty
+                                    ? null
+                                    : () => context.push(
+                                        AppRoutes.routinePlanner,
+                                        extra: {'familyId': familyId},
+                                      ),
+                                borderRadius: BorderRadius.circular(14),
+                                child: Container(
+                                  width: 44,
+                                  height: 44,
+                                  decoration: BoxDecoration(
+                                    color: _colors(context).surfaceHighlight,
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(color: _cardBorder),
+                                  ),
+                                  child: const Icon(
+                                    Icons.calendar_month_outlined,
+                                    color: _tealAccent,
+                                    size: 22,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
                               // Settings & Sign Out Button
                               InkWell(
                                 onTap: () =>

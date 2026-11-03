@@ -7,6 +7,7 @@ import '../../../../core/constants/app_routes.dart';
 import '../../../../core/providers/auth_provider.dart';
 import '../../../../core/providers/user_provider.dart';
 import '../../../../core/providers/theme_provider.dart';
+import '../../../../core/models/routine_model.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/family_bottom_navigation.dart';
 
@@ -18,6 +19,7 @@ import '../../../../core/services/location_service.dart';
 import '../../../../core/services/education_service.dart';
 import '../../../../core/services/notification_service.dart';
 import '../../../../core/services/emergency_service.dart';
+import '../../../../core/services/routine_service.dart';
 import '../../../../core/models/emergency_sos_model.dart';
 import '../../../../core/providers/locale_provider.dart';
 import '../../../../l10n/app_localizations.dart';
@@ -623,6 +625,16 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen>
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final userData = ref.watch(currentUserDataProvider);
+    final currentUser = userData.value;
+    final routinesAsync = currentUser?.familyId != null &&
+            currentUser!.familyId!.isNotEmpty
+        ? ref.watch(
+            childRoutinesProvider((
+              familyId: currentUser.familyId!,
+              childId: currentUser.uid,
+            )),
+          )
+        : const AsyncValue<List<RoutineModel>>.data([]);
 
     userData.whenData((user) => _triggerBackgroundSync(user));
 
@@ -807,7 +819,32 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen>
                     ),
                   ),
 
-                  // 2. Missing Permission Alert Banner (if any)
+                  if (routinesAsync.hasError)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+                        child: Text(
+                          'Routine schedule could not be loaded.',
+                          style: TextStyle(color: _colors.textSecondary),
+                        ),
+                      ),
+                    )
+                  else if (routinesAsync.valueOrNull?.any(
+                        (routine) => routine.isCurrentlyActive(),
+                      ) ==
+                      true)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+                        child: _buildActiveRoutineCard(
+                          routinesAsync.valueOrNull!.firstWhere(
+                            (routine) => routine.isCurrentlyActive(),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                  // Missing Permission Alert Banner (if any)
                   if (!_hasUsageStats ||
                       !_hasOverlay ||
                       !_hasLocationPermission)
@@ -1073,6 +1110,51 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen>
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildActiveRoutineCard(RoutineModel routine) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F766E),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        children: [
+          Icon(routine.templateType.icon, color: Colors.white, size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Current routine',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  routine.name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                if (routine.description?.isNotEmpty == true)
+                  Text(
+                    routine.description!,
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

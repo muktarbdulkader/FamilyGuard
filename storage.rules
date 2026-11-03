@@ -1,29 +1,69 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    
-    // Helper function to check authentication
-    function isAuthenticated() {
+    function signedIn() {
       return request.auth != null;
     }
 
-    // Educational materials stored per-family: families/{familyId}/education/{fileName}
+    function familyPath(familyId) {
+      return /databases/(default)/documents/families/$(familyId);
+    }
+
+    function familyMember(familyId) {
+      return signedIn() &&
+        firestore.exists(familyPath(familyId)) &&
+        (
+          (
+            'parentIds' in firestore.get(familyPath(familyId)).data &&
+            firestore.get(familyPath(familyId)).data.parentIds is list &&
+            firestore.get(familyPath(familyId)).data.parentIds.hasAny([request.auth.uid])
+          ) ||
+          (
+            'parentId' in firestore.get(familyPath(familyId)).data &&
+            firestore.get(familyPath(familyId)).data.parentId == request.auth.uid
+          ) ||
+          (
+            'childIds' in firestore.get(familyPath(familyId)).data &&
+            firestore.get(familyPath(familyId)).data.childIds is list &&
+            firestore.get(familyPath(familyId)).data.childIds.hasAny([request.auth.uid])
+          ) ||
+          (
+            'childrenIds' in firestore.get(familyPath(familyId)).data &&
+            firestore.get(familyPath(familyId)).data.childrenIds is list &&
+            firestore.get(familyPath(familyId)).data.childrenIds.hasAny([request.auth.uid])
+          )
+        );
+    }
+
+    function familyParent(familyId) {
+      return signedIn() &&
+        firestore.exists(familyPath(familyId)) &&
+        (
+          (
+            'parentIds' in firestore.get(familyPath(familyId)).data &&
+            firestore.get(familyPath(familyId)).data.parentIds is list &&
+            firestore.get(familyPath(familyId)).data.parentIds.hasAny([request.auth.uid])
+          ) ||
+          (
+            'parentId' in firestore.get(familyPath(familyId)).data &&
+            firestore.get(familyPath(familyId)).data.parentId == request.auth.uid
+          )
+        );
+    }
+
     match /families/{familyId}/education/{allPaths=**} {
-      // Authenticated users can read and write within the education directory
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated()
-                   && request.resource.size < 100 * 1024 * 1024; // 100MB limit
+      allow read: if familyMember(familyId);
+      allow create, update: if familyParent(familyId) &&
+        request.resource.size < 100 * 1024 * 1024;
+      allow delete: if familyParent(familyId);
     }
 
-    // User profile pictures or general uploads
     match /users/{userId}/{allPaths=**} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated() && request.auth.uid == userId;
+      allow read, write: if signedIn() && request.auth.uid == userId;
     }
 
-    // Default deny for unauthenticated or unmapped paths
     match /{allPaths=**} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if false;
     }
   }
 }

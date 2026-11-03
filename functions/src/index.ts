@@ -1720,6 +1720,316 @@ exports.logRuleEnforcement = functions.https.onCall(async (data, context) => {
   }
 });
 
+export const joinFamily = functions.https.onCall(async (data, context) => {
+  const childId = context.auth?.uid;
+  const inviteCode = typeof data.inviteCode === 'string' ? data.inviteCode.trim() : '';
+  if (!childId) {
+    throw new functions.https.HttpsError('unauthenticated', 'Authentication required');
+  }
+  if (!/^\d{6}$/.test(inviteCode)) {
+    throw new functions.https.HttpsError('invalid-argument', 'Enter a valid six-digit family code');
+  }
+
+  const inviteRef = db.collection('family_invites').doc(inviteCode);
+  const userRef = db.collection('users').doc(childId);
+  const joinedFamilyId = await db.runTransaction(async (transaction) => {
+    const inviteDoc = await transaction.get(inviteRef);
+    if (!inviteDoc.exists) {
+      throw new functions.https.HttpsError('not-found', 'Family invite was not found');
+    }
+
+    const invite = inviteDoc.data()!;
+    const expiry = invite.expiresAt?.toDate?.() as Date | undefined;
+    if (
+      invite.isActive !== true ||
+      invite.isUsed === true ||
+      !expiry ||
+      expiry.getTime() <= Date.now()
+    ) {
+      throw new functions.https.HttpsError('failed-precondition', 'This family invite is expired or already used');
+    }
+
+    const familyId = typeof invite.familyId === 'string' ? invite.familyId : '';
+    if (!familyId || typeof invite.parentId !== 'string') {
+      throw new functions.https.HttpsError('failed-precondition', 'Family invite data is invalid');
+    }
+    const familyRef = db.collection('families').doc(familyId);
+    const [familyDoc, userDoc] = await Promise.all([
+      transaction.get(familyRef),
+      transaction.get(userRef),
+    ]);
+    if (!familyDoc.exists || !userDoc.exists) {
+      throw new functions.https.HttpsError('not-found', 'Family or user account was not found');
+    }
+
+    const family = familyDoc.data()!;
+    const user = userDoc.data()!;
+    const parentIds = Array.isArray(family.parentIds)
+      ? family.parentIds
+      : family.parentId
+      ? [family.parentId]
+      : [];
+    if (!parentIds.includes(invite.parentId)) {
+      throw new functions.https.HttpsError('permission-denied', 'Invite issuer is not a family parent');
+    }
+    if (user.role !== 'child') {
+      throw new functions.https.HttpsError('permission-denied', 'Only child accounts can join a family');
+    }
+    if (user.familyId) {
+      throw new functions.https.HttpsError('failed-precondition', 'This account already belongs to a family');
+    }
+
+    const childIds = Array.isArray(family.childIds)
+      ? family.childIds
+      : Array.isArray(family.childrenIds)
+      ? family.childrenIds
+      : [];
+    if (childIds.includes(childId)) {
+      throw new functions.https.HttpsError('already-exists', 'This child is already in the family');
+    }
+
+    const now = admin.firestore.Timestamp.now();
+    transaction.update(familyRef, {
+      childIds: FieldValue.arrayUnion(childId),
+      childrenIds: FieldValue.arrayUnion(childId),
+      updatedAt: now,
+    });
+    transaction.update(userRef, { familyId });
+    transaction.update(inviteRef, {
+      isUsed: true,
+      usedBy: childId,
+      usedAt: now,
+    });
+    return familyId;
+  });
+
+  return { familyId: joinedFamilyId };
+});
+
+export const submitQuizAttempt = functions.https.onCall(async (data, context) => {
+  const childId = context.auth?.uid;
+  if (!childId) {
+    throw new functions.https.HttpsError('unauthenticated', 'Authentication required');
+  }
+
+  const familyId = typeof data.familyId === 'string' ? data.familyId.trim() : '';
+  const materialId = typeof data.materialId === 'string' ? data.materialId.trim() : '';
+  const quizId = typeof data.quizId === 'string' ? data.quizId.trim() : '';
+  const selectedAnswers = data.selectedAnswers;
+  if (
+    !familyId ||
+    !materialId ||
+    !quizId ||
+    !selectedAnswers ||
+    typeof selectedAnswers !== 'object' ||
+    Array.isArray(selectedAnswers)
+  ) {
+    throw new functions.https.HttpsError('invalid-argument', 'Invalid quiz submission');
+  }
+
+  await validateFamilyMembership(childId, familyId);
+
+  const familyRef = db.collection('families').doc(familyId);
+  const childProfileRef = db.collection('users').doc(childId);
+  const childRef = familyRef.collection('children').doc(childId);
+  const materialRef = familyRef.collection('educational_materials').doc(materialId);
+  const quizRef = materialRef.collection('quizzes').doc(quizId);
+  const answerKeyRef = quizRef.collection('answer_keys').doc('private');
+  const streakRef = childRef.collection('learning_stats').doc('streak');
+  const rewardRef = familyRef.collection('quiz_rewards').doc(`${childId}_${quizId}`);
+  const attemptRef = familyRef.collection('quiz_attempts').doc();
+
+  const familyDoc = await familyRef.get();
+  const familyData = familyDoc.data() || {};
+  const childIds = Array.isArray(familyData.childIds)
+    ? familyData.childIds
+    : Array.isArray(familyData.childrenIds)
+    ? familyData.childrenIds
+    : [];
+  const childProfile = await childProfileRef.get();
+  if (
+    !childIds.includes(childId) ||
+    childProfile.data()?.familyId !== familyId ||
+    childProfile.data()?.role !== 'child'
+  ) {
+    throw new functions.https.HttpsError('permission-denied', 'Only an assigned child can submit this quiz');
+  }
+
+  const childName = String(childProfile.data()?.displayName || 'Child');
+  const now = admin.firestore.Timestamp.now();
+  const result = await db.runTransaction(async (transaction) => {
+    const [materialDoc, quizDoc, answerKeyDoc, childDoc, streakDoc, rewardDoc] =
+      await Promise.all([
+        transaction.get(materialRef),
+        transaction.get(quizRef),
+        transaction.get(answerKeyRef),
+        transaction.get(childRef),
+        transaction.get(streakRef),
+        transaction.get(rewardRef),
+      ]);
+
+    if (!materialDoc.exists || !quizDoc.exists || !answerKeyDoc.exists || !childDoc.exists) {
+      throw new functions.https.HttpsError('not-found', 'Quiz or child data was not found');
+    }
+
+    const material = materialDoc.data()!;
+    const assignedChildIds = Array.isArray(material.assignedChildIds)
+      ? material.assignedChildIds
+      : [];
+    if (assignedChildIds.length > 0 && !assignedChildIds.includes(childId)) {
+      throw new functions.https.HttpsError('permission-denied', 'This lesson is not assigned to the child');
+    }
+
+    const quiz = quizDoc.data()!;
+    const questions = Array.isArray(quiz.questions) ? quiz.questions : [];
+    const answerEntries = answerKeyDoc.data()?.answers;
+    if (
+      questions.length < 1 ||
+      questions.length > 50 ||
+      !Array.isArray(answerEntries) ||
+      answerEntries.length !== questions.length
+    ) {
+      throw new functions.https.HttpsError('failed-precondition', 'Quiz answer key is invalid');
+    }
+
+    const submittedKeys = Object.keys(selectedAnswers);
+    for (const key of submittedKeys) {
+      const index = Number(key);
+      if (!Number.isInteger(index) || index < 0 || index >= questions.length) {
+        throw new functions.https.HttpsError('invalid-argument', 'Quiz answer index is invalid');
+      }
+      const optionIndex = selectedAnswers[key];
+      const options = questions[index]?.options;
+      if (
+        !Number.isInteger(optionIndex) ||
+        !Array.isArray(options) ||
+        optionIndex < 0 ||
+        optionIndex >= options.length
+      ) {
+        throw new functions.https.HttpsError('invalid-argument', 'Selected option is invalid');
+      }
+    }
+
+    let correctCount = 0;
+    questions.forEach((question: any, index: number) => {
+      const answer = answerEntries[index];
+      if (
+        answer &&
+        Number.isInteger(answer.correctOptionIndex) &&
+        selectedAnswers[String(index)] === answer.correctOptionIndex
+      ) {
+        correctCount += 1;
+      }
+    });
+
+    const totalQuestions = questions.length;
+    const scorePercent = Math.round((correctCount / totalQuestions) * 100);
+    const passingScore = Number.isInteger(quiz.passingScorePercent)
+      ? Math.min(100, Math.max(0, quiz.passingScorePercent))
+      : 70;
+    const isPassed = scorePercent >= passingScore;
+    const rewardMinutes = Number.isInteger(quiz.rewardExtraScreenTimeMinutes)
+      ? Math.min(240, Math.max(0, quiz.rewardExtraScreenTimeMinutes))
+      : 0;
+    const rewardClaimed = isPassed && rewardMinutes > 0 && !rewardDoc.exists;
+    const attempt = {
+      quizId,
+      materialId,
+      childId,
+      childName,
+      scorePercent,
+      correctCount,
+      totalQuestions,
+      isPassed,
+      rewardClaimed,
+      completedAt: now,
+      selectedAnswers,
+    };
+
+    transaction.set(attemptRef, attempt);
+
+    if (isPassed) {
+      transaction.set(
+        materialRef,
+        {
+          childProgress: {
+            [childId]: {
+              childId,
+              childName,
+              status: 'completed',
+              completedAt: now,
+              lastAccessedAt: now,
+              notes: `Passed quiz with ${scorePercent}% score`,
+            },
+          },
+          updatedAt: now,
+        },
+        { merge: true },
+      );
+
+      const streakData = streakDoc.data() || {};
+      const previousStreak = Number.isInteger(streakData.currentStreakDays)
+        ? streakData.currentStreakDays
+        : 0;
+      const lastPassed = streakData.lastPassedDate?.toDate?.() as Date | undefined;
+      let currentStreak = 1;
+      if (lastPassed) {
+        const todayUtc = Date.UTC(now.toDate().getUTCFullYear(), now.toDate().getUTCMonth(), now.toDate().getUTCDate());
+        const lastUtc = Date.UTC(lastPassed.getUTCFullYear(), lastPassed.getUTCMonth(), lastPassed.getUTCDate());
+        const diffDays = Math.floor((todayUtc - lastUtc) / 86400000);
+        currentStreak = diffDays === 0 ? previousStreak : diffDays === 1 ? previousStreak + 1 : 1;
+      }
+      const badges = new Set<string>(
+        Array.isArray(streakData.badges) ? streakData.badges.filter((badge: unknown) => typeof badge === 'string') : [],
+      );
+      badges.add('Novice Scholar');
+      if (currentStreak >= 3) badges.add('3-Day Streak');
+      if (currentStreak >= 7) badges.add('Week Warrior');
+      if (scorePercent === 100) badges.add('Perfect Score');
+      transaction.set(streakRef, {
+        currentStreakDays: currentStreak,
+        lastPassedDate: now,
+        badges: Array.from(badges),
+      }, { merge: true });
+
+      if (rewardClaimed) {
+        transaction.set(childRef, {
+          bonusScreenTimeMinutes: FieldValue.increment(rewardMinutes),
+          lastRewardGrantedAt: now,
+        }, { merge: true });
+        transaction.create(rewardRef, {
+          childId,
+          quizId,
+          materialId,
+          minutes: rewardMinutes,
+          createdAt: now,
+        });
+        const notificationRef = familyRef.collection('notifications').doc(`quiz_reward_${childId}_${quizId}`);
+        transaction.set(notificationRef, {
+          familyId,
+          childId,
+          childName,
+          type: 'app_time_granted',
+          priority: 'normal',
+          title: `+${rewardMinutes} Mins Screen Time Reward`,
+          body: `${childName} passed "${quiz.title || 'the quiz'}" and unlocked ${rewardMinutes} minutes of extra screen time.`,
+          data: { type: 'quiz_reward', minutes: rewardMinutes, quizTitle: quiz.title || 'Quiz' },
+          createdAt: now,
+          isRead: false,
+        });
+      }
+    }
+
+    return { attemptId: attemptRef.id, scorePercent, correctCount, totalQuestions, isPassed, rewardClaimed };
+  });
+
+  return {
+    ...result,
+    childName,
+    completedAtMillis: now.toMillis(),
+  };
+});
+
 function isActiveChatRelationship(
   familyId: string,
   familyData: FirebaseFirestore.DocumentData,

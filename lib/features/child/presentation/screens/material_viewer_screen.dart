@@ -6,7 +6,9 @@ import 'package:video_player/video_player.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../../../core/models/educational_material_model.dart';
+import '../../../../core/models/quiz_model.dart';
 import '../../../../core/services/education_service.dart';
+import '../widgets/quiz_attempt_dialog.dart';
 
 class MaterialViewerScreen extends ConsumerStatefulWidget {
   final EducationalMaterial material;
@@ -345,6 +347,11 @@ class _MaterialViewerScreenState extends ConsumerState<MaterialViewerScreen> {
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.quiz_outlined),
+            tooltip: 'Take a lesson quiz',
+            onPressed: _openQuizzes,
+          ),
+          IconButton(
             icon: const Icon(Icons.open_in_new),
             tooltip: 'Open in Browser/External App',
             onPressed: _launchExternalUrl,
@@ -657,6 +664,73 @@ class _MaterialViewerScreenState extends ConsumerState<MaterialViewerScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openQuizzes() {
+    final service = ref.read(educationServiceProvider);
+    return showModalBottomSheet<void>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: StreamBuilder<List<QuizModel>>(
+          stream: service.getQuizzesStream(
+            widget.familyId,
+            widget.material.id,
+          ),
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text('Could not load quizzes: ${snapshot.error}'),
+              );
+            }
+            if (!snapshot.hasData) {
+              return const SizedBox(
+                height: 160,
+                child: Center(child: CircularProgressIndicator()),
+              );
+            }
+            final quizzes = snapshot.data!;
+            if (quizzes.isEmpty) {
+              return const SizedBox(
+                height: 160,
+                child: Center(child: Text('There are no quizzes for this lesson yet.')),
+              );
+            }
+            return ListView(
+              shrinkWrap: true,
+              children: [
+                const ListTile(
+                  title: Text(
+                    'Lesson quizzes',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                for (final quiz in quizzes)
+                  ListTile(
+                    leading: const Icon(Icons.quiz_outlined),
+                    title: Text(quiz.title),
+                    subtitle: Text(
+                      '${quiz.questions.length} questions · Pass ${quiz.passingScorePercent}%',
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () async {
+                      Navigator.pop(sheetContext);
+                      if (!context.mounted) return;
+                      await QuizAttemptDialog.show(
+                        context,
+                        familyId: widget.familyId,
+                        childId: widget.childId,
+                        childName: widget.childName,
+                        quiz: quiz,
+                      );
+                    },
+                  ),
+              ],
+            );
+          },
         ),
       ),
     );

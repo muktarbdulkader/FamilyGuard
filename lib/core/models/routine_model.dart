@@ -83,24 +83,34 @@ class RoutineModel {
   bool isCurrentlyActive({DateTime? nowTime}) {
     if (!isActive) return false;
     final now = nowTime ?? DateTime.now();
-    if (!daysOfWeek.contains(now.weekday)) return false;
-
     final currentMins = now.hour * 60 + now.minute;
-    if (startMinutes <= endMinutes) {
-      return currentMins >= startMinutes && currentMins <= endMinutes;
-    } else {
-      // Overnight routine (e.g. 21:00 to 07:00)
-      return currentMins >= startMinutes || currentMins <= endMinutes;
+    if (startMinutes < endMinutes) {
+      return daysOfWeek.contains(now.weekday) &&
+          currentMins >= startMinutes &&
+          currentMins < endMinutes;
     }
+
+    if (currentMins >= startMinutes) {
+      return daysOfWeek.contains(now.weekday);
+    }
+    if (currentMins < endMinutes) {
+      final previousDay = now.weekday == DateTime.monday
+          ? DateTime.sunday
+          : now.weekday - 1;
+      return daysOfWeek.contains(previousDay);
+    }
+    return false;
   }
 
   /// Minutes until this routine starts
   int minutesUntilStart({DateTime? nowTime}) {
     final now = nowTime ?? DateTime.now();
-    if (!daysOfWeek.contains(now.weekday)) return 9999;
     final currentMins = now.hour * 60 + now.minute;
-    if (startMinutes > currentMins) {
-      return startMinutes - currentMins;
+    for (var dayOffset = 0; dayOffset < 7; dayOffset++) {
+      final day = now.add(Duration(days: dayOffset)).weekday;
+      if (!daysOfWeek.contains(day)) continue;
+      final minutesUntil = dayOffset * 1440 + startMinutes - currentMins;
+      if (minutesUntil >= 0) return minutesUntil;
     }
     return 9999;
   }
@@ -113,42 +123,49 @@ class RoutineModel {
     for (final other in existingRoutines) {
       if (other.id == candidate.id || !other.isActive) continue;
 
-      // Check common days
-      final commonDays = candidate.daysOfWeek.where((d) => other.daysOfWeek.contains(d)).toList();
-      if (commonDays.isEmpty) continue;
-
-      // Check time overlap
-      final cStart = candidate.startMinutes;
-      final cEnd = candidate.endMinutes > candidate.startMinutes
-          ? candidate.endMinutes
-          : candidate.endMinutes + 1440;
-
-      final oStart = other.startMinutes;
-      final oEnd = other.endMinutes > other.startMinutes
-          ? other.endMinutes
-          : other.endMinutes + 1440;
-
-      final overlaps = (cStart < oEnd && cEnd > oStart);
+      final candidateIntervals = _weeklyIntervals(candidate);
+      final otherIntervals = _weeklyIntervals(other);
+      var overlaps = false;
+      for (final candidateInterval in candidateIntervals) {
+        for (final otherInterval in otherIntervals) {
+          for (final weekOffset in const [-10080, 0, 10080]) {
+            final otherStart = otherInterval.$1 + weekOffset;
+            final otherEnd = otherInterval.$2 + weekOffset;
+            if (candidateInterval.$1 < otherEnd &&
+                candidateInterval.$2 > otherStart) {
+              overlaps = true;
+              break;
+            }
+          }
+          if (overlaps) break;
+        }
+        if (overlaps) break;
+      }
       if (overlaps) {
-        final dayNames = commonDays.map(_dayName).join(', ');
         final timeStr = '${_fmt(other.startTime)} - ${_fmt(other.endTime)}';
-        conflicts.add('Overlaps with "${other.name}" on $dayNames ($timeStr)');
+        conflicts.add('Overlaps with "${other.name}" ($timeStr)');
       }
     }
 
     return conflicts;
   }
 
-  static String _dayName(int d) => switch (d) {
-        1 => 'Mon',
-        2 => 'Tue',
-        3 => 'Wed',
-        4 => 'Thu',
-        5 => 'Fri',
-        6 => 'Sat',
-        7 => 'Sun',
-        _ => '',
-      };
+  static List<(int, int)> _weeklyIntervals(RoutineModel routine) {
+    const minutesPerWeek = 7 * 24 * 60;
+    final duration = routine.endMinutes > routine.startMinutes
+        ? routine.endMinutes - routine.startMinutes
+        : routine.endMinutes - routine.startMinutes + 24 * 60;
+    final intervals = <(int, int)>[];
+    for (final day in routine.daysOfWeek) {
+      final start = (day - 1) * 24 * 60 + routine.startMinutes;
+      final end = start + duration;
+      intervals.add((start, end));
+      if (end > minutesPerWeek) {
+        intervals.add((start - minutesPerWeek, end - minutesPerWeek));
+      }
+    }
+    return intervals;
+  }
 
   static String _fmt(TimeOfDay t) {
     final h = t.hourOfPeriod == 0 ? 12 : t.hourOfPeriod;
@@ -239,4 +256,3 @@ class RoutineModel {
     );
   }
 }
-

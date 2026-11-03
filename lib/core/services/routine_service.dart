@@ -13,6 +13,15 @@ final childRoutinesProvider = StreamProvider.family<List<RoutineModel>, ({String
   return service.getRoutinesStream(arg.familyId, arg.childId);
 });
 
+class RoutineConflictException implements Exception {
+  final List<String> conflicts;
+
+  const RoutineConflictException(this.conflicts);
+
+  @override
+  String toString() => conflicts.join('\n');
+}
+
 class RoutineService {
   static final RoutineService instance = RoutineService._internal();
   factory RoutineService() => instance;
@@ -35,6 +44,7 @@ class RoutineService {
     // Check conflicts against existing routines
     final existing = await getRoutinesOnce(familyId, routine.childId);
     final conflicts = RoutineModel.findConflicts(routine, existing);
+    if (conflicts.isNotEmpty) throw RoutineConflictException(conflicts);
 
     final docRef = await _routinesCollection(familyId).add(routine.toFirestore());
     return (id: docRef.id, conflicts: conflicts);
@@ -47,6 +57,7 @@ class RoutineService {
   }) async {
     final existing = await getRoutinesOnce(familyId, routine.childId);
     final conflicts = RoutineModel.findConflicts(routine, existing);
+    if (conflicts.isNotEmpty) throw RoutineConflictException(conflicts);
 
     await _routinesCollection(familyId).doc(routine.id).update(routine.toFirestore());
     return conflicts;
@@ -90,13 +101,9 @@ class RoutineService {
   Future<List<RoutineModel>> getRoutinesOnce(String familyId, String childId) async {
     if (familyId.isEmpty || childId.isEmpty) return [];
 
-    try {
-      final snap = await _routinesCollection(familyId)
-          .where('childId', isEqualTo: childId)
-          .get();
-      return snap.docs.map((d) => RoutineModel.fromFirestore(d)).toList();
-    } catch (_) {
-      return [];
-    }
+    final snap = await _routinesCollection(familyId)
+        .where('childId', isEqualTo: childId)
+        .get();
+    return snap.docs.map((d) => RoutineModel.fromFirestore(d)).toList();
   }
 }

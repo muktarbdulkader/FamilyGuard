@@ -19,6 +19,7 @@ import '../../features/notifications/presentation/screens/parent_notifications_s
 import '../../features/family/presentation/screens/pairing/qr_code_screen.dart';
 import '../../features/requests/presentation/screens/app_requests_screen.dart';
 import '../../features/parent/presentation/screens/parent_education_screen.dart';
+import '../../features/parent/presentation/screens/routine_planner_screen.dart';
 import '../../features/child/presentation/screens/child_education_screen.dart';
 import '../../features/chat/presentation/screens/chat_inbox_screen.dart';
 import '../../features/chat/presentation/screens/chat_conversation_screen.dart';
@@ -239,6 +240,17 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.parentEducation,
         name: 'parent-education',
         builder: (context, state) => const ParentEducationScreen(),
+      ),
+
+      GoRoute(
+        path: AppRoutes.routinePlanner,
+        name: 'routine-planner',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return RoutinePlannerScreen(
+            familyId: extra?['familyId'] as String? ?? '',
+          );
+        },
       ),
 
       // Smart Screen Time Route

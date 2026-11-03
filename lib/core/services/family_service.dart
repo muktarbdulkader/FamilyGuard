@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import '../models/family_model.dart';
 import '../models/user_model.dart';
 import '../models/family_invite_model.dart';
@@ -17,8 +18,10 @@ class FamilyService {
   }) async {
     try {
       // Create family document
-      final familyRef = _firestore.collection(AppConstants.familiesCollection).doc();
-      
+      final familyRef = _firestore
+          .collection(AppConstants.familiesCollection)
+          .doc();
+
       final family = FamilyModel(
         id: familyRef.id,
         name: familyName,
@@ -51,7 +54,7 @@ class FamilyService {
     try {
       // Generate 6-digit code
       final code = _generateSixDigitCode();
-      
+
       // Calculate expiration time
       final expiresAt = DateTime.now().add(
         const Duration(minutes: AppConstants.familyCodeExpirationMinutes),
@@ -86,90 +89,14 @@ class FamilyService {
     required String childId,
   }) async {
     try {
-      // Get invite document
-      final inviteDoc = await _firestore
-          .collection('family_invites')
-          .doc(inviteCode)
-          .get();
-
-      if (!inviteDoc.exists) {
-        throw FamilyException('Invalid invite code');
+      final response = await FirebaseFunctions.instance
+          .httpsCallable('joinFamily')
+          .call<Map<String, dynamic>>({'inviteCode': inviteCode});
+      final familyId = response.data['familyId'];
+      if (familyId is! String || familyId.isEmpty) {
+        throw FamilyException('The family join request returned no family ID.');
       }
-
-      final invite = FamilyInviteModel.fromFirestore(inviteDoc);
-
-      // Check if invite is valid
-      if (!invite.isValid) {
-        throw FamilyException(
-          invite.isExpired ? 'Invite code has expired' : 'Invite code has already been used'
-        );
-      }
-
-      // Get family document
-      final familyDoc = await _firestore
-          .collection(AppConstants.familiesCollection)
-          .doc(invite.familyId)
-          .get();
-
-      if (!familyDoc.exists) {
-        throw FamilyException('Family not found');
-      }
-
-      final family = FamilyModel.fromFirestore(familyDoc);
-
-      // Check if child is already in a family
-      final childDoc = await _firestore
-          .collection(AppConstants.usersCollection)
-          .doc(childId)
-          .get();
-
-      if (!childDoc.exists) {
-        throw FamilyException('User not found');
-      }
-
-      final childUser = UserModel.fromFirestore(childDoc);
-      if (childUser.hasFamily) {
-        throw FamilyException('You are already part of a family');
-      }
-
-      // Use batch to update multiple documents atomically
-      final batch = _firestore.batch();
-
-      // Add child to family
-      final currentChildIds = family.childIds;
-      final updatedChildIds = currentChildIds.contains(childId)
-          ? currentChildIds
-          : [...currentChildIds, childId];
-
-      batch.update(
-        _firestore.collection(AppConstants.familiesCollection).doc(invite.familyId),
-        {
-          'childIds': updatedChildIds,
-          'childrenIds': updatedChildIds,
-          'updatedAt': Timestamp.now(),
-        },
-      );
-
-      // Update child's familyId
-      batch.update(
-        _firestore.collection(AppConstants.usersCollection).doc(childId),
-        {'familyId': invite.familyId},
-      );
-
-      // Mark invite as used
-      batch.update(
-        _firestore.collection('family_invites').doc(inviteCode),
-        {
-          'isUsed': true,
-          'usedBy': childId,
-        },
-      );
-
-      // Commit all changes
-      await batch.commit();
-
-      return invite.familyId;
-
+      return familyId;
     } catch (e) {
       if (e is FamilyException) {
         rethrow;
@@ -202,11 +129,11 @@ class FamilyService {
         .doc(familyId)
         .snapshots()
         .map((doc) {
-      if (doc.exists) {
-        return FamilyModel.fromFirestore(doc);
-      }
-      return null;
-    });
+          if (doc.exists) {
+            return FamilyModel.fromFirestore(doc);
+          }
+          return null;
+        });
   }
 
   /// Get family members (parent and children)
@@ -224,7 +151,7 @@ class FamilyService {
           .collection(AppConstants.usersCollection)
           .doc(family.parentId)
           .get();
-      
+
       if (parentDoc.exists) {
         members.add(UserModel.fromFirestore(parentDoc));
       }
@@ -235,7 +162,7 @@ class FamilyService {
             .collection(AppConstants.usersCollection)
             .doc(childId)
             .get();
-        
+
         if (childDoc.exists) {
           members.add(UserModel.fromFirestore(childDoc));
         }
@@ -262,13 +189,12 @@ class FamilyService {
       final batch = _firestore.batch();
 
       // Remove child from family
-      final updatedChildrenIds = family.childrenIds.where((id) => id != childId).toList();
+      final updatedChildrenIds = family.childrenIds
+          .where((id) => id != childId)
+          .toList();
       batch.update(
         _firestore.collection(AppConstants.familiesCollection).doc(familyId),
-        {
-          'childrenIds': updatedChildrenIds,
-          'updatedAt': Timestamp.now(),
-        },
+        {'childrenIds': updatedChildrenIds, 'updatedAt': Timestamp.now()},
       );
 
       // Remove familyId from child
@@ -279,9 +205,10 @@ class FamilyService {
 
       // Commit changes
       await batch.commit();
-
     } catch (e) {
-      throw FamilyException('Failed to remove child from family: ${e.toString()}');
+      throw FamilyException(
+        'Failed to remove child from family: ${e.toString()}',
+      );
     }
   }
 
@@ -312,7 +239,6 @@ class FamilyService {
 
       // Commit changes
       await batch.commit();
-
     } catch (e) {
       throw FamilyException('Failed to delete family: ${e.toString()}');
     }

@@ -14,6 +14,14 @@ function arrayValue(values) {
   return { arrayValue: { values: values.map(stringValue) } };
 }
 
+function integerValue(value) {
+  return { integerValue: String(value) };
+}
+
+function mapValue(fields) {
+  return { mapValue: { fields } };
+}
+
 async function request(url, options = {}) {
   const response = await fetch(url, options);
   const text = await response.text();
@@ -108,6 +116,68 @@ async function run() {
       displayName: stringValue('Outsider'),
     }),
   ]);
+
+  const materialPath =
+    `${familyPath}/educational_materials/material_${suffix}`;
+  const quizPath = `${materialPath}/quizzes/quiz_${suffix}`;
+  const answerKeyPath = `${quizPath}/answer_keys/private`;
+  await writeAsAdmin(materialPath, {
+    familyId: stringValue(familyId),
+    title: stringValue('Lesson'),
+    assignedChildIds: arrayValue([child.localId]),
+  });
+  await writeAsAdmin(quizPath, {
+    familyId: stringValue(familyId),
+    materialId: stringValue(`material_${suffix}`),
+    title: stringValue('Quiz'),
+    questions: {
+      arrayValue: {
+        values: [
+          mapValue({
+            id: stringValue('0'),
+            questionText: stringValue('Question'),
+            options: arrayValue(['A', 'B']),
+          }),
+        ],
+      },
+    },
+  });
+  await writeAsAdmin(answerKeyPath, {
+    answers: {
+      arrayValue: {
+        values: [
+          mapValue({
+            correctOptionIndex: integerValue(1),
+            explanation: stringValue('B is correct'),
+          }),
+        ],
+      },
+    },
+  });
+  const childQuiz = await authenticatedRequest(quizPath, child.idToken);
+  assert.equal(childQuiz.response.status, 200, 'Child can read the quiz questions');
+  const childAnswerKey = await authenticatedRequest(answerKeyPath, child.idToken);
+  assert.equal(childAnswerKey.response.status, 403, 'Child cannot read the private answer key');
+  const parentAnswerKey = await authenticatedRequest(answerKeyPath, parent.idToken);
+  assert.equal(parentAnswerKey.response.status, 200, 'Parent can manage the answer key');
+  const outsiderQuiz = await authenticatedRequest(quizPath, outsider.idToken);
+  assert.equal(outsiderQuiz.response.status, 403, 'Outsider cannot read family quizzes');
+  const forgedAttempt = await authenticatedRequest(
+    `${familyPath}/quiz_attempts/forged_${suffix}`,
+    child.idToken,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({
+        fields: {
+          childId: stringValue(child.localId),
+          scorePercent: integerValue(100),
+          isPassed: { booleanValue: true },
+        },
+      }),
+    },
+  );
+  assert.equal(forgedAttempt.response.status, 403, 'Client cannot forge quiz scores');
+
   const conversationName =
     `projects/${projectId}/databases/(default)/documents/${conversationPath}`;
   const conversationCreate = await request(`${documentsUrl}:commit`, {

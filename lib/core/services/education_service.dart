@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
@@ -338,10 +339,6 @@ class EducationService {
     return _materialsCollection(familyId).doc(materialId).collection('quizzes');
   }
 
-  CollectionReference<Map<String, dynamic>> _attemptsCollection(String familyId) {
-    return _firestore.collection(AppConstants.familiesCollection).doc(familyId).collection('quiz_attempts');
-  }
-
   DocumentReference<Map<String, dynamic>> _streakDoc(String familyId, String childId) {
     return _firestore
         .collection(AppConstants.familiesCollection)
@@ -357,8 +354,27 @@ class EducationService {
     required String familyId,
     required QuizModel quiz,
   }) async {
-    final ref = await _quizzesCollection(familyId, quiz.materialId).add(quiz.toFirestore());
+    final ref = _quizzesCollection(familyId, quiz.materialId).doc();
+    final batch = _firestore.batch()
+      ..set(ref, quiz.toFirestore())
+      ..set(
+        ref.collection('answer_keys').doc('private'),
+        quiz.toAnswerKeyFirestore(),
+      );
+    await batch.commit();
     return ref.id;
+  }
+
+  Future<void> deleteQuiz({
+    required String familyId,
+    required String materialId,
+    required String quizId,
+  }) async {
+    final quizRef = _quizzesCollection(familyId, materialId).doc(quizId);
+    final batch = _firestore.batch()
+      ..delete(quizRef.collection('answer_keys').doc('private'))
+      ..delete(quizRef);
+    await batch.commit();
   }
 
   /// Stream of quizzes linked to a material
@@ -377,126 +393,37 @@ class EducationService {
     required String childName,
     required Map<int, int> selectedAnswers,
   }) async {
-    final now = DateTime.now();
-    int correctCount = 0;
-    for (int i = 0; i < quiz.questions.length; i++) {
-      if (selectedAnswers[i] == quiz.questions[i].correctOptionIndex) {
-        correctCount++;
-      }
-    }
+    final callable = FirebaseFunctions.instance.httpsCallable(
+      'submitQuizAttempt',
+    );
+    final response = await callable.call<Map<String, dynamic>>({
+      'familyId': familyId,
+      'materialId': quiz.materialId,
+      'quizId': quiz.id,
+      'selectedAnswers': {
+        for (final entry in selectedAnswers.entries)
+          entry.key.toString(): entry.value,
+      },
+    });
+    final result = Map<String, dynamic>.from(response.data);
+    final completedAt = DateTime.fromMillisecondsSinceEpoch(
+      (result['completedAtMillis'] as num).toInt(),
+    );
 
-    final total = quiz.questions.isEmpty ? 1 : quiz.questions.length;
-    final scorePercent = ((correctCount / total) * 100).round();
-    final isPassed = scorePercent >= quiz.passingScorePercent;
-
-    final attempt = QuizAttempt(
-      id: '',
+    return QuizAttempt(
+      id: result['attemptId'] as String,
       quizId: quiz.id,
       materialId: quiz.materialId,
       childId: childId,
       childName: childName,
-      scorePercent: scorePercent,
-      correctCount: correctCount,
-      totalQuestions: total,
-      isPassed: isPassed,
-      rewardClaimed: isPassed && quiz.rewardExtraScreenTimeMinutes > 0,
-      completedAt: now,
+      scorePercent: (result['scorePercent'] as num).toInt(),
+      correctCount: (result['correctCount'] as num).toInt(),
+      totalQuestions: (result['totalQuestions'] as num).toInt(),
+      isPassed: result['isPassed'] as bool,
+      rewardClaimed: result['rewardClaimed'] as bool,
+      completedAt: completedAt,
       selectedAnswers: selectedAnswers,
     );
-
-    // Save attempt
-    final docRef = await _attemptsCollection(familyId).add(attempt.toFirestore());
-
-    if (isPassed) {
-      // Mark parent material progress as completed
-      await updateChildProgress(
-        familyId: familyId,
-        materialId: quiz.materialId,
-        childId: childId,
-        childName: childName,
-        status: LearningStatus.completed,
-        notes: 'Passed quiz with $scorePercent% score',
-      );
-
-      // Update streaks and badges
-      await _updateLearningStreak(familyId, childId, scorePercent);
-
-      // Reward extra screen time if configured
-      if (quiz.rewardExtraScreenTimeMinutes > 0) {
-        await _grantScreenTimeReward(
-          familyId: familyId,
-          childId: childId,
-          childName: childName,
-          minutes: quiz.rewardExtraScreenTimeMinutes,
-          quizTitle: quiz.title,
-        );
-      }
-    }
-
-    return QuizAttempt(
-      id: docRef.id,
-      quizId: attempt.quizId,
-      materialId: attempt.materialId,
-      childId: attempt.childId,
-      childName: attempt.childName,
-      scorePercent: attempt.scorePercent,
-      correctCount: attempt.correctCount,
-      totalQuestions: attempt.totalQuestions,
-      isPassed: attempt.isPassed,
-      rewardClaimed: attempt.rewardClaimed,
-      completedAt: attempt.completedAt,
-      selectedAnswers: attempt.selectedAnswers,
-    );
-  }
-
-  /// Update child streak and badges
-  Future<void> _updateLearningStreak(String familyId, String childId, int scorePercent) async {
-    try {
-      final docRef = _streakDoc(familyId, childId);
-      final snapshot = await docRef.get();
-      final now = DateTime.now();
-
-      int currentStreak = 1;
-      List<String> badges = ['Novice Scholar'];
-
-      if (snapshot.exists && snapshot.data() != null) {
-        final data = snapshot.data()!;
-        final lastPassed = (data['lastPassedDate'] as Timestamp?)?.toDate();
-        final prevStreak = (data['currentStreakDays'] as num?)?.toInt() ?? 0;
-        badges = List<String>.from(data['badges'] ?? badges);
-
-        if (lastPassed != null) {
-          final diffDays = DateTime(now.year, now.month, now.day)
-              .difference(DateTime(lastPassed.year, lastPassed.month, lastPassed.day))
-              .inDays;
-          if (diffDays == 1) {
-            currentStreak = prevStreak + 1;
-          } else if (diffDays == 0) {
-            currentStreak = prevStreak; // same day continuation
-          } else {
-            currentStreak = 1; // broken streak
-          }
-        }
-      }
-
-      if (currentStreak >= 3 && !badges.contains('3-Day Streak')) {
-        badges.add('3-Day Streak');
-      }
-      if (currentStreak >= 7 && !badges.contains('Week Warrior')) {
-        badges.add('Week Warrior');
-      }
-      if (scorePercent == 100 && !badges.contains('Perfect Score')) {
-        badges.add('Perfect Score');
-      }
-
-      await docRef.set({
-        'currentStreakDays': currentStreak,
-        'lastPassedDate': Timestamp.fromDate(now),
-        'badges': badges,
-      }, SetOptions(merge: true));
-    } catch (e) {
-      debugPrint('Error updating learning streak: $e');
-    }
   }
 
   /// Get child streak stream
@@ -510,56 +437,6 @@ class EducationService {
       }
       return ChildLearningStreak.fromMap(snap.data()!);
     });
-  }
-
-  /// Grant screen time reward directly to child
-  Future<void> _grantScreenTimeReward({
-    required String familyId,
-    required String childId,
-    required String childName,
-    required int minutes,
-    required String quizTitle,
-  }) async {
-    try {
-      final now = DateTime.now();
-      // Record approved bonus time on child doc
-      await _firestore
-          .collection(AppConstants.familiesCollection)
-          .doc(familyId)
-          .collection(AppConstants.childrenSubcollection)
-          .doc(childId)
-          .set({
-        'bonusScreenTimeMinutes': FieldValue.increment(minutes),
-        'lastRewardGrantedAt': Timestamp.fromDate(now),
-      }, SetOptions(merge: true));
-
-      // Notify parent & child
-      final notif = {
-        'familyId': familyId,
-        'childId': childId,
-        'childName': childName,
-        'type': 'app_time_granted',
-        'priority': 'normal',
-        'title': '🎉 +$minutes Mins Screen Time Reward!',
-        'body': '$childName passed "$quizTitle" and unlocked $minutes minutes of extra screen time.',
-        'data': {
-          'type': 'quiz_reward',
-          'minutes': minutes,
-          'quizTitle': quizTitle,
-        },
-        'createdAt': Timestamp.fromDate(now),
-        'isRead': false,
-      };
-
-      await _firestore.collection('notifications').add(notif);
-      await _firestore
-          .collection(AppConstants.familiesCollection)
-          .doc(familyId)
-          .collection('notifications')
-          .add(notif);
-    } catch (e) {
-      debugPrint('Error granting screen time reward: $e');
-    }
   }
 
   // ── Legacy Backwards-Compatible Methods ─────────────────────────────────

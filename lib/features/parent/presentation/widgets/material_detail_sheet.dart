@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/models/educational_material_model.dart';
 import '../../../../core/models/family_model.dart';
 import '../../../../core/services/education_service.dart';
+import 'quiz_management_sheet.dart';
 import 'upload_material_sheet.dart';
 
 class MaterialDetailSheet extends ConsumerWidget {
@@ -399,6 +400,20 @@ class MaterialDetailSheet extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 20),
+
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => QuizManagementSheet.show(
+                  context,
+                  familyId: familyId,
+                  material: material,
+                ),
+                icon: const Icon(Icons.quiz_outlined),
+                label: const Text('Manage lesson quizzes'),
+              ),
+            ),
+            const SizedBox(height: 12),
 
             // Per-Child Progress Section
             Text(
