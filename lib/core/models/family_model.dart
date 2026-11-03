@@ -196,6 +196,7 @@ class ChildModel {
     }
 
     final lastSeen = parseOptionalTimestamp(data['lastSeen']);
+    final lastSyncTimestamp = parseOptionalTimestamp(data['lastSyncTimestamp'] ?? data['lastHeartbeat']);
 
     return ChildModel(
       id: doc.id,
@@ -212,6 +213,14 @@ class ChildModel {
       preferences: Map<String, dynamic>.from(data['preferences'] ?? {}),
       hasOverlayPermission: data['hasOverlayPermission'] as bool? ?? true,
       hasUsageStatsPermission: data['hasUsageStatsPermission'] as bool? ?? true,
+      batteryLevel: (data['batteryLevel'] as num?)?.toInt(),
+      isCharging: data['isCharging'] as bool? ?? false,
+      networkType: data['networkType'] as String?,
+      isMonitoringActive: data['isMonitoringActive'] as bool? ?? true,
+      hasLocationPermission: data['hasLocationPermission'] as bool? ?? true,
+      hasNotificationPermission: data['hasNotificationPermission'] as bool? ?? true,
+      hasBatteryOptimizationDisabled: data['hasBatteryOptimizationDisabled'] as bool? ?? true,
+      lastSyncTimestamp: lastSyncTimestamp,
     );
   }
 
@@ -229,6 +238,14 @@ class ChildModel {
       'preferences': preferences,
       'hasOverlayPermission': hasOverlayPermission,
       'hasUsageStatsPermission': hasUsageStatsPermission,
+      if (batteryLevel != null) 'batteryLevel': batteryLevel,
+      'isCharging': isCharging,
+      if (networkType != null) 'networkType': networkType,
+      'isMonitoringActive': isMonitoringActive,
+      'hasLocationPermission': hasLocationPermission,
+      'hasNotificationPermission': hasNotificationPermission,
+      'hasBatteryOptimizationDisabled': hasBatteryOptimizationDisabled,
+      if (lastSyncTimestamp != null) 'lastSyncTimestamp': Timestamp.fromDate(lastSyncTimestamp!),
     };
   }
 
@@ -246,6 +263,14 @@ class ChildModel {
     Map<String, dynamic>? preferences,
     bool? hasOverlayPermission,
     bool? hasUsageStatsPermission,
+    int? batteryLevel,
+    bool? isCharging,
+    String? networkType,
+    bool? isMonitoringActive,
+    bool? hasLocationPermission,
+    bool? hasNotificationPermission,
+    bool? hasBatteryOptimizationDisabled,
+    DateTime? lastSyncTimestamp,
   }) {
     return ChildModel(
       id: id ?? this.id,
@@ -260,6 +285,14 @@ class ChildModel {
       preferences: preferences ?? this.preferences,
       hasOverlayPermission: hasOverlayPermission ?? this.hasOverlayPermission,
       hasUsageStatsPermission: hasUsageStatsPermission ?? this.hasUsageStatsPermission,
+      batteryLevel: batteryLevel ?? this.batteryLevel,
+      isCharging: isCharging ?? this.isCharging,
+      networkType: networkType ?? this.networkType,
+      isMonitoringActive: isMonitoringActive ?? this.isMonitoringActive,
+      hasLocationPermission: hasLocationPermission ?? this.hasLocationPermission,
+      hasNotificationPermission: hasNotificationPermission ?? this.hasNotificationPermission,
+      hasBatteryOptimizationDisabled: hasBatteryOptimizationDisabled ?? this.hasBatteryOptimizationDisabled,
+      lastSyncTimestamp: lastSyncTimestamp ?? this.lastSyncTimestamp,
     );
   }
 

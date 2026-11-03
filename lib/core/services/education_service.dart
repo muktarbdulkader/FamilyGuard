@@ -7,10 +7,21 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/educational_task_model.dart';
 import '../models/educational_material_model.dart';
+import '../models/quiz_model.dart';
 import '../constants/app_constants.dart';
 
 final educationServiceProvider = Provider<EducationService>((ref) {
   return EducationService();
+});
+
+final materialQuizzesProvider = StreamProvider.family<List<QuizModel>, ({String familyId, String materialId})>((ref, arg) {
+  final service = ref.watch(educationServiceProvider);
+  return service.getQuizzesStream(arg.familyId, arg.materialId);
+});
+
+final childLearningStreakProvider = StreamProvider.family<ChildLearningStreak, ({String familyId, String childId})>((ref, arg) {
+  final service = ref.watch(educationServiceProvider);
+  return service.getLearningStreakStream(arg.familyId, arg.childId);
 });
 
 final childEducationTasksProvider = StreamProvider.family<List<EducationalTask>, ({String familyId, String childId})>((ref, arg) {
@@ -318,6 +329,236 @@ class EducationService {
       } catch (e) {
         debugPrint('Error writing completion notification: $e');
       }
+    }
+  }
+
+  // ── Educational Quizzes & Rewards ──────────────────────────────────────────
+
+  CollectionReference<Map<String, dynamic>> _quizzesCollection(String familyId, String materialId) {
+    return _materialsCollection(familyId).doc(materialId).collection('quizzes');
+  }
+
+  CollectionReference<Map<String, dynamic>> _attemptsCollection(String familyId) {
+    return _firestore.collection(AppConstants.familiesCollection).doc(familyId).collection('quiz_attempts');
+  }
+
+  DocumentReference<Map<String, dynamic>> _streakDoc(String familyId, String childId) {
+    return _firestore
+        .collection(AppConstants.familiesCollection)
+        .doc(familyId)
+        .collection(AppConstants.childrenSubcollection)
+        .doc(childId)
+        .collection('learning_stats')
+        .doc('streak');
+  }
+
+  /// Create a multiple choice quiz for an educational material
+  Future<String> createQuiz({
+    required String familyId,
+    required QuizModel quiz,
+  }) async {
+    final ref = await _quizzesCollection(familyId, quiz.materialId).add(quiz.toFirestore());
+    return ref.id;
+  }
+
+  /// Stream of quizzes linked to a material
+  Stream<List<QuizModel>> getQuizzesStream(String familyId, String materialId) {
+    if (familyId.isEmpty || materialId.isEmpty) return Stream.value([]);
+    return _quizzesCollection(familyId, materialId).snapshots().map((snap) {
+      return snap.docs.map((d) => QuizModel.fromFirestore(d)).toList();
+    });
+  }
+
+  /// Submit a quiz attempt and automatically calculate score & streaks
+  Future<QuizAttempt> submitQuizAttempt({
+    required String familyId,
+    required QuizModel quiz,
+    required String childId,
+    required String childName,
+    required Map<int, int> selectedAnswers,
+  }) async {
+    final now = DateTime.now();
+    int correctCount = 0;
+    for (int i = 0; i < quiz.questions.length; i++) {
+      if (selectedAnswers[i] == quiz.questions[i].correctOptionIndex) {
+        correctCount++;
+      }
+    }
+
+    final total = quiz.questions.isEmpty ? 1 : quiz.questions.length;
+    final scorePercent = ((correctCount / total) * 100).round();
+    final isPassed = scorePercent >= quiz.passingScorePercent;
+
+    final attempt = QuizAttempt(
+      id: '',
+      quizId: quiz.id,
+      materialId: quiz.materialId,
+      childId: childId,
+      childName: childName,
+      scorePercent: scorePercent,
+      correctCount: correctCount,
+      totalQuestions: total,
+      isPassed: isPassed,
+      rewardClaimed: isPassed && quiz.rewardExtraScreenTimeMinutes > 0,
+      completedAt: now,
+      selectedAnswers: selectedAnswers,
+    );
+
+    // Save attempt
+    final docRef = await _attemptsCollection(familyId).add(attempt.toFirestore());
+
+    if (isPassed) {
+      // Mark parent material progress as completed
+      await updateChildProgress(
+        familyId: familyId,
+        materialId: quiz.materialId,
+        childId: childId,
+        childName: childName,
+        status: LearningStatus.completed,
+        notes: 'Passed quiz with $scorePercent% score',
+      );
+
+      // Update streaks and badges
+      await _updateLearningStreak(familyId, childId, scorePercent);
+
+      // Reward extra screen time if configured
+      if (quiz.rewardExtraScreenTimeMinutes > 0) {
+        await _grantScreenTimeReward(
+          familyId: familyId,
+          childId: childId,
+          childName: childName,
+          minutes: quiz.rewardExtraScreenTimeMinutes,
+          quizTitle: quiz.title,
+        );
+      }
+    }
+
+    return QuizAttempt(
+      id: docRef.id,
+      quizId: attempt.quizId,
+      materialId: attempt.materialId,
+      childId: attempt.childId,
+      childName: attempt.childName,
+      scorePercent: attempt.scorePercent,
+      correctCount: attempt.correctCount,
+      totalQuestions: attempt.totalQuestions,
+      isPassed: attempt.isPassed,
+      rewardClaimed: attempt.rewardClaimed,
+      completedAt: attempt.completedAt,
+      selectedAnswers: attempt.selectedAnswers,
+    );
+  }
+
+  /// Update child streak and badges
+  Future<void> _updateLearningStreak(String familyId, String childId, int scorePercent) async {
+    try {
+      final docRef = _streakDoc(familyId, childId);
+      final snapshot = await docRef.get();
+      final now = DateTime.now();
+
+      int currentStreak = 1;
+      List<String> badges = ['Novice Scholar'];
+
+      if (snapshot.exists && snapshot.data() != null) {
+        final data = snapshot.data()!;
+        final lastPassed = (data['lastPassedDate'] as Timestamp?)?.toDate();
+        final prevStreak = (data['currentStreakDays'] as num?)?.toInt() ?? 0;
+        badges = List<String>.from(data['badges'] ?? badges);
+
+        if (lastPassed != null) {
+          final diffDays = DateTime(now.year, now.month, now.day)
+              .difference(DateTime(lastPassed.year, lastPassed.month, lastPassed.day))
+              .inDays;
+          if (diffDays == 1) {
+            currentStreak = prevStreak + 1;
+          } else if (diffDays == 0) {
+            currentStreak = prevStreak; // same day continuation
+          } else {
+            currentStreak = 1; // broken streak
+          }
+        }
+      }
+
+      if (currentStreak >= 3 && !badges.contains('3-Day Streak')) {
+        badges.add('3-Day Streak');
+      }
+      if (currentStreak >= 7 && !badges.contains('Week Warrior')) {
+        badges.add('Week Warrior');
+      }
+      if (scorePercent == 100 && !badges.contains('Perfect Score')) {
+        badges.add('Perfect Score');
+      }
+
+      await docRef.set({
+        'currentStreakDays': currentStreak,
+        'lastPassedDate': Timestamp.fromDate(now),
+        'badges': badges,
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Error updating learning streak: $e');
+    }
+  }
+
+  /// Get child streak stream
+  Stream<ChildLearningStreak> getLearningStreakStream(String familyId, String childId) {
+    if (familyId.isEmpty || childId.isEmpty) {
+      return Stream.value(const ChildLearningStreak());
+    }
+    return _streakDoc(familyId, childId).snapshots().map((snap) {
+      if (!snap.exists || snap.data() == null) {
+        return const ChildLearningStreak();
+      }
+      return ChildLearningStreak.fromMap(snap.data()!);
+    });
+  }
+
+  /// Grant screen time reward directly to child
+  Future<void> _grantScreenTimeReward({
+    required String familyId,
+    required String childId,
+    required String childName,
+    required int minutes,
+    required String quizTitle,
+  }) async {
+    try {
+      final now = DateTime.now();
+      // Record approved bonus time on child doc
+      await _firestore
+          .collection(AppConstants.familiesCollection)
+          .doc(familyId)
+          .collection(AppConstants.childrenSubcollection)
+          .doc(childId)
+          .set({
+        'bonusScreenTimeMinutes': FieldValue.increment(minutes),
+        'lastRewardGrantedAt': Timestamp.fromDate(now),
+      }, SetOptions(merge: true));
+
+      // Notify parent & child
+      final notif = {
+        'familyId': familyId,
+        'childId': childId,
+        'childName': childName,
+        'type': 'app_time_granted',
+        'priority': 'normal',
+        'title': '🎉 +$minutes Mins Screen Time Reward!',
+        'body': '$childName passed "$quizTitle" and unlocked $minutes minutes of extra screen time.',
+        'data': {
+          'type': 'quiz_reward',
+          'minutes': minutes,
+          'quizTitle': quizTitle,
+        },
+        'createdAt': Timestamp.fromDate(now),
+        'isRead': false,
+      };
+
+      await _firestore.collection('notifications').add(notif);
+      await _firestore
+          .collection(AppConstants.familiesCollection)
+          .doc(familyId)
+          .collection('notifications')
+          .add(notif);
+    } catch (e) {
+      debugPrint('Error granting screen time reward: $e');
     }
   }
 

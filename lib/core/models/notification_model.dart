@@ -12,6 +12,8 @@ enum NotificationType {
   deviceOnline,
   permissionDisabled,
   serviceUnavailable,
+  emergencySos,
+  safetyPing,
 }
 
 enum NotificationPriority { low, normal, high, urgent }
@@ -136,6 +138,11 @@ class ParentNotification {
       'permission_disabled' => NotificationType.permissionDisabled,
       'serviceUnavailable' ||
       'service_unavailable' => NotificationType.serviceUnavailable,
+      'emergencySos' ||
+      'emergency_sos' ||
+      'sos' => NotificationType.emergencySos,
+      'safetyPing' ||
+      'safety_ping' => NotificationType.safetyPing,
       _ => NotificationType.values.firstWhere(
         (e) => e.name == rawType,
         orElse: () => NotificationType.appRequest,
@@ -310,6 +317,10 @@ class NotificationTemplate {
   static String getTitle(NotificationType type, String childName) {
     final name = childName.trim().isNotEmpty ? childName.trim() : 'Child';
     switch (type) {
+      case NotificationType.emergencySos:
+        return '🚨 EMERGENCY SOS: $name';
+      case NotificationType.safetyPing:
+        return '📍 Safety Check-in from $name';
       case NotificationType.appRequest:
         return '$name: App Permission Request';
       case NotificationType.appApproved:
@@ -342,6 +353,12 @@ class NotificationTemplate {
   ) {
     final name = childName.trim().isNotEmpty ? childName.trim() : 'Child';
     switch (type) {
+      case NotificationType.emergencySos:
+        final location = data['address'] ?? data['location'] ?? 'Location captured';
+        return 'EMERGENCY: $name triggered an SOS alert! Location: $location. Tap to review immediately.';
+      case NotificationType.safetyPing:
+        final pingMsg = data['message'] ?? "I'm safe";
+        return '$name checked in: "$pingMsg"';
       case NotificationType.appRequest:
         final appName = data['appName'] ?? 'an app';
         final requestedMinutes = data['requestedMinutes'] ?? 30;
@@ -391,6 +408,10 @@ class NotificationTemplate {
 
   static NotificationPriority getPriority(NotificationType type) {
     switch (type) {
+      case NotificationType.emergencySos:
+        return NotificationPriority.urgent;
+      case NotificationType.safetyPing:
+        return NotificationPriority.high;
       case NotificationType.appRequest:
       case NotificationType.appApproved:
       case NotificationType.appDenied:
@@ -411,6 +432,10 @@ class NotificationTemplate {
 
   static Duration? getExpirationTime(NotificationType type) {
     switch (type) {
+      case NotificationType.emergencySos:
+        return null; // Emergency alerts must be explicitly acknowledged/resolved
+      case NotificationType.safetyPing:
+        return const Duration(hours: 6);
       case NotificationType.appRequest:
         return const Duration(minutes: 15); // Request expires in 15 minutes
       case NotificationType.appApproved:
