@@ -76,6 +76,10 @@ class MainActivity : FlutterActivity() {
                     "isMonitoringServiceRunning" -> {
                         result.success(isMonitoringServiceRunning())
                     }
+                    "getDeviceHealth" -> {
+                        val health = getDeviceHealth()
+                        result.success(health)
+                    }
                     "openUrl" -> {
                         val url = call.argument<String>("url") ?: ""
                         try {
@@ -321,6 +325,55 @@ class MainActivity : FlutterActivity() {
         // This is a simplified check - in production you might want to use ActivityManager
         val sharedPrefs = getSharedPreferences("family_guardian_prefs", Context.MODE_PRIVATE)
         return sharedPrefs.getBoolean("monitoring_enabled", false)
+    }
+
+    /**
+     * Get real device health status (battery, charging, network, monitoring service)
+     */
+    private fun getDeviceHealth(): Map<String, Any> {
+        val batteryStatus: Intent? = IntentFilter(Intent.ACTION_BATTERY_CHANGED).let { ifilter ->
+            registerReceiver(null, ifilter)
+        }
+        val level: Int = batteryStatus?.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, -1) ?: -1
+        val scale: Int = batteryStatus?.getIntExtra(android.os.BatteryManager.EXTRA_SCALE, -1) ?: -1
+        val batteryPct: Int = if (level >= 0 && scale > 0) ((level / scale.toFloat()) * 100).toInt() else -1
+
+        val status: Int = batteryStatus?.getIntExtra(android.os.BatteryManager.EXTRA_STATUS, -1) ?: -1
+        val isCharging: Boolean = status == android.os.BatteryManager.BATTERY_STATUS_CHARGING ||
+                                  status == android.os.BatteryManager.BATTERY_STATUS_FULL
+
+        var networkType = "Offline"
+        try {
+            val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val network = cm.activeNetwork
+                val capabilities = cm.getNetworkCapabilities(network)
+                if (capabilities != null) {
+                    if (capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI)) {
+                        networkType = "WiFi"
+                    } else if (capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_CELLULAR)) {
+                        networkType = "Cellular"
+                    } else if (capabilities.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)) {
+                        networkType = "Online"
+                    }
+                }
+            } else {
+                @Suppress("DEPRECATION")
+                val activeNetworkInfo = cm.activeNetworkInfo
+                if (activeNetworkInfo != null && activeNetworkInfo.isConnected) {
+                    networkType = if (activeNetworkInfo.type == android.net.ConnectivityManager.TYPE_WIFI) "WiFi" else "Cellular"
+                }
+            }
+        } catch (e: Exception) {
+            networkType = "Unknown"
+        }
+
+        return mapOf(
+            "batteryLevel" to batteryPct,
+            "isCharging" to isCharging,
+            "networkType" to networkType,
+            "isMonitoringActive" to isMonitoringServiceRunning()
+        )
     }
     
     /**

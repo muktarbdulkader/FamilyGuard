@@ -241,6 +241,22 @@ class PermissionService {
       }
     };
   }
+
+  /// Get real-time device health information (battery, charging, network, monitoring service)
+  Future<Map<String, dynamic>> getDeviceHealth() async {
+    try {
+      final dynamic result = await _channel.invokeMethod('getDeviceHealth');
+      if (result is Map) {
+        return Map<String, dynamic>.from(result);
+      }
+    } catch (_) {}
+    return {
+      'batteryLevel': -1,
+      'isCharging': false,
+      'networkType': 'Online',
+      'isMonitoringActive': false,
+    };
+  }
 }
 
 /// Location permission status enum

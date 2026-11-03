@@ -12,8 +12,6 @@ import '../../../../core/models/location_model.dart';
 import '../../../../core/providers/family_provider.dart';
 import '../../../../core/services/location_service.dart';
 import '../../../../core/services/geocoding_service.dart';
-import '../widgets/family_selector.dart';
-import '../widgets/child_selector.dart';
 import '../widgets/app_usage_indicator.dart';
 import '../widgets/app_rule_editor_sheet.dart';
 import '../../../apps/presentation/screens/parent_app_management_screen.dart';
@@ -104,6 +102,116 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
     });
   }
 
+  void _showFamilySwitcherSheet(
+    BuildContext context,
+    List<FamilyModel> families,
+    FamilyModel? selectedFamily,
+  ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF132238) : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Switch Family',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(
+                    Icons.close,
+                    color: isDark ? Colors.white70 : Colors.black54,
+                  ),
+                  onPressed: () => Navigator.pop(ctx),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ...families.map((family) {
+              final isSel = family.id == selectedFamily?.id;
+              return Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                decoration: BoxDecoration(
+                  color: isSel
+                      ? (isDark ? const Color(0xFF0F3B39) : const Color(0xFFEEF2FF))
+                      : (isDark ? const Color(0xFF1E3554).withOpacity(0.4) : Colors.grey[100]),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: isSel
+                        ? (isDark ? const Color(0xFF2DD4BF) : const Color(0xFF4F46E5))
+                        : Colors.transparent,
+                  ),
+                ),
+                child: ListTile(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  leading: Icon(
+                    Icons.home_rounded,
+                    color: isSel
+                        ? (isDark ? const Color(0xFF2DD4BF) : const Color(0xFF4F46E5))
+                        : (isDark ? const Color(0xFF8BA0B8) : Colors.grey),
+                  ),
+                  title: Text(
+                    family.name,
+                    style: TextStyle(
+                      fontWeight: isSel ? FontWeight.bold : FontWeight.w600,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                  ),
+                  trailing: isSel
+                      ? Icon(
+                          Icons.check_circle_rounded,
+                          color: isDark ? const Color(0xFF2DD4BF) : const Color(0xFF4F46E5),
+                        )
+                      : null,
+                  onTap: () {
+                    ref.read(selectedFamilyProvider.notifier).state = family;
+                    ref.read(selectedChildProvider.notifier).state = null;
+                    Navigator.pop(ctx);
+                  },
+                ),
+              );
+            }),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _showCreateFamilyDialog();
+                },
+                icon: const Icon(Icons.add_home_rounded),
+                label: const Text('Create Another Family'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -152,12 +260,70 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
       body: SafeArea(
         child: Column(
           children: [
-            // ── Reusable Top Page Header with Guaranteed Working Back Button ──
+            // ── Reusable Top Page Header with Dynamic Subtitle & Family Switcher ──
             FamilyPageHeader(
               title: l10n.familyControls,
-              subtitle: l10n.parentDashboard,
+              subtitle: selectedFamily != null
+                  ? (children.isNotEmpty
+                      ? '${selectedFamily.name} • ${children.length} ${children.length == 1 ? 'child' : 'children'}'
+                      : selectedFamily.name)
+                  : l10n.parentDashboard,
               icon: Icons.tune_rounded,
               actions: [
+                // Multi-family switcher button if parent has >1 family
+                if (familiesAsync.value != null && familiesAsync.value!.length > 1)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () => _showFamilySwitcherSheet(
+                        context,
+                        familiesAsync.value!,
+                        selectedFamily,
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF132238) : const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isDark ? const Color(0xFF1E3554) : const Color(0xFFE2E8F0),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.home_outlined,
+                              size: 15,
+                              color: isDark ? const Color(0xFF2DD4BF) : const Color(0xFF4F46E5),
+                            ),
+                            const SizedBox(width: 4),
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 80),
+                              child: Text(
+                                selectedFamily?.name ?? 'Family',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 2),
+                            Icon(
+                              Icons.arrow_drop_down,
+                              size: 16,
+                              color: isDark ? const Color(0xFF8BA0B8) : const Color(0xFF64748B),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
                 IconButton(
                   onPressed: () => _showSettings(),
                   visualDensity: VisualDensity.compact,
@@ -176,93 +342,306 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
               ],
             ),
 
-            // ── Family & Child Selectors ──────────────────────────
+            // ── Ultra-Comfortable Compact Horizontal Child Selector Bar ──
+            // Stays fixed at 56px height, supporting 1 to 20+ children without pushing down content!
             Container(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              height: 56,
+              width: double.infinity,
               decoration: BoxDecoration(
                 color: isDark ? const Color(0xFF0C1829) : Colors.white,
                 border: Border(
                   bottom: BorderSide(
                     color: isDark
                         ? const Color(0xFF1E3554)
-                        : Colors.grey[200]!,
+                        : const Color(0xFFE2E8F0),
+                    width: 1,
                   ),
                 ),
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  familiesAsync.when(
-                    loading: () => const _LoadingSelector(
-                      title: 'Loading families...',
+              child: familiesAsync.when(
+                loading: () => const Center(
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+                error: (error, _) => Center(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.error_outline_rounded, size: 16, color: Color(0xFFEF4444)),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Failed to load family',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDark ? Colors.white70 : Colors.black87,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.refresh_rounded, size: 16),
+                        onPressed: () => ref.refresh(userFamiliesProvider),
+                      ),
+                    ],
+                  ),
+                ),
+                data: (families) {
+                  if (families.isEmpty) {
+                    return Center(
+                      child: TextButton.icon(
+                        onPressed: () => _showCreateFamilyDialog(),
+                        icon: const Icon(Icons.add_home_rounded, size: 18),
+                        label: const Text(
+                          'Create a Family',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    );
+                  }
+
+                  return childrenAsync.when(
+                    loading: () => const Center(
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
                     ),
-                    error: (error, stack) => _ErrorSelector(
-                      title: 'Error loading families',
-                      error: error.toString(),
-                      onRetry: () => ref.refresh(userFamiliesProvider),
+                    error: (error, _) => Center(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.error_outline_rounded, size: 16, color: Color(0xFFEF4444)),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Failed to load children',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark ? Colors.white70 : Colors.black87,
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.refresh_rounded, size: 16),
+                            onPressed: () => ref.refresh(familyChildrenProvider),
+                          ),
+                        ],
+                      ),
                     ),
-                    data: (families) {
-                      if (families.isEmpty) {
-                        return _EmptyStateSelector(
-                          title: 'No families found',
-                          subtitle:
-                              'Create a family to start managing parental controls',
-                          onAction: () => _showCreateFamilyDialog(),
-                          actionLabel: 'Create Family',
+                    data: (children) {
+                      if (children.isEmpty) {
+                        return Center(
+                          child: TextButton.icon(
+                            onPressed: () => _showInviteChildDialog(),
+                            icon: const Icon(Icons.person_add_alt_1_rounded, size: 18),
+                            label: const Text(
+                              'Invite / Pair a Child Device',
+                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                            ),
+                          ),
                         );
                       }
-                      return FamilySelector(
-                        families: families,
-                        selectedFamily: selectedFamily ?? families.first,
-                        onFamilySelected: (family) {
-                          ref.read(selectedFamilyProvider.notifier).state =
-                              family;
-                          ref.read(selectedChildProvider.notifier).state =
-                              null;
+
+                      return ListView.separated(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        itemCount: children.length + 1,
+                        separatorBuilder: (_, __) => const SizedBox(width: 8),
+                        itemBuilder: (context, index) {
+                          // "+ Add" Child button at the end
+                          if (index == children.length) {
+                            return InkWell(
+                              borderRadius: BorderRadius.circular(20),
+                              onTap: () => _showInviteChildDialog(),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: isDark ? const Color(0xFF132238) : const Color(0xFFF8FAFC),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: isDark ? const Color(0xFF1E3554) : const Color(0xFFE2E8F0),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.add_rounded,
+                                      size: 16,
+                                      color: isDark ? const Color(0xFF2DD4BF) : const Color(0xFF4F46E5),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Add Child',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark ? const Color(0xFF8BA0B8) : const Color(0xFF64748B),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }
+
+                          final child = children[index];
+                          final isSelected = child.id == activeSelectedChild?.id;
+                          final initial = child.displayName.isNotEmpty
+                              ? child.displayName[0].toUpperCase()
+                              : 'C';
+
+                          return InkWell(
+                            borderRadius: BorderRadius.circular(24),
+                            onTap: () {
+                              ref.read(selectedChildProvider.notifier).state = child;
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.fromLTRB(6, 4, 14, 4),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? (isDark
+                                        ? const Color(0xFF0F3B39)
+                                        : const Color(0xFFEEF2FF))
+                                    : (isDark
+                                        ? const Color(0xFF132238)
+                                        : const Color(0xFFF8FAFC)),
+                                borderRadius: BorderRadius.circular(24),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? (isDark
+                                          ? const Color(0xFF2DD4BF)
+                                          : const Color(0xFF4F46E5))
+                                      : (isDark
+                                          ? const Color(0xFF1E3554)
+                                          : const Color(0xFFE2E8F0)),
+                                  width: isSelected ? 1.8 : 1.0,
+                                ),
+                                boxShadow: isSelected
+                                    ? [
+                                        BoxShadow(
+                                          color: (isDark
+                                                  ? const Color(0xFF2DD4BF)
+                                                  : const Color(0xFF4F46E5))
+                                              .withOpacity(isDark ? 0.3 : 0.2),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ]
+                                    : null,
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  // Avatar circle with Online status & Tamper indicator
+                                  Stack(
+                                    clipBehavior: Clip.none,
+                                    children: [
+                                      CircleAvatar(
+                                        radius: 14,
+                                        backgroundColor: isSelected
+                                            ? (isDark
+                                                ? const Color(0xFF2DD4BF)
+                                                : const Color(0xFF4F46E5))
+                                            : (isDark
+                                                ? const Color(0xFF1E3554)
+                                                : const Color(0xFFE2E8F0)),
+                                        child: Text(
+                                          initial,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w800,
+                                            color: isSelected
+                                                ? (isDark ? const Color(0xFF042421) : Colors.white)
+                                                : (isDark ? Colors.white70 : const Color(0xFF475569)),
+                                          ),
+                                        ),
+                                      ),
+                                      // Online indicator dot
+                                      Positioned(
+                                        bottom: -1,
+                                        right: -1,
+                                        child: Container(
+                                          width: 8,
+                                          height: 8,
+                                          decoration: BoxDecoration(
+                                            color: child.isOnline
+                                                ? const Color(0xFF10B981)
+                                                : const Color(0xFF94A3B8),
+                                            shape: BoxShape.circle,
+                                            border: Border.all(
+                                              color: isDark
+                                                  ? const Color(0xFF132238)
+                                                  : Colors.white,
+                                              width: 1.5,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      // Tamper Warning Dot (if overlay or usage access disabled)
+                                      if (!child.hasOverlayPermission || !child.hasUsageStatsPermission)
+                                        Positioned(
+                                          top: -3,
+                                          left: -3,
+                                          child: Container(
+                                            width: 10,
+                                            height: 10,
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFEF4444),
+                                              shape: BoxShape.circle,
+                                              border: Border.all(
+                                                color: isDark ? const Color(0xFF132238) : Colors.white,
+                                                width: 1.5,
+                                              ),
+                                            ),
+                                            child: const Center(
+                                              child: Text(
+                                                '!',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 7,
+                                                  fontWeight: FontWeight.w900,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    child.displayName,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                                      color: isSelected
+                                          ? (isDark ? Colors.white : const Color(0xFF0F172A))
+                                          : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                                    ),
+                                  ),
+                                  if (isSelected) ...[
+                                    const SizedBox(width: 5),
+                                    Icon(
+                                      Icons.check_circle_rounded,
+                                      size: 15,
+                                      color: isDark
+                                          ? const Color(0xFF2DD4BF)
+                                          : const Color(0xFF4F46E5),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          );
                         },
                       );
                     },
-                  ),
-                  if (selectedFamily != null) ...[
-                    const SizedBox(height: 10),
-                    childrenAsync.when(
-                      loading: () => const _LoadingSelector(
-                        title: 'Loading children...',
-                      ),
-                      error: (error, stack) => _ErrorSelector(
-                        title: 'Error loading children',
-                        error: error.toString(),
-                        onRetry: () => ref.refresh(familyChildrenProvider),
-                      ),
-                      data: (children) {
-                        if (children.isEmpty) {
-                          return _EmptyStateSelector(
-                            title: 'No children in this family',
-                            subtitle: 'Invite children to join this family',
-                            onAction: () => _showInviteChildDialog(),
-                            actionLabel: 'Invite Child',
-                          );
-                        }
-                        final visibleSelectedChild = children.firstWhere(
-                          (child) => child.id == selectedChild?.id,
-                          orElse: () => children.first,
-                        );
-                        return ChildSelector(
-                          children: children,
-                          selectedChild: visibleSelectedChild,
-                          onChildSelected: (child) {
-                            ref.read(selectedChildProvider.notifier).state =
-                                child;
-                          },
-                        );
-                      },
-                    ),
-                  ],
-                ],
+                  );
+                },
               ),
             ),
-
             // ── Tab Bar — always visible ──────────────────────────
             Container(
               decoration: BoxDecoration(
@@ -2562,195 +2941,5 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
 
   void _showInviteChildDialog() {
     context.push(AppRoutes.familySetup);
-  }
-}
-
-// Helper widgets
-class _LoadingSelector extends StatelessWidget {
-  final String title;
-
-  const _LoadingSelector({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF132238) : Colors.grey[100],
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: isDark ? const Color(0xFF1E3554) : Colors.grey[300]!,
-        ),
-      ),
-      child: Row(
-        children: [
-          const SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(
-              color: Color(0xFF2DD4BF),
-              strokeWidth: 2,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ErrorSelector extends StatelessWidget {
-  final String title;
-  final String error;
-  final VoidCallback? onRetry;
-
-  const _ErrorSelector({required this.title, required this.error, this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isPermissionDenied = error.contains('permission-denied');
-    final displayError = isPermissionDenied
-        ? 'Firebase permission issue. Please update your Firestore Security Rules and tap Retry.'
-        : error;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF2B1118) : Colors.red[50],
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: isDark ? Colors.red.withOpacity(0.4) : Colors.red[200]!,
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.error_outline,
-            color: isDark ? const Color(0xFFEF4444) : Colors.red[600],
-            size: 20,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : Colors.red[800],
-                  ),
-                ),
-                Text(
-                  displayError,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: isDark ? const Color(0xFFFCA5A5) : Colors.red[600],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (onRetry != null) ...[
-            const SizedBox(width: 8),
-            ElevatedButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh, size: 16),
-              label: const Text('Retry', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isDark ? const Color(0xFFEF4444) : Colors.red[700],
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _EmptyStateSelector extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final VoidCallback onAction;
-  final String actionLabel;
-
-  const _EmptyStateSelector({
-    required this.title,
-    required this.subtitle,
-    required this.onAction,
-    required this.actionLabel,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF132238) : Colors.blue[50],
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: isDark ? const Color(0xFF1E3554) : Colors.blue[200]!,
-        ),
-      ),
-      child: Column(
-        children: [
-          Icon(
-            Icons.info_outline,
-            color: isDark ? const Color(0xFF2DD4BF) : Colors.blue[600],
-            size: 24,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            title,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white : Colors.blue[800],
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: TextStyle(
-              fontSize: 12,
-              color: isDark ? const Color(0xFF8BA0B8) : Colors.blue[600],
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: onAction,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isDark
-                  ? const Color(0xFF2DD4BF)
-                  : Colors.blue[600],
-              foregroundColor: isDark ? const Color(0xFF0C1829) : Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            child: Text(
-              actionLabel,
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }

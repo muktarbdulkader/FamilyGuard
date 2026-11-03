@@ -133,6 +133,14 @@ class ChildModel {
   final Map<String, dynamic> preferences;
   final bool hasOverlayPermission;
   final bool hasUsageStatsPermission;
+  final int? batteryLevel;
+  final bool isCharging;
+  final String? networkType;
+  final bool isMonitoringActive;
+  final bool hasLocationPermission;
+  final bool hasNotificationPermission;
+  final bool hasBatteryOptimizationDisabled;
+  final DateTime? lastSyncTimestamp;
 
   ChildModel({
     required this.id,
@@ -147,6 +155,14 @@ class ChildModel {
     this.preferences = const {},
     this.hasOverlayPermission = true,
     this.hasUsageStatsPermission = true,
+    this.batteryLevel,
+    this.isCharging = false,
+    this.networkType,
+    this.isMonitoringActive = true,
+    this.hasLocationPermission = true,
+    this.hasNotificationPermission = true,
+    this.hasBatteryOptimizationDisabled = true,
+    this.lastSyncTimestamp,
   }) : _reportedOnline = isOnline;
 
   static const onlineThreshold = ChildPresence.onlineThreshold;
