@@ -10,6 +10,7 @@ import '../../../../core/providers/family_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/family_bottom_navigation.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../widgets/location_dashboard_components.dart';
 
 /// Family Location Screen — shows child locations without requiring a Maps API key.
 /// Tapping a location card opens the native maps app via a geo: URI.
@@ -161,60 +162,46 @@ class _FamilyMapScreenState extends ConsumerState<FamilyMapScreen> {
 
     return Scaffold(
       backgroundColor: _colors.background,
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: _colors.surface,
-        foregroundColor: _colors.textPrimary,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      body: SafeArea(
+        child: Column(
           children: [
-            Text(
-              l10n.familyLocations,
-              style: TextStyle(
-                color: _colors.textPrimary,
-                fontWeight: FontWeight.bold,
-                fontSize: 17,
-              ),
+            LocationPageHeader(
+              title: l10n.familyLocations,
+              subtitle: l10n.liveGpsTracking,
+              isRefreshing: _isLoading,
+              refreshTooltip: l10n.refresh,
+              onRefresh: _refreshLocations,
             ),
-            Text(
-              l10n.liveGpsTracking,
-              style: TextStyle(fontSize: 12, color: _colors.textSecondary),
-            ),
+            Expanded(child: _buildBody()),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            tooltip: l10n.refresh,
-            onPressed: () {
-              setState(() {
-                _isLoading = true;
-                _error = null;
-              });
-              final fid =
-                  _activeFamilyId ??
-                  widget.familyId ??
-                  ref.read(selectedFamilyProvider)?.id ??
-                  ref.read(currentUserDataProvider).value?.familyId ??
-                  '';
-              if (fid.isNotEmpty) {
-                _subscribeToLocations(fid);
-              } else {
-                setState(() {
-                  _isLoading = false;
-                  _error = 'No family linked to this account yet.';
-                });
-              }
-            },
-          ),
-        ],
       ),
-      body: _buildBody(),
       bottomNavigationBar: const FamilyBottomNavigation(
         isParent: true,
         selected: FamilyNavDestination.location,
       ),
     );
+  }
+
+  void _refreshLocations() {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    final familyId =
+        _activeFamilyId ??
+        widget.familyId ??
+        ref.read(selectedFamilyProvider)?.id ??
+        ref.read(currentUserDataProvider).value?.familyId ??
+        '';
+    if (familyId.isNotEmpty) {
+      _subscribeToLocations(familyId);
+    } else {
+      setState(() {
+        _isLoading = false;
+        _error = 'No family linked to this account yet.';
+      });
+    }
   }
 
   Widget _buildBody() {
@@ -288,42 +275,68 @@ class _FamilyMapScreenState extends ConsumerState<FamilyMapScreen> {
       return _buildEmptyState();
     }
 
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        // Info banner
-        Container(
-          margin: const EdgeInsets.only(bottom: 16),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: _colors.primary.withOpacity(0.08),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: _colors.primary.withOpacity(0.2)),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= 900;
+        final content = ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1180),
+          child: Padding(
+            padding: EdgeInsets.all(isWide ? 24 : 16),
+            child: isWide
+                ? Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        width: 350,
+                        child: LocationOverviewPanel(locations: _locations),
+                      ),
+                      const SizedBox(width: 24),
+                      Expanded(child: _buildLocationList()),
+                    ],
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      LocationOverviewPanel(locations: _locations),
+                      const SizedBox(height: 22),
+                      Expanded(child: _buildLocationList()),
+                    ],
+                  ),
           ),
-          child: Row(
-            children: [
-              Icon(
-                Icons.info_outline_rounded,
-                color: _colors.primary,
-                size: 20,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Tap a card to open the location in your maps app.',
-                  style: TextStyle(color: _colors.primary, fontSize: 13),
-                ),
-              ),
-            ],
-          ),
-        ),
+        );
 
-        // Location cards
-        ..._locations.map(
-          (loc) => _LocationCard(
-            location: loc,
-            colors: _colors,
-            onTap: () => _openInMaps(loc),
+        return Align(
+          alignment: Alignment.topCenter,
+          child: SizedBox(
+            width: double.infinity,
+            height: constraints.maxHeight,
+            child: content,
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildLocationList() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        LocationSectionHeading(
+          title: 'Shared locations',
+          count: _locations.length,
+        ),
+        Expanded(
+          child: ListView.builder(
+            padding: EdgeInsets.zero,
+            itemCount: _locations.length,
+            itemBuilder: (context, index) {
+              final location = _locations[index];
+              return _LocationCard(
+                location: location,
+                colors: _colors,
+                onTap: () => _openInMaps(location),
+              );
+            },
           ),
         ),
       ],
@@ -405,18 +418,17 @@ class _LocationCard extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: colors.surface,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isStale
-                ? colors.error.withOpacity(0.45)
-                : colors.success.withOpacity(0.4),
-            width: 1.5,
+            color: isStale ? colors.error.withOpacity(0.35) : colors.border,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 12,
-              offset: const Offset(0, 3),
+              color: colors.isDark
+                  ? Colors.black.withOpacity(0.12)
+                  : const Color(0xFF3B2A63).withOpacity(0.06),
+              blurRadius: 18,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
@@ -430,21 +442,15 @@ class _LocationCard extends StatelessWidget {
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: isStale
-                          ? [colors.textMuted, colors.textSecondary]
-                          : [colors.primary, colors.accent],
-                    ),
-                    borderRadius: BorderRadius.circular(14),
+                    color: (isStale ? colors.error : colors.primary)
+                        .withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(15),
                   ),
                   child: Center(
-                    child: Text(
-                      _initials(displayName),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
+                    child: Icon(
+                      Icons.person_pin_circle_rounded,
+                      color: isStale ? colors.error : colors.primary,
+                      size: 25,
                     ),
                   ),
                 ),
@@ -457,7 +463,7 @@ class _LocationCard extends StatelessWidget {
                         displayName,
                         style: TextStyle(
                           color: colors.textPrimary,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w800,
                           fontSize: 15,
                         ),
                         maxLines: 1,
@@ -494,10 +500,10 @@ class _LocationCard extends StatelessWidget {
                 ),
                 // Open in maps icon
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(9),
                   decoration: BoxDecoration(
                     color: colors.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
                     Icons.open_in_new_rounded,
@@ -508,7 +514,7 @@ class _LocationCard extends StatelessWidget {
               ],
             ),
 
-            const SizedBox(height: 14),
+            const SizedBox(height: 15),
             Divider(height: 1, color: colors.border),
             const SizedBox(height: 12),
 
@@ -614,11 +620,6 @@ class _LocationCard extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String _initials(String name) {
-    final trimmed = name.trim();
-    return trimmed.isEmpty ? 'C' : trimmed[0].toUpperCase();
   }
 
   String _timeAgo(DateTime timestamp) {

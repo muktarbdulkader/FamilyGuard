@@ -4,23 +4,31 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import '../models/family_model.dart';
 import '../models/app_info.dart';
+import 'auth_provider.dart';
 import 'user_provider.dart';
 
 /// Provider for user's families
 final userFamiliesProvider = StreamProvider<List<FamilyModel>>((ref) {
-  final user = ref.watch(currentUserDataProvider).value;
-  if (user == null) {
-    return Stream.value([]);
-  }
+  final authState = ref.watch(authStateProvider);
+  return authState.when(
+    data: (user) {
+      if (user == null) {
+        return Stream.value(const <FamilyModel>[]);
+      }
 
-  return FirebaseFirestore.instance
-      .collection('families')
-      .where('parentIds', arrayContains: user.uid)
-      .snapshots()
-      .map(
-        (snapshot) =>
-            snapshot.docs.map((doc) => FamilyModel.fromFirestore(doc)).toList(),
-      );
+      return FirebaseFirestore.instance
+          .collection('families')
+          .where('parentIds', arrayContains: user.uid)
+          .snapshots()
+          .map(
+            (snapshot) => snapshot.docs
+                .map((doc) => FamilyModel.fromFirestore(doc))
+                .toList(),
+          );
+    },
+    loading: () => const Stream.empty(),
+    error: (error, stackTrace) => Stream.error(error, stackTrace),
+  );
 });
 
 /// Provider for selected family

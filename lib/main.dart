@@ -28,20 +28,14 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize Firebase - this must be awaited before anything else
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
+    FirebaseFirestore.instance.settings = const Settings(
+      persistenceEnabled: true,
+      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
     );
-    try {
-      FirebaseFirestore.instance.settings = const Settings(
-        persistenceEnabled: true,
-        cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
-      );
-    } catch (e) {
-      debugPrint('Firestore settings notice: $e');
-    }
   } catch (e) {
-    debugPrint('Firebase init notice: $e');
+    debugPrint('Firestore settings notice: $e');
   }
 
   // Set up background message handler

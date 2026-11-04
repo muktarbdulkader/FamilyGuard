@@ -6,7 +6,7 @@ import 'auth_provider.dart';
 // Current user data provider
 final currentUserDataProvider = StreamProvider<UserModel?>((ref) {
   final authState = ref.watch(authStateProvider);
-  
+
   return authState.when(
     data: (user) {
       if (user != null) {
@@ -14,7 +14,7 @@ final currentUserDataProvider = StreamProvider<UserModel?>((ref) {
       }
       return Stream.value(null);
     },
-    loading: () => Stream.value(null),
-    error: (_, __) => Stream.value(null),
+    loading: () => const Stream.empty(),
+    error: (error, stackTrace) => Stream.error(error, stackTrace),
   );
 });
