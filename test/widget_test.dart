@@ -10,12 +10,10 @@ import 'package:flutter_study_app/main.dart';
 void main() {
   testWidgets('App starts and loads correctly', (WidgetTester tester) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const ProviderScope(
-      child: ParentalControlApp(),
-    ));
+    await tester.pumpWidget(const ProviderScope(child: ParentalControlApp()));
 
-    // Wait for the initial route to load
-    await tester.pumpAndSettle();
+    // The initial route may contain an indeterminate loading animation.
+    await tester.pump();
 
     // Verify that the app loads (basic smoke test)
     expect(find.byType(MaterialApp), findsOneWidget);

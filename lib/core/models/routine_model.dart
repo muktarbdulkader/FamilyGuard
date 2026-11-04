@@ -9,28 +9,28 @@ enum RoutineTemplate {
   custom;
 
   String get displayName => switch (this) {
-        RoutineTemplate.study => 'Study & Focus',
-        RoutineTemplate.dinner => 'Family Dinner',
-        RoutineTemplate.bedtime => 'Bedtime Routine',
-        RoutineTemplate.play => 'Free Play Time',
-        RoutineTemplate.custom => 'Custom Routine',
-      };
+    RoutineTemplate.study => 'Study & Focus',
+    RoutineTemplate.dinner => 'Family Dinner',
+    RoutineTemplate.bedtime => 'Bedtime Routine',
+    RoutineTemplate.play => 'Free Play Time',
+    RoutineTemplate.custom => 'Custom Routine',
+  };
 
   IconData get icon => switch (this) {
-        RoutineTemplate.study => Icons.menu_book_rounded,
-        RoutineTemplate.dinner => Icons.restaurant_rounded,
-        RoutineTemplate.bedtime => Icons.nights_stay_rounded,
-        RoutineTemplate.play => Icons.sports_esports_rounded,
-        RoutineTemplate.custom => Icons.schedule_rounded,
-      };
+    RoutineTemplate.study => Icons.menu_book_rounded,
+    RoutineTemplate.dinner => Icons.restaurant_rounded,
+    RoutineTemplate.bedtime => Icons.nights_stay_rounded,
+    RoutineTemplate.play => Icons.sports_esports_rounded,
+    RoutineTemplate.custom => Icons.schedule_rounded,
+  };
 
   Color get color => switch (this) {
-        RoutineTemplate.study => const Color(0xFF2DD4BF),
-        RoutineTemplate.dinner => const Color(0xFFF59E0B),
-        RoutineTemplate.bedtime => const Color(0xFF6366F1),
-        RoutineTemplate.play => const Color(0xFFEC4899),
-        RoutineTemplate.custom => const Color(0xFF3B82F6),
-      };
+    RoutineTemplate.study => const Color(0xFF2DD4BF),
+    RoutineTemplate.dinner => const Color(0xFFF59E0B),
+    RoutineTemplate.bedtime => const Color(0xFF6366F1),
+    RoutineTemplate.play => const Color(0xFFEC4899),
+    RoutineTemplate.custom => const Color(0xFF3B82F6),
+  };
 
   static RoutineTemplate fromString(String? type) {
     return switch ((type ?? '').toLowerCase()) {
@@ -116,7 +116,10 @@ class RoutineModel {
   }
 
   /// Conflict detector: check if this routine overlaps with another on any common day
-  static List<String> findConflicts(RoutineModel candidate, List<RoutineModel> existingRoutines) {
+  static List<String> findConflicts(
+    RoutineModel candidate,
+    List<RoutineModel> existingRoutines,
+  ) {
     final conflicts = <String>[];
     if (!candidate.isActive) return conflicts;
 
@@ -197,8 +200,14 @@ class RoutineModel {
       childId: data['childId'] as String? ?? '',
       name: data['name'] as String? ?? 'Routine',
       templateType: RoutineTemplate.fromString(data['templateType'] as String?),
-      startTime: parseTime(data['startTime'] as Map<String, dynamic>?, const TimeOfDay(hour: 8, minute: 0)),
-      endTime: parseTime(data['endTime'] as Map<String, dynamic>?, const TimeOfDay(hour: 9, minute: 0)),
+      startTime: parseTime(
+        data['startTime'] as Map<String, dynamic>?,
+        const TimeOfDay(hour: 8, minute: 0),
+      ),
+      endTime: parseTime(
+        data['endTime'] as Map<String, dynamic>?,
+        const TimeOfDay(hour: 9, minute: 0),
+      ),
       daysOfWeek: List<int>.from(data['daysOfWeek'] ?? [1, 2, 3, 4, 5, 6, 7]),
       isActive: data['isActive'] as bool? ?? true,
       description: data['description'] as String?,

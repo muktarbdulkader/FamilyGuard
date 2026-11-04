@@ -116,6 +116,18 @@ async function run() {
       displayName: stringValue('Outsider'),
     }),
   ]);
+  const parentFamilyRead = await authenticatedRequest(familyPath, parent.idToken);
+  assert.equal(parentFamilyRead.response.status, 200, 'Parent can read their family');
+  const parentChildProfileRead = await authenticatedRequest(
+    `users/${child.localId}`,
+    parent.idToken,
+  );
+  assert.equal(parentChildProfileRead.response.status, 200, 'Parent can read a linked child profile');
+  const outsiderChildProfileRead = await authenticatedRequest(
+    `users/${child.localId}`,
+    outsider.idToken,
+  );
+  assert.equal(outsiderChildProfileRead.response.status, 403, 'Outsider cannot read a child profile');
 
   const materialPath =
     `${familyPath}/educational_materials/material_${suffix}`;
@@ -475,7 +487,7 @@ async function run() {
   assert.equal(revokedRead.response.status, 403, 'Revoked participant is denied');
 
   console.log(
-    'Chat Firestore rules passed: linked and legacy contact queries, conversation reads, valid send, recipient-only read receipt, outsider/sender-spoof denial, and revoked-link denial.',
+    'Firestore rules passed: linked and legacy contact queries, conversation access, recipient-only read receipts, quiz answer-key privacy, server-only quiz scoring, and outsider/revoked-link denial.',
   );
 }
 

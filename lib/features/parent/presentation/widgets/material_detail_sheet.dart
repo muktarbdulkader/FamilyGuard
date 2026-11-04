@@ -55,9 +55,9 @@ class MaterialDetailSheet extends ConsumerWidget {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error launching: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error launching: $e')));
       }
     }
   }
@@ -86,7 +86,9 @@ class MaterialDetailSheet extends ConsumerWidget {
 
     if (confirmed == true && context.mounted) {
       try {
-        await ref.read(educationServiceProvider).deleteMaterial(
+        await ref
+            .read(educationServiceProvider)
+            .deleteMaterial(
               familyId: familyId,
               materialId: material.id,
               storagePath: material.storagePath,
@@ -100,9 +102,9 @@ class MaterialDetailSheet extends ConsumerWidget {
         }
       } catch (e) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to delete: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Failed to delete: $e')));
         }
       }
     }
@@ -174,7 +176,10 @@ class MaterialDetailSheet extends ConsumerWidget {
                         runSpacing: 4,
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: theme.colorScheme.secondaryContainer,
                               borderRadius: BorderRadius.circular(8),
@@ -188,7 +193,10 @@ class MaterialDetailSheet extends ConsumerWidget {
                             ),
                           ),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: theme.colorScheme.surfaceContainerHighest,
                               borderRadius: BorderRadius.circular(8),
@@ -201,7 +209,10 @@ class MaterialDetailSheet extends ConsumerWidget {
                             ),
                           ),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: theme.colorScheme.tertiaryContainer,
                               borderRadius: BorderRadius.circular(8),
@@ -249,9 +260,16 @@ class MaterialDetailSheet extends ConsumerWidget {
                       value: 'delete',
                       child: Row(
                         children: [
-                          Icon(Icons.delete_outline, size: 20, color: Colors.red),
+                          Icon(
+                            Icons.delete_outline,
+                            size: 20,
+                            color: Colors.red,
+                          ),
                           SizedBox(width: 8),
-                          Text('Delete Material', style: TextStyle(color: Colors.red)),
+                          Text(
+                            'Delete Material',
+                            style: TextStyle(color: Colors.red),
+                          ),
                         ],
                       ),
                     ),
@@ -271,15 +289,13 @@ class MaterialDetailSheet extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 6),
-              Text(
-                material.description,
-                style: theme.textTheme.bodyMedium,
-              ),
+              Text(material.description, style: theme.textTheme.bodyMedium),
               const SizedBox(height: 16),
             ],
 
             // Learning Instructions
-            if (material.instructions != null && material.instructions!.isNotEmpty) ...[
+            if (material.instructions != null &&
+                material.instructions!.isNotEmpty) ...[
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
@@ -295,7 +311,11 @@ class MaterialDetailSheet extends ConsumerWidget {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.lightbulb_outline, size: 18, color: theme.colorScheme.primary),
+                        Icon(
+                          Icons.lightbulb_outline,
+                          size: 18,
+                          color: theme.colorScheme.primary,
+                        ),
                         const SizedBox(width: 6),
                         Text(
                           'Learning Instructions',
@@ -321,7 +341,9 @@ class MaterialDetailSheet extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
+                color: theme.colorScheme.surfaceContainerHighest.withOpacity(
+                  0.4,
+                ),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Column(
@@ -333,8 +355,12 @@ class MaterialDetailSheet extends ConsumerWidget {
                       Text('Uploaded', style: theme.textTheme.bodySmall),
                       const Spacer(),
                       Text(
-                        DateFormat('MMM d, yyyy • h:mm a').format(material.createdAt),
-                        style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+                        DateFormat(
+                          'MMM d, yyyy • h:mm a',
+                        ).format(material.createdAt),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ],
                   ),
@@ -360,7 +386,10 @@ class MaterialDetailSheet extends ConsumerWidget {
                         if (material.isOverdue) ...[
                           const SizedBox(width: 6),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.red.withOpacity(0.15),
                               borderRadius: BorderRadius.circular(6),
@@ -390,7 +419,9 @@ class MaterialDetailSheet extends ConsumerWidget {
                           child: Text(
                             material.fileName!,
                             overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ],
@@ -441,18 +472,22 @@ class MaterialDetailSheet extends ConsumerWidget {
             else
               ...material.assignedChildIds.map((cid) {
                 final childMember = children.cast<ChildModel?>().firstWhere(
-                      (c) => c?.id == cid,
-                      orElse: () => null,
-                    );
+                  (c) => c?.id == cid,
+                  orElse: () => null,
+                );
                 final childName = childMember?.displayName ?? 'Child';
                 final progress = material.childProgress[cid];
                 final status = progress?.status ?? LearningStatus.pending;
 
                 return Container(
                   margin: const EdgeInsets.only(bottom: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                    color: theme.colorScheme.surfaceContainerHighest
+                        .withOpacity(0.3),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: _statusColor(status).withOpacity(0.3),
@@ -464,7 +499,9 @@ class MaterialDetailSheet extends ConsumerWidget {
                         radius: 16,
                         backgroundColor: _statusColor(status).withOpacity(0.2),
                         child: Text(
-                          childName.isNotEmpty ? childName[0].toUpperCase() : 'C',
+                          childName.isNotEmpty
+                              ? childName[0].toUpperCase()
+                              : 'C',
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
@@ -506,7 +543,10 @@ class MaterialDetailSheet extends ConsumerWidget {
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: _statusColor(status).withOpacity(0.15),
                           borderRadius: BorderRadius.circular(8),

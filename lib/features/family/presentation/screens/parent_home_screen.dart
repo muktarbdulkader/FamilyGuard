@@ -626,7 +626,8 @@ class ParentHomeScreen extends ConsumerWidget {
                       ),
                     ],
                   ),
-                  if (!child.hasOverlayPermission || !child.hasUsageStatsPermission) ...[
+                  if (!child.hasOverlayPermission ||
+                      !child.hasUsageStatsPermission) ...[
                     const SizedBox(height: 12),
                     Container(
                       padding: const EdgeInsets.symmetric(

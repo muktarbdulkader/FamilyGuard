@@ -8,10 +8,14 @@ final routineServiceProvider = Provider<RoutineService>((ref) {
   return RoutineService.instance;
 });
 
-final childRoutinesProvider = StreamProvider.family<List<RoutineModel>, ({String familyId, String childId})>((ref, arg) {
-  final service = ref.watch(routineServiceProvider);
-  return service.getRoutinesStream(arg.familyId, arg.childId);
-});
+final childRoutinesProvider =
+    StreamProvider.family<
+      List<RoutineModel>,
+      ({String familyId, String childId})
+    >((ref, arg) {
+      final service = ref.watch(routineServiceProvider);
+      return service.getRoutinesStream(arg.familyId, arg.childId);
+    });
 
 class RoutineConflictException implements Exception {
   final List<String> conflicts;
@@ -29,7 +33,9 @@ class RoutineService {
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  CollectionReference<Map<String, dynamic>> _routinesCollection(String familyId) {
+  CollectionReference<Map<String, dynamic>> _routinesCollection(
+    String familyId,
+  ) {
     return _firestore
         .collection(AppConstants.familiesCollection)
         .doc(familyId)
@@ -46,7 +52,9 @@ class RoutineService {
     final conflicts = RoutineModel.findConflicts(routine, existing);
     if (conflicts.isNotEmpty) throw RoutineConflictException(conflicts);
 
-    final docRef = await _routinesCollection(familyId).add(routine.toFirestore());
+    final docRef = await _routinesCollection(
+      familyId,
+    ).add(routine.toFirestore());
     return (id: docRef.id, conflicts: conflicts);
   }
 
@@ -59,7 +67,9 @@ class RoutineService {
     final conflicts = RoutineModel.findConflicts(routine, existing);
     if (conflicts.isNotEmpty) throw RoutineConflictException(conflicts);
 
-    await _routinesCollection(familyId).doc(routine.id).update(routine.toFirestore());
+    await _routinesCollection(
+      familyId,
+    ).doc(routine.id).update(routine.toFirestore());
     return conflicts;
   }
 
@@ -84,26 +94,31 @@ class RoutineService {
   }
 
   /// Stream routines for a child
-  Stream<List<RoutineModel>> getRoutinesStream(String familyId, String childId) {
+  Stream<List<RoutineModel>> getRoutinesStream(
+    String familyId,
+    String childId,
+  ) {
     if (familyId.isEmpty || childId.isEmpty) return Stream.value([]);
 
-    return _routinesCollection(familyId)
-        .where('childId', isEqualTo: childId)
-        .snapshots()
-        .map((snap) {
-          final list = snap.docs.map((d) => RoutineModel.fromFirestore(d)).toList();
-          list.sort((a, b) => a.startMinutes.compareTo(b.startMinutes));
-          return list;
-        });
+    return _routinesCollection(
+      familyId,
+    ).where('childId', isEqualTo: childId).snapshots().map((snap) {
+      final list = snap.docs.map((d) => RoutineModel.fromFirestore(d)).toList();
+      list.sort((a, b) => a.startMinutes.compareTo(b.startMinutes));
+      return list;
+    });
   }
 
   /// One-time fetch for conflict detection
-  Future<List<RoutineModel>> getRoutinesOnce(String familyId, String childId) async {
+  Future<List<RoutineModel>> getRoutinesOnce(
+    String familyId,
+    String childId,
+  ) async {
     if (familyId.isEmpty || childId.isEmpty) return [];
 
-    final snap = await _routinesCollection(familyId)
-        .where('childId', isEqualTo: childId)
-        .get();
+    final snap = await _routinesCollection(
+      familyId,
+    ).where('childId', isEqualTo: childId).get();
     return snap.docs.map((d) => RoutineModel.fromFirestore(d)).toList();
   }
 }

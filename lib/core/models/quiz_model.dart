@@ -18,7 +18,10 @@ class QuizQuestion {
   factory QuizQuestion.fromMap(Map<String, dynamic> map, {String id = ''}) {
     return QuizQuestion(
       id: id.isNotEmpty ? id : (map['id'] as String? ?? ''),
-      questionText: (map['questionText'] as String?) ?? (map['question'] as String?) ?? '',
+      questionText:
+          (map['questionText'] as String?) ??
+          (map['question'] as String?) ??
+          '',
       options: List<String>.from(map['options'] ?? []),
       correctOptionIndex: (map['correctOptionIndex'] as num?)?.toInt() ?? -1,
       explanation: map['explanation'] as String?,
@@ -26,11 +29,7 @@ class QuizQuestion {
   }
 
   Map<String, dynamic> toPublicMap() {
-    return {
-      'id': id,
-      'questionText': questionText,
-      'options': options,
-    };
+    return {'id': id, 'questionText': questionText, 'options': options};
   }
 
   Map<String, dynamic> toAnswerMap() {
@@ -70,7 +69,12 @@ class QuizModel {
     final questions = rawQuestions
         .asMap()
         .entries
-        .map((e) => QuizQuestion.fromMap(Map<String, dynamic>.from(e.value as Map), id: e.key.toString()))
+        .map(
+          (e) => QuizQuestion.fromMap(
+            Map<String, dynamic>.from(e.value as Map),
+            id: e.key.toString(),
+          ),
+        )
         .toList();
 
     return QuizModel(
@@ -81,7 +85,8 @@ class QuizModel {
       description: data['description'] as String?,
       questions: questions,
       passingScorePercent: (data['passingScorePercent'] as num?)?.toInt() ?? 70,
-      rewardExtraScreenTimeMinutes: (data['rewardExtraScreenTimeMinutes'] as num?)?.toInt() ?? 30,
+      rewardExtraScreenTimeMinutes:
+          (data['rewardExtraScreenTimeMinutes'] as num?)?.toInt() ?? 30,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
@@ -158,7 +163,8 @@ class QuizAttempt {
       totalQuestions: (data['totalQuestions'] as num?)?.toInt() ?? 0,
       isPassed: data['isPassed'] as bool? ?? false,
       rewardClaimed: data['rewardClaimed'] as bool? ?? false,
-      completedAt: (data['completedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      completedAt:
+          (data['completedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       selectedAnswers: answers,
     );
   }
@@ -205,7 +211,8 @@ class ChildLearningStreak {
   Map<String, dynamic> toMap() {
     return {
       'currentStreakDays': currentStreakDays,
-      if (lastPassedDate != null) 'lastPassedDate': Timestamp.fromDate(lastPassedDate!),
+      if (lastPassedDate != null)
+        'lastPassedDate': Timestamp.fromDate(lastPassedDate!),
       'badges': badges,
     };
   }

@@ -90,11 +90,14 @@ class AuditService {
       query = query.where('type', isEqualTo: type);
     }
 
-    // Limit and fetch; client-side sort to avoid composite index requirements
-    return query.limit(limit).snapshots().map((snap) {
-      final list = snap.docs.map((d) => ActivityLogModel.fromFirestore(d)).toList();
-      list.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-      return list;
-    });
+    return query
+        .orderBy('timestamp', descending: true)
+        .limit(limit)
+        .snapshots()
+        .map((snap) {
+          return snap.docs
+              .map((d) => ActivityLogModel.fromFirestore(d))
+              .toList();
+        });
   }
 }

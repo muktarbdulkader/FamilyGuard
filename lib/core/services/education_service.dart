@@ -15,42 +15,59 @@ final educationServiceProvider = Provider<EducationService>((ref) {
   return EducationService();
 });
 
-final materialQuizzesProvider = StreamProvider.family<List<QuizModel>, ({String familyId, String materialId})>((ref, arg) {
-  final service = ref.watch(educationServiceProvider);
-  return service.getQuizzesStream(arg.familyId, arg.materialId);
-});
+final materialQuizzesProvider =
+    StreamProvider.family<
+      List<QuizModel>,
+      ({String familyId, String materialId})
+    >((ref, arg) {
+      final service = ref.watch(educationServiceProvider);
+      return service.getQuizzesStream(arg.familyId, arg.materialId);
+    });
 
-final childLearningStreakProvider = StreamProvider.family<ChildLearningStreak, ({String familyId, String childId})>((ref, arg) {
-  final service = ref.watch(educationServiceProvider);
-  return service.getLearningStreakStream(arg.familyId, arg.childId);
-});
+final childLearningStreakProvider =
+    StreamProvider.family<
+      ChildLearningStreak,
+      ({String familyId, String childId})
+    >((ref, arg) {
+      final service = ref.watch(educationServiceProvider);
+      return service.getLearningStreakStream(arg.familyId, arg.childId);
+    });
 
-final childEducationTasksProvider = StreamProvider.family<List<EducationalTask>, ({String familyId, String childId})>((ref, arg) {
-  final service = ref.watch(educationServiceProvider);
-  return service.getTasksStream(arg.familyId, arg.childId);
-});
+final childEducationTasksProvider =
+    StreamProvider.family<
+      List<EducationalTask>,
+      ({String familyId, String childId})
+    >((ref, arg) {
+      final service = ref.watch(educationServiceProvider);
+      return service.getTasksStream(arg.familyId, arg.childId);
+    });
 
-final familyEducationalMaterialsProvider = StreamProvider.family<List<EducationalMaterial>, String>((ref, familyId) {
-  final service = ref.watch(educationServiceProvider);
-  return service.getFamilyMaterialsStream(familyId);
-});
+final familyEducationalMaterialsProvider =
+    StreamProvider.family<List<EducationalMaterial>, String>((ref, familyId) {
+      final service = ref.watch(educationServiceProvider);
+      return service.getFamilyMaterialsStream(familyId);
+    });
 
-final childEducationalMaterialsProvider = StreamProvider.family<List<EducationalMaterial>, ({String familyId, String childId})>((ref, arg) {
-  final service = ref.watch(educationServiceProvider);
-  return service.getChildMaterialsStream(arg.familyId, arg.childId);
-});
+final childEducationalMaterialsProvider =
+    StreamProvider.family<
+      List<EducationalMaterial>,
+      ({String familyId, String childId})
+    >((ref, arg) {
+      final service = ref.watch(educationServiceProvider);
+      return service.getChildMaterialsStream(arg.familyId, arg.childId);
+    });
 
 class EducationService {
   final FirebaseFirestore _firestore;
   final FirebaseStorage _storage;
 
-  EducationService({
-    FirebaseFirestore? firestore,
-    FirebaseStorage? storage,
-  })  : _firestore = firestore ?? FirebaseFirestore.instance,
-        _storage = storage ?? FirebaseStorage.instance;
+  EducationService({FirebaseFirestore? firestore, FirebaseStorage? storage})
+    : _firestore = firestore ?? FirebaseFirestore.instance,
+      _storage = storage ?? FirebaseStorage.instance;
 
-  CollectionReference<Map<String, dynamic>> _materialsCollection(String familyId) {
+  CollectionReference<Map<String, dynamic>> _materialsCollection(
+    String familyId,
+  ) {
     return _firestore
         .collection(AppConstants.familiesCollection)
         .doc(familyId)
@@ -60,14 +77,23 @@ class EducationService {
   // ── Material CRUD & Storage Operations ───────────────────────────────────
 
   /// Upload a file to Firebase Storage with progress callback
-  Future<({String downloadUrl, String storagePath, int fileSizeBytes, String fileName})> uploadMaterialFile({
+  Future<
+    ({
+      String downloadUrl,
+      String storagePath,
+      int fileSizeBytes,
+      String fileName,
+    })
+  >
+  uploadMaterialFile({
     required String familyId,
     required String materialId,
     required PlatformFile file,
     void Function(double progress)? onProgress,
   }) async {
     final cleanFileName = file.name.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
-    final storagePath = 'families/$familyId/education/${materialId}_$cleanFileName';
+    final storagePath =
+        'families/$familyId/education/${materialId}_$cleanFileName';
     final ref = _storage.ref().child(storagePath);
 
     final metadata = SettableMetadata(
@@ -112,9 +138,11 @@ class EducationService {
     return switch ((extension ?? '').toLowerCase()) {
       'pdf' => 'application/pdf',
       'doc' => 'application/msword',
-      'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'docx' =>
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       'ppt' => 'application/vnd.ms-powerpoint',
-      'pptx' => 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      'pptx' =>
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
       'mp4' => 'video/mp4',
       'jpg' || 'jpeg' => 'image/jpeg',
       'png' => 'image/png',
@@ -137,7 +165,8 @@ class EducationService {
           'type': 'educational_material',
           'priority': 'normal',
           'title': '📚 New Material: ${material.title}',
-          'body': '${material.parentName} assigned a new ${material.subject} material for you.',
+          'body':
+              '${material.parentName} assigned a new ${material.subject} material for you.',
           'data': {
             'type': 'educational_material',
             'materialId': material.id,
@@ -169,7 +198,10 @@ class EducationService {
       };
 
       try {
-        await _tasksCollection(material.familyId, childId).doc(material.id).set(taskMap);
+        await _tasksCollection(
+          material.familyId,
+          childId,
+        ).doc(material.id).set(taskMap);
       } catch (_) {}
 
       try {
@@ -184,7 +216,10 @@ class EducationService {
   /// Update metadata of an existing educational material
   Future<void> updateMaterial(EducationalMaterial material) async {
     final docRef = _materialsCollection(material.familyId).doc(material.id);
-    await docRef.set(material.copyWith(updatedAt: DateTime.now()).toFirestore(), SetOptions(merge: true));
+    await docRef.set(
+      material.copyWith(updatedAt: DateTime.now()).toFirestore(),
+      SetOptions(merge: true),
+    );
   }
 
   /// Delete an educational material and remove its file from Firebase Storage
@@ -201,7 +236,11 @@ class EducationService {
 
     // 2. Also delete from child tasks
     for (final childId in assignedChildIds) {
-      await deleteTask(familyId: familyId, childId: childId, taskId: materialId);
+      await deleteTask(
+        familyId: familyId,
+        childId: childId,
+        taskId: materialId,
+      );
     }
 
     // 3. Delete file from Storage if applicable
@@ -218,44 +257,44 @@ class EducationService {
   Stream<List<EducationalMaterial>> getFamilyMaterialsStream(String familyId) {
     if (familyId.isEmpty) return Stream.value([]);
 
-    return _materialsCollection(familyId)
-        .snapshots()
-        .map((snapshot) {
-          final list = <EducationalMaterial>[];
-          for (final doc in snapshot.docs) {
-            try {
-              list.add(EducationalMaterial.fromFirestore(doc));
-            } catch (e) {
-              debugPrint('Error parsing material ${doc.id}: $e');
-            }
-          }
-          list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-          return list;
-        });
+    return _materialsCollection(familyId).snapshots().map((snapshot) {
+      final list = <EducationalMaterial>[];
+      for (final doc in snapshot.docs) {
+        try {
+          list.add(EducationalMaterial.fromFirestore(doc));
+        } catch (e) {
+          debugPrint('Error parsing material ${doc.id}: $e');
+        }
+      }
+      list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return list;
+    });
   }
 
   /// Stream of educational materials assigned to a specific child
-  Stream<List<EducationalMaterial>> getChildMaterialsStream(String familyId, String childId) {
+  Stream<List<EducationalMaterial>> getChildMaterialsStream(
+    String familyId,
+    String childId,
+  ) {
     if (familyId.isEmpty || childId.isEmpty) return Stream.value([]);
 
-    return _materialsCollection(familyId)
-        .snapshots()
-        .map((snapshot) {
-          final list = <EducationalMaterial>[];
-          for (final doc in snapshot.docs) {
-            try {
-              final mat = EducationalMaterial.fromFirestore(doc);
-              // Include if explicitly assigned to this child OR if assigned to all children (empty list)
-              if (mat.assignedChildIds.isEmpty || mat.assignedChildIds.contains(childId)) {
-                list.add(mat);
-              }
-            } catch (e) {
-              debugPrint('Error parsing child material ${doc.id}: $e');
-            }
+    return _materialsCollection(familyId).snapshots().map((snapshot) {
+      final list = <EducationalMaterial>[];
+      for (final doc in snapshot.docs) {
+        try {
+          final mat = EducationalMaterial.fromFirestore(doc);
+          // Include if explicitly assigned to this child OR if assigned to all children (empty list)
+          if (mat.assignedChildIds.isEmpty ||
+              mat.assignedChildIds.contains(childId)) {
+            list.add(mat);
           }
-          list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-          return list;
-        });
+        } catch (e) {
+          debugPrint('Error parsing child material ${doc.id}: $e');
+        }
+      }
+      list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return list;
+    });
   }
 
   /// Update a child's learning progress (e.g. mark as completed, in progress)
@@ -335,11 +374,17 @@ class EducationService {
 
   // ── Educational Quizzes & Rewards ──────────────────────────────────────────
 
-  CollectionReference<Map<String, dynamic>> _quizzesCollection(String familyId, String materialId) {
+  CollectionReference<Map<String, dynamic>> _quizzesCollection(
+    String familyId,
+    String materialId,
+  ) {
     return _materialsCollection(familyId).doc(materialId).collection('quizzes');
   }
 
-  DocumentReference<Map<String, dynamic>> _streakDoc(String familyId, String childId) {
+  DocumentReference<Map<String, dynamic>> _streakDoc(
+    String familyId,
+    String childId,
+  ) {
     return _firestore
         .collection(AppConstants.familiesCollection)
         .doc(familyId)
@@ -427,7 +472,10 @@ class EducationService {
   }
 
   /// Get child streak stream
-  Stream<ChildLearningStreak> getLearningStreakStream(String familyId, String childId) {
+  Stream<ChildLearningStreak> getLearningStreakStream(
+    String familyId,
+    String childId,
+  ) {
     if (familyId.isEmpty || childId.isEmpty) {
       return Stream.value(const ChildLearningStreak());
     }
@@ -441,7 +489,10 @@ class EducationService {
 
   // ── Legacy Backwards-Compatible Methods ─────────────────────────────────
 
-  CollectionReference<Map<String, dynamic>> _tasksCollection(String familyId, String childId) {
+  CollectionReference<Map<String, dynamic>> _tasksCollection(
+    String familyId,
+    String childId,
+  ) {
     return _firestore
         .collection(AppConstants.familiesCollection)
         .doc(familyId)
@@ -450,7 +501,10 @@ class EducationService {
         .collection('education_tasks');
   }
 
-  DocumentReference<Map<String, dynamic>> _childDoc(String familyId, String childId) {
+  DocumentReference<Map<String, dynamic>> _childDoc(
+    String familyId,
+    String childId,
+  ) {
     return _firestore
         .collection(AppConstants.familiesCollection)
         .doc(familyId)
@@ -458,7 +512,10 @@ class EducationService {
         .doc(childId);
   }
 
-  Stream<List<EducationalTask>> getTasksStream(String familyId, String childId) {
+  Stream<List<EducationalTask>> getTasksStream(
+    String familyId,
+    String childId,
+  ) {
     if (familyId.isEmpty || childId.isEmpty) {
       return Stream.value([]);
     }
@@ -487,7 +544,8 @@ class EducationService {
               note: (map['note'] ?? '').toString(),
               url: map['url'] as String?,
               senderName: (map['senderName'] ?? 'Parent').toString(),
-              createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+              createdAt:
+                  (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
               isCompleted: map['isCompleted'] as bool? ?? false,
               completedAt: (map['completedAt'] as Timestamp?)?.toDate(),
             );
@@ -506,16 +564,18 @@ class EducationService {
         .orderBy('createdAt', descending: true)
         .snapshots()
         .listen(
-      (snapshot) {
-        final tasks = snapshot.docs.map((doc) => EducationalTask.fromFirestore(doc)).toList();
-        controller.add(tasks);
-      },
-      onError: (err) {
-        debugPrint('Subcollection education_tasks permission error: $err');
-        subcollectionSubscription?.cancel();
-        startFallback();
-      },
-    );
+          (snapshot) {
+            final tasks = snapshot.docs
+                .map((doc) => EducationalTask.fromFirestore(doc))
+                .toList();
+            controller.add(tasks);
+          },
+          onError: (err) {
+            debugPrint('Subcollection education_tasks permission error: $err');
+            subcollectionSubscription?.cancel();
+            startFallback();
+          },
+        );
 
     controller.onCancel = () {
       subcollectionSubscription?.cancel();
@@ -543,7 +603,9 @@ class EducationService {
     String? storagePath;
     String? fileName;
     int? fileSizeBytes;
-    EduFileType matType = fileUrl.isNotEmpty ? EduFileType.url : EduFileType.doc;
+    EduFileType matType = fileUrl.isNotEmpty
+        ? EduFileType.url
+        : EduFileType.doc;
 
     if (file != null) {
       try {
@@ -618,9 +680,13 @@ class EducationService {
     );
 
     try {
-      await _materialsCollection(familyId).doc(taskId).set(material.toFirestore());
+      await _materialsCollection(
+        familyId,
+      ).doc(taskId).set(material.toFirestore());
     } catch (e) {
-      debugPrint('Error writing to materialsCollection in sendEducationalTask: $e');
+      debugPrint(
+        'Error writing to materialsCollection in sendEducationalTask: $e',
+      );
     }
 
     // Send notification to child
@@ -663,7 +729,8 @@ class EducationService {
     try {
       final childSnapshot = await _childDoc(familyId, childId).get();
       if (childSnapshot.exists) {
-        final rawList = childSnapshot.data()?['educationTasks'] as List<dynamic>? ?? [];
+        final rawList =
+            childSnapshot.data()?['educationTasks'] as List<dynamic>? ?? [];
         final updatedList = rawList.map((item) {
           final map = Map<String, dynamic>.from(item as Map);
           if (map['id'] == taskId) {
@@ -672,7 +739,10 @@ class EducationService {
           }
           return map;
         }).toList();
-        await _childDoc(familyId, childId).update({'educationTasks': updatedList});
+        await _childDoc(
+          familyId,
+          childId,
+        ).update({'educationTasks': updatedList});
       }
     } catch (_) {}
   }
@@ -693,9 +763,15 @@ class EducationService {
     try {
       final childSnapshot = await _childDoc(familyId, childId).get();
       if (childSnapshot.exists) {
-        final rawList = childSnapshot.data()?['educationTasks'] as List<dynamic>? ?? [];
-        final updatedList = rawList.where((item) => (item as Map)['id'] != taskId).toList();
-        await _childDoc(familyId, childId).update({'educationTasks': updatedList});
+        final rawList =
+            childSnapshot.data()?['educationTasks'] as List<dynamic>? ?? [];
+        final updatedList = rawList
+            .where((item) => (item as Map)['id'] != taskId)
+            .toList();
+        await _childDoc(
+          familyId,
+          childId,
+        ).update({'educationTasks': updatedList});
       }
     } catch (_) {}
   }

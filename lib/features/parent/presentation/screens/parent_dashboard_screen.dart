@@ -3382,6 +3382,7 @@ class _ActivityHistoryTabState extends ConsumerState<_ActivityHistoryTab> {
     ('all', 'All Events'),
     ('rule_change', 'Rules'),
     ('time_extension', 'Screen Time'),
+    ('routine_toggle', 'Routines'),
     ('emergency_sos', 'Emergency'),
     ('safety_checkin', 'Safety'),
     ('quiz_completed', 'Quizzes'),
@@ -3398,7 +3399,9 @@ class _ActivityHistoryTabState extends ConsumerState<_ActivityHistoryTab> {
     final diff = DateTime.now().difference(dt);
     if (diff.inSeconds < 60) return 'Just now';
     if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ${diff.inMinutes % 60}m ago';
+    if (diff.inHours < 24) {
+      return '${diff.inHours}h ${diff.inMinutes % 60}m ago';
+    }
     return '${dt.month}/${dt.day} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
   }
 
@@ -3478,9 +3481,37 @@ class _ActivityHistoryTabState extends ConsumerState<_ActivityHistoryTab> {
         Expanded(
           child: logsAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(
-              child: Text('Error loading history: $e',
-                  style: const TextStyle(color: Color(0xFFEF4444))),
+            error: (_, _) => Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.cloud_off_outlined,
+                    size: 48,
+                    color: isDark ? Colors.white54 : Colors.grey[500],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Could not load history from Firebase.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: isDark ? Colors.white70 : Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: () => ref.invalidate(
+                      familyActivityLogsProvider((
+                        familyId: widget.familyId,
+                        childId: _filterChildId,
+                        type: _filterType,
+                      )),
+                    ),
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Retry'),
+                  ),
+                ],
+              ),
             ),
             data: (logs) {
               if (logs.isEmpty) {

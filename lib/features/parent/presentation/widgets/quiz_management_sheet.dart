@@ -23,10 +23,8 @@ class QuizManagementSheet extends ConsumerWidget {
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => QuizManagementSheet(
-        familyId: familyId,
-        material: material,
-      ),
+      builder: (_) =>
+          QuizManagementSheet(familyId: familyId, material: material),
     );
   }
 
@@ -74,7 +72,9 @@ class QuizManagementSheet extends ConsumerWidget {
                   builder: (context, snapshot) {
                     if (snapshot.hasError) {
                       return Center(
-                        child: Text('Could not load quizzes: ${snapshot.error}'),
+                        child: Text(
+                          'Could not load quizzes: ${snapshot.error}',
+                        ),
                       );
                     }
                     if (!snapshot.hasData) {
@@ -132,7 +132,9 @@ class QuizManagementSheet extends ConsumerWidget {
     );
     if (quiz == null || !context.mounted) return;
     try {
-      await ref.read(educationServiceProvider).createQuiz(
+      await ref
+          .read(educationServiceProvider)
+          .createQuiz(
             familyId: familyId,
             quiz: QuizModel(
               id: '',
@@ -147,9 +149,9 @@ class QuizManagementSheet extends ConsumerWidget {
             ),
           );
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Quiz created.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Quiz created.')));
       }
     } catch (error) {
       if (context.mounted) {
@@ -184,7 +186,9 @@ class QuizManagementSheet extends ConsumerWidget {
     );
     if (shouldDelete != true || !context.mounted) return;
     try {
-      await ref.read(educationServiceProvider).deleteQuiz(
+      await ref
+          .read(educationServiceProvider)
+          .deleteQuiz(
             familyId: familyId,
             materialId: material.id,
             quizId: quiz.id,
@@ -292,10 +296,7 @@ class _QuizAuthoringDialogState extends State<_QuizAuthoringDialog> {
           onPressed: () => Navigator.pop(context),
           child: const Text('Cancel'),
         ),
-        FilledButton(
-          onPressed: _saveQuiz,
-          child: const Text('Save quiz'),
-        ),
+        FilledButton(onPressed: _saveQuiz, child: const Text('Save quiz')),
       ],
     );
   }

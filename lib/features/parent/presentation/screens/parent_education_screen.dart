@@ -8,6 +8,7 @@ import '../../../../core/providers/family_provider.dart';
 import '../../../../core/providers/user_provider.dart';
 import '../../../../core/services/education_service.dart';
 import '../widgets/material_detail_sheet.dart';
+import '../widgets/quiz_management_sheet.dart';
 import '../widgets/upload_material_sheet.dart';
 import '../../../../l10n/app_localizations.dart';
 
@@ -727,6 +728,19 @@ class _ParentEducationScreenState extends ConsumerState<ParentEducationScreen> {
                               ),
                             ),
                           ],
+                        ),
+                        const SizedBox(height: 12),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: OutlinedButton.icon(
+                            onPressed: () => QuizManagementSheet.show(
+                              context,
+                              familyId: familyId,
+                              material: material,
+                            ),
+                            icon: const Icon(Icons.quiz_outlined),
+                            label: const Text('Manage quizzes'),
+                          ),
                         ),
                       ],
                     ),

@@ -25,7 +25,8 @@ class MaterialViewerScreen extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<MaterialViewerScreen> createState() => _MaterialViewerScreenState();
+  ConsumerState<MaterialViewerScreen> createState() =>
+      _MaterialViewerScreenState();
 }
 
 class _MaterialViewerScreenState extends ConsumerState<MaterialViewerScreen> {
@@ -226,7 +227,9 @@ class _MaterialViewerScreenState extends ConsumerState<MaterialViewerScreen> {
         });
       }
     } catch (e) {
-      debugPrint('Native video player failed ($e). Falling back to in-app WebView player.');
+      debugPrint(
+        'Native video player failed ($e). Falling back to in-app WebView player.',
+      );
       if (mounted) {
         // Seamless fallback to in-app webview player instead of showing an error
         _loadInAppWebView(url);
@@ -236,7 +239,9 @@ class _MaterialViewerScreenState extends ConsumerState<MaterialViewerScreen> {
 
   Future<void> _markAsViewed() async {
     if (_currentStatus == LearningStatus.pending) {
-      await ref.read(educationServiceProvider).updateChildProgress(
+      await ref
+          .read(educationServiceProvider)
+          .updateChildProgress(
             familyId: widget.familyId,
             materialId: widget.material.id,
             childId: widget.childId,
@@ -249,7 +254,9 @@ class _MaterialViewerScreenState extends ConsumerState<MaterialViewerScreen> {
         });
       }
     } else {
-      await ref.read(educationServiceProvider).updateChildProgress(
+      await ref
+          .read(educationServiceProvider)
+          .updateChildProgress(
             familyId: widget.familyId,
             materialId: widget.material.id,
             childId: widget.childId,
@@ -266,7 +273,9 @@ class _MaterialViewerScreenState extends ConsumerState<MaterialViewerScreen> {
         : LearningStatus.completed;
 
     try {
-      await ref.read(educationServiceProvider).updateChildProgress(
+      await ref
+          .read(educationServiceProvider)
+          .updateChildProgress(
             familyId: widget.familyId,
             materialId: widget.material.id,
             childId: widget.childId,
@@ -282,7 +291,9 @@ class _MaterialViewerScreenState extends ConsumerState<MaterialViewerScreen> {
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            backgroundColor: nextStatus == LearningStatus.completed ? Colors.green : Colors.blue,
+            backgroundColor: nextStatus == LearningStatus.completed
+                ? Colors.green
+                : Colors.blue,
             content: Text(
               nextStatus == LearningStatus.completed
                   ? '🎉 Great job! Lesson marked as completed.'
@@ -294,9 +305,9 @@ class _MaterialViewerScreenState extends ConsumerState<MaterialViewerScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isSavingProgress = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to update: $e')));
       }
     }
   }
@@ -319,9 +330,9 @@ class _MaterialViewerScreenState extends ConsumerState<MaterialViewerScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error launching link: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error launching link: $e')));
       }
     }
   }
@@ -389,8 +400,8 @@ class _MaterialViewerScreenState extends ConsumerState<MaterialViewerScreen> {
                           _currentStatus == LearningStatus.completed
                               ? Icons.check_circle
                               : (_currentStatus == LearningStatus.inProgress
-                                  ? Icons.timelapse
-                                  : Icons.radio_button_unchecked),
+                                    ? Icons.timelapse
+                                    : Icons.radio_button_unchecked),
                           size: 16,
                           color: _statusColor(_currentStatus),
                         ),
@@ -418,7 +429,10 @@ class _MaterialViewerScreenState extends ConsumerState<MaterialViewerScreen> {
                     ? const SizedBox(
                         width: 16,
                         height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
                       )
                     : Icon(
                         _currentStatus == LearningStatus.completed
@@ -455,7 +469,10 @@ class _MaterialViewerScreenState extends ConsumerState<MaterialViewerScreen> {
                     runSpacing: 6,
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: theme.colorScheme.primaryContainer,
                           borderRadius: BorderRadius.circular(8),
@@ -469,7 +486,10 @@ class _MaterialViewerScreenState extends ConsumerState<MaterialViewerScreen> {
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: theme.colorScheme.secondaryContainer,
                           borderRadius: BorderRadius.circular(8),
@@ -483,7 +503,10 @@ class _MaterialViewerScreenState extends ConsumerState<MaterialViewerScreen> {
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: theme.colorScheme.tertiaryContainer,
                           borderRadius: BorderRadius.circular(8),
@@ -512,11 +535,15 @@ class _MaterialViewerScreenState extends ConsumerState<MaterialViewerScreen> {
                   // Due Date Alert if present
                   if (material.dueDate != null) ...[
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
                         color: material.isOverdue
                             ? Colors.red.withOpacity(0.12)
-                            : theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                            : theme.colorScheme.surfaceContainerHighest
+                                  .withOpacity(0.5),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Row(
@@ -524,7 +551,9 @@ class _MaterialViewerScreenState extends ConsumerState<MaterialViewerScreen> {
                           Icon(
                             Icons.timer_outlined,
                             size: 18,
-                            color: material.isOverdue ? Colors.red : theme.colorScheme.primary,
+                            color: material.isOverdue
+                                ? Colors.red
+                                : theme.colorScheme.primary,
                           ),
                           const SizedBox(width: 8),
                           Text(
@@ -543,12 +572,15 @@ class _MaterialViewerScreenState extends ConsumerState<MaterialViewerScreen> {
                   ],
 
                   // Learning Instructions (from parent)
-                  if (material.instructions != null && material.instructions!.isNotEmpty) ...[
+                  if (material.instructions != null &&
+                      material.instructions!.isNotEmpty) ...[
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.primaryContainer.withOpacity(0.25),
+                        color: theme.colorScheme.primaryContainer.withOpacity(
+                          0.25,
+                        ),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
                           color: theme.colorScheme.primary.withOpacity(0.3),
@@ -607,14 +639,19 @@ class _MaterialViewerScreenState extends ConsumerState<MaterialViewerScreen> {
                   ],
 
                   // External Link or Full Screen Button for Docs & PDFs
-                  if (material.type != EduFileType.video && material.type != EduFileType.image && !_useWebView)
+                  if (material.type != EduFileType.video &&
+                      material.type != EduFileType.image &&
+                      !_useWebView)
                     Card(
                       elevation: 0,
-                      color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
+                      color: theme.colorScheme.surfaceContainerHighest
+                          .withOpacity(0.4),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                         side: BorderSide(
-                          color: theme.colorScheme.outlineVariant.withOpacity(0.5),
+                          color: theme.colorScheme.outlineVariant.withOpacity(
+                            0.5,
+                          ),
                         ),
                       ),
                       child: Padding(
@@ -675,10 +712,7 @@ class _MaterialViewerScreenState extends ConsumerState<MaterialViewerScreen> {
       context: context,
       builder: (sheetContext) => SafeArea(
         child: StreamBuilder<List<QuizModel>>(
-          stream: service.getQuizzesStream(
-            widget.familyId,
-            widget.material.id,
-          ),
+          stream: service.getQuizzesStream(widget.familyId, widget.material.id),
           builder: (context, snapshot) {
             if (snapshot.hasError) {
               return Padding(
@@ -696,7 +730,9 @@ class _MaterialViewerScreenState extends ConsumerState<MaterialViewerScreen> {
             if (quizzes.isEmpty) {
               return const SizedBox(
                 height: 160,
-                child: Center(child: Text('There are no quizzes for this lesson yet.')),
+                child: Center(
+                  child: Text('There are no quizzes for this lesson yet.'),
+                ),
               );
             }
             return ListView(
@@ -782,7 +818,10 @@ class _MaterialViewerScreenState extends ConsumerState<MaterialViewerScreen> {
             children: [
               CircularProgressIndicator(color: Colors.white),
               SizedBox(height: 12),
-              Text('Loading educational video...', style: TextStyle(color: Colors.white70)),
+              Text(
+                'Loading educational video...',
+                style: TextStyle(color: Colors.white70),
+              ),
             ],
           ),
         );
@@ -817,7 +856,8 @@ class _MaterialViewerScreenState extends ConsumerState<MaterialViewerScreen> {
     }
 
     // 3. Image Viewer with Zoom & Pan
-    if (material.type == EduFileType.image && material.effectiveUrl.isNotEmpty) {
+    if (material.type == EduFileType.image &&
+        material.effectiveUrl.isNotEmpty) {
       return Container(
         height: 280,
         width: double.infinity,
@@ -833,7 +873,8 @@ class _MaterialViewerScreenState extends ConsumerState<MaterialViewerScreen> {
               return Center(
                 child: CircularProgressIndicator(
                   value: progress.expectedTotalBytes != null
-                      ? progress.cumulativeBytesLoaded / progress.expectedTotalBytes!
+                      ? progress.cumulativeBytesLoaded /
+                            progress.expectedTotalBytes!
                       : null,
                 ),
               );
@@ -842,9 +883,16 @@ class _MaterialViewerScreenState extends ConsumerState<MaterialViewerScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.broken_image, size: 48, color: Colors.white54),
+                  const Icon(
+                    Icons.broken_image,
+                    size: 48,
+                    color: Colors.white54,
+                  ),
                   const SizedBox(height: 8),
-                  const Text('Failed to load image', style: TextStyle(color: Colors.white70)),
+                  const Text(
+                    'Failed to load image',
+                    style: TextStyle(color: Colors.white70),
+                  ),
                 ],
               ),
             ),
@@ -900,9 +948,7 @@ class _MaterialViewerScreenState extends ConsumerState<MaterialViewerScreen> {
           FilledButton.icon(
             onPressed: _launchExternalUrl,
             icon: const Icon(Icons.open_in_new),
-            label: Text(
-              'Open & Read ${material.type.badgeLabel}',
-            ),
+            label: Text('Open & Read ${material.type.badgeLabel}'),
           ),
         ],
       ),

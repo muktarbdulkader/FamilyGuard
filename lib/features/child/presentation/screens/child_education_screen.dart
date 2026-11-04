@@ -5,11 +5,13 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_routes.dart';
 import '../../../../core/models/educational_material_model.dart';
+import '../../../../core/models/quiz_model.dart';
 import '../../../../core/providers/user_provider.dart';
 import '../../../../core/services/education_service.dart';
 import '../../../../core/widgets/family_bottom_navigation.dart';
 import '../../../../l10n/app_localizations.dart';
 import 'material_viewer_screen.dart';
+import '../widgets/quiz_attempt_dialog.dart';
 
 class ChildEducationScreen extends ConsumerStatefulWidget {
   final String? familyId;
@@ -450,6 +452,12 @@ class _ChildEducationScreenState extends ConsumerState<ChildEducationScreen>
   ) {
     final status = material.statusFor(childId);
     final isCompleted = status == LearningStatus.completed;
+    final quizzesAsync = ref.watch(
+      materialQuizzesProvider((
+        familyId: familyId,
+        materialId: material.id,
+      )),
+    );
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -633,6 +641,66 @@ class _ChildEducationScreenState extends ConsumerState<ChildEducationScreen>
                 ),
               ],
 
+              quizzesAsync.when(
+                loading: () => const SizedBox.shrink(),
+                error: (_, __) => Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.cloud_off_outlined, size: 18),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text('Quizzes unavailable from Firebase.'),
+                      ),
+                      IconButton(
+                        tooltip: 'Retry',
+                        onPressed: () => ref.invalidate(
+                          materialQuizzesProvider((
+                            familyId: familyId,
+                            materialId: material.id,
+                          )),
+                        ),
+                        icon: const Icon(Icons.refresh),
+                      ),
+                    ],
+                  ),
+                ),
+                data: (quizzes) => Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: quizzes.isEmpty
+                      ? Row(
+                          children: [
+                            Icon(
+                              Icons.quiz_outlined,
+                              size: 18,
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'No quizzes for this lesson yet.',
+                              style: theme.textTheme.bodySmall,
+                            ),
+                          ],
+                        )
+                      : Align(
+                          alignment: Alignment.centerLeft,
+                          child: OutlinedButton.icon(
+                            onPressed: () => _openQuizPicker(
+                              quizzes: quizzes,
+                              familyId: familyId,
+                              childId: childId,
+                              childName: childName,
+                            ),
+                            icon: const Icon(Icons.quiz_outlined),
+                            label: Text(
+                              'Take quiz${quizzes.length == 1 ? '' : 's'} '
+                              '(${quizzes.length})',
+                            ),
+                          ),
+                        ),
+                ),
+              ),
+
               const SizedBox(height: 12),
               const Divider(height: 1),
               const SizedBox(height: 10),
@@ -693,6 +761,60 @@ class _ChildEducationScreenState extends ConsumerState<ChildEducationScreen>
           ),
         ),
       ),
+    );
+  }
+
+  Future<void> _openQuizPicker({
+    required List<QuizModel> quizzes,
+    required String familyId,
+    required String childId,
+    required String childName,
+  }) async {
+    final quiz = await showModalBottomSheet<QuizModel>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.65,
+            ),
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    'Lesson quizzes',
+                    style: Theme.of(sheetContext).textTheme.titleLarge
+                        ?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                for (final quiz in quizzes)
+                  ListTile(
+                    leading: const Icon(Icons.quiz_outlined),
+                    title: Text(quiz.title),
+                    subtitle: Text(
+                      '${quiz.questions.length} questions · '
+                      'Pass ${quiz.passingScorePercent}%',
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.pop(sheetContext, quiz),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    if (quiz == null || !mounted) return;
+    await QuizAttemptDialog.show(
+      context,
+      familyId: familyId,
+      childId: childId,
+      childName: childName,
+      quiz: quiz,
     );
   }
 

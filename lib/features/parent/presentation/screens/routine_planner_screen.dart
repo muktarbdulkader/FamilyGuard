@@ -8,18 +8,33 @@ import '../../../../core/services/routine_service.dart';
 
 final _routinePlannerChildrenProvider =
     StreamProvider.family<List<ChildModel>, String>((ref, familyId) {
-  if (familyId.isEmpty) return Stream.value([]);
-  return FirebaseFirestore.instance
-      .collection('users')
-      .where('familyId', isEqualTo: familyId)
-      .where('role', isEqualTo: 'child')
-      .snapshots()
-      .map(
-        (snapshot) => snapshot.docs
-            .map((doc) => ChildModel.fromFirestore(doc))
-            .toList(),
-      );
-});
+      if (familyId.isEmpty) return Stream.value([]);
+      final firestore = FirebaseFirestore.instance;
+      return firestore
+          .collection('families')
+          .doc(familyId)
+          .snapshots()
+          .asyncMap((familySnapshot) async {
+            if (!familySnapshot.exists) return <ChildModel>[];
+            final childIds = FamilyModel.fromFirestore(
+              familySnapshot,
+            ).childrenIds;
+            final childSnapshots = await Future.wait(
+              childIds.map(
+                (childId) => firestore.collection('users').doc(childId).get(),
+              ),
+            );
+            return childSnapshots
+                .where(
+                  (snapshot) =>
+                      snapshot.exists &&
+                      snapshot.data()?['familyId'] == familyId &&
+                      snapshot.data()?['role'] == 'child',
+                )
+                .map(ChildModel.fromFirestore)
+                .toList();
+          });
+    });
 
 class RoutinePlannerScreen extends ConsumerStatefulWidget {
   final String familyId;
@@ -41,9 +56,7 @@ class _RoutinePlannerScreenState extends ConsumerState<RoutinePlannerScreen> {
     );
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Routine planner'),
-      ),
+      appBar: AppBar(title: const Text('Routine planner')),
       floatingActionButton: childrenAsync.value?.isNotEmpty == true
           ? FloatingActionButton.extended(
               onPressed: () => _editRoutine(context, null),
@@ -55,10 +68,10 @@ class _RoutinePlannerScreenState extends ConsumerState<RoutinePlannerScreen> {
           ? const Center(child: Text('Select a family to plan routines.'))
           : childrenAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (error, _) => Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Text('Could not load family children: $error'),
+              error: (error, _) => _LoadError(
+                message: 'Could not load family children: $error',
+                onRetry: () => ref.invalidate(
+                  _routinePlannerChildrenProvider(widget.familyId),
                 ),
               ),
               data: (children) {
@@ -103,13 +116,15 @@ class _RoutinePlannerScreenState extends ConsumerState<RoutinePlannerScreen> {
                     ),
                     Expanded(
                       child: routinesAsync.when(
-                        loading: () => const Center(
-                          child: CircularProgressIndicator(),
-                        ),
-                        error: (error, _) => Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24),
-                            child: Text('Could not load routines: $error'),
+                        loading: () =>
+                            const Center(child: CircularProgressIndicator()),
+                        error: (error, _) => _LoadError(
+                          message: 'Could not load routines: $error',
+                          onRetry: () => ref.invalidate(
+                            childRoutinesProvider((
+                              familyId: widget.familyId,
+                              childId: selectedChild.id,
+                            )),
                           ),
                         ),
                         data: (routines) => routines.isEmpty
@@ -155,9 +170,9 @@ class _RoutinePlannerScreenState extends ConsumerState<RoutinePlannerScreen> {
     BuildContext context,
     RoutineModel? existing,
   ) async {
-    final children = ref.read(
-      _routinePlannerChildrenProvider(widget.familyId),
-    ).valueOrNull;
+    final children = ref
+        .read(_routinePlannerChildrenProvider(widget.familyId))
+        .valueOrNull;
     if (children == null || children.isEmpty) return;
     final child = children.firstWhere(
       (item) => item.id == _selectedChildId,
@@ -176,15 +191,9 @@ class _RoutinePlannerScreenState extends ConsumerState<RoutinePlannerScreen> {
     try {
       final service = ref.read(routineServiceProvider);
       if (existing == null) {
-        await service.createRoutine(
-          familyId: widget.familyId,
-          routine: result,
-        );
+        await service.createRoutine(familyId: widget.familyId, routine: result);
       } else {
-        await service.updateRoutine(
-          familyId: widget.familyId,
-          routine: result,
-        );
+        await service.updateRoutine(familyId: widget.familyId, routine: result);
       }
     } catch (error) {
       if (context.mounted) {
@@ -201,7 +210,9 @@ class _RoutinePlannerScreenState extends ConsumerState<RoutinePlannerScreen> {
     bool active,
   ) async {
     try {
-      await ref.read(routineServiceProvider).toggleRoutine(
+      await ref
+          .read(routineServiceProvider)
+          .toggleRoutine(
             familyId: widget.familyId,
             routineId: routine.id,
             isActive: active,
@@ -238,10 +249,9 @@ class _RoutinePlannerScreenState extends ConsumerState<RoutinePlannerScreen> {
     );
     if (confirmed != true || !context.mounted) return;
     try {
-      await ref.read(routineServiceProvider).deleteRoutine(
-            familyId: widget.familyId,
-            routineId: routine.id,
-          );
+      await ref
+          .read(routineServiceProvider)
+          .deleteRoutine(familyId: widget.familyId, routineId: routine.id);
     } catch (error) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -289,10 +299,7 @@ class _RoutineCard extends StatelessWidget {
               subtitle: Text(
                 '${MaterialLocalizations.of(context).formatTimeOfDay(routine.startTime)} – ${MaterialLocalizations.of(context).formatTimeOfDay(routine.endTime)}',
               ),
-              trailing: Switch(
-                value: routine.isActive,
-                onChanged: onToggle,
-              ),
+              trailing: Switch(value: routine.isActive, onChanged: onToggle),
             ),
             Align(
               alignment: Alignment.centerLeft,
@@ -356,10 +363,10 @@ class _RoutineCard extends StatelessWidget {
       ),
     );
   }
-
 }
 
-String _weekdayName(int day) => const {
+String _weekdayName(int day) =>
+    const {
       1: 'Mon',
       2: 'Tue',
       3: 'Wed',
@@ -429,8 +436,9 @@ class _RoutineEditorDialogState extends State<_RoutineEditorDialog> {
     super.initState();
     final routine = widget.existing;
     _nameController = TextEditingController(text: routine?.name ?? '');
-    _descriptionController =
-        TextEditingController(text: routine?.description ?? '');
+    _descriptionController = TextEditingController(
+      text: routine?.description ?? '',
+    );
     _allowedController = TextEditingController(
       text: routine?.allowedCategories.join(', ') ?? '',
     );
@@ -545,10 +553,7 @@ class _RoutineEditorDialogState extends State<_RoutineEditorDialog> {
           onPressed: () => Navigator.pop(context),
           child: const Text('Cancel'),
         ),
-        FilledButton(
-          onPressed: _save,
-          child: const Text('Save'),
-        ),
+        FilledButton(onPressed: _save, child: const Text('Save')),
       ],
     );
   }
@@ -573,7 +578,9 @@ class _RoutineEditorDialogState extends State<_RoutineEditorDialog> {
     final name = _nameController.text.trim();
     if (name.isEmpty || _days.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter a name and choose at least one day.')),
+        const SnackBar(
+          content: Text('Enter a name and choose at least one day.'),
+        ),
       );
       return;
     }
@@ -608,4 +615,32 @@ class _RoutineEditorDialogState extends State<_RoutineEditorDialog> {
       .where((item) => item.isNotEmpty)
       .toSet()
       .toList();
+}
+
+class _LoadError extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+
+  const _LoadError({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(message),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

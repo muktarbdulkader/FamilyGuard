@@ -21,7 +21,6 @@ import androidx.core.app.NotificationManagerCompat
 import com.example.flutter_study_app.R
 import com.example.flutter_study_app.database.LocalDatabase
 import com.google.firebase.Timestamp
-import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.CoroutineScope
@@ -58,6 +57,7 @@ class EnforcementManager(
     private val enforcementScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val pendingRequestPackages = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
     private val notifiedApprovalPackages = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+    private val enforcementNotificationStates = java.util.concurrent.ConcurrentHashMap<String, String>()
     
     companion object {
         private const val NOTIFICATION_CHANNEL_ENFORCEMENT = "enforcement_notifications"
@@ -447,16 +447,13 @@ class EnforcementManager(
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val cid = prefs.getString("child_id", null)
         if (!cid.isNullOrBlank()) return cid
-        return FirebaseAuth.getInstance().currentUser?.uid
+        return null
     }
 
     private fun getCachedChildName(): String {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val name = prefs.getString("child_name", null)
         if (!name.isNullOrBlank()) return name
-        val user = FirebaseAuth.getInstance().currentUser
-        val displayName = user?.displayName
-        if (!displayName.isNullOrBlank()) return displayName
         return "Child"
     }
 
@@ -485,6 +482,7 @@ class EnforcementManager(
      */
     private fun showOverlay(overlayView: View, packageName: String) {
         try {
+            clearEnforcementNotification(packageName)
             val layoutParams = WindowManager.LayoutParams().apply {
                 type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
@@ -518,6 +516,7 @@ class EnforcementManager(
      */
     fun removeOverlayIfPresent(packageName: String) {
         pendingRequestPackages.remove(packageName)
+        clearEnforcementNotification(packageName)
         if (currentOverlayPackage == packageName) {
             removeCurrentOverlay()
         }
@@ -558,6 +557,9 @@ class EnforcementManager(
      * Show enforcement notification as fallback when overlays aren't available
      */
     private fun showEnforcementNotification(title: String, message: String, packageName: String) {
+        val state = "$title\u0000$message"
+        if (enforcementNotificationStates[packageName] == state) return
+
         val notification = NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ENFORCEMENT)
             .setContentTitle(title)
             .setContentText(message)
@@ -568,8 +570,18 @@ class EnforcementManager(
         
         try {
             notificationManager.notify("enforcement_$packageName".hashCode(), notification)
+            enforcementNotificationStates[packageName] = state
         } catch (e: SecurityException) {
             android.util.Log.w("EnforcementManager", "Cannot post notification", e)
+        }
+    }
+
+    private fun clearEnforcementNotification(packageName: String) {
+        if (enforcementNotificationStates.remove(packageName) == null) return
+        try {
+            notificationManager.cancel("enforcement_$packageName".hashCode())
+        } catch (e: SecurityException) {
+            android.util.Log.w("EnforcementManager", "Cannot cancel enforcement notification", e)
         }
     }
     

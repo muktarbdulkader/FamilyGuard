@@ -68,24 +68,27 @@ void main() {
       expect(RoutineModel.findConflicts(candidate, [existing]), hasLength(1));
     });
 
-    test('an overnight routine stays active after midnight on the next day', () {
-      final routine = _routine(
-        id: 'overnight',
-        name: 'Bedtime',
-        startHour: 22,
-        endHour: 6,
-        days: [7],
-      );
+    test(
+      'an overnight routine stays active after midnight on the next day',
+      () {
+        final routine = _routine(
+          id: 'overnight',
+          name: 'Bedtime',
+          startHour: 22,
+          endHour: 6,
+          days: [7],
+        );
 
-      expect(
-        routine.isCurrentlyActive(nowTime: DateTime(2026, 1, 5, 2)),
-        isTrue,
-      );
-      expect(
-        routine.isCurrentlyActive(nowTime: DateTime(2026, 1, 5, 6)),
-        isFalse,
-      );
-    });
+        expect(
+          routine.isCurrentlyActive(nowTime: DateTime(2026, 1, 5, 2)),
+          isTrue,
+        );
+        expect(
+          routine.isCurrentlyActive(nowTime: DateTime(2026, 1, 5, 6)),
+          isFalse,
+        );
+      },
+    );
 
     test('does not report adjacent routines or inactive routines', () {
       final candidate = _routine(

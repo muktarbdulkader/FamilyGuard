@@ -65,9 +65,11 @@ class _QuizAttemptDialogState extends ConsumerState<QuizAttemptDialog> {
                         style: theme.textTheme.bodyMedium,
                       ),
                     ),
-                  for (var index = 0;
-                      index < widget.quiz.questions.length;
-                      index++)
+                  for (
+                    var index = 0;
+                    index < widget.quiz.questions.length;
+                    index++
+                  )
                     _buildQuestion(index, widget.quiz.questions[index]),
                   if (_error != null)
                     Padding(
@@ -165,9 +167,7 @@ class _QuizAttemptDialogState extends ConsumerState<QuizAttemptDialog> {
         Text('${result.correctCount} of ${result.totalQuestions} correct'),
         const SizedBox(height: 8),
         Text(
-          passed
-              ? 'You passed this quiz!'
-              : 'Keep practicing and try again.',
+          passed ? 'You passed this quiz!' : 'Keep practicing and try again.',
           textAlign: TextAlign.center,
         ),
         if (result.rewardClaimed) ...[
@@ -193,7 +193,9 @@ class _QuizAttemptDialogState extends ConsumerState<QuizAttemptDialog> {
       _error = null;
     });
     try {
-      final result = await ref.read(educationServiceProvider).submitQuizAttempt(
+      final result = await ref
+          .read(educationServiceProvider)
+          .submitQuizAttempt(
             familyId: widget.familyId,
             quiz: widget.quiz,
             childId: widget.childId,

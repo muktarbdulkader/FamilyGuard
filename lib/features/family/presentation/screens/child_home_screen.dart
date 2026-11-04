@@ -823,23 +823,40 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen>
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
-                        child: Text(
-                          'Routine schedule could not be loaded.',
-                          style: TextStyle(color: _colors.textSecondary),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.cloud_off_outlined,
+                              color: _colors.textSecondary,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Could not load routines from Firebase.',
+                                style: TextStyle(color: _colors.textSecondary),
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: 'Retry',
+                              onPressed: () => ref.invalidate(
+                                childRoutinesProvider((
+                                  familyId: currentUser!.familyId!,
+                                  childId: currentUser.uid,
+                                )),
+                              ),
+                              icon: const Icon(Icons.refresh),
+                            ),
+                          ],
                         ),
                       ),
                     )
-                  else if (routinesAsync.valueOrNull?.any(
-                        (routine) => routine.isCurrentlyActive(),
-                      ) ==
-                      true)
+                  else if (routinesAsync.valueOrNull?.isNotEmpty == true)
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
-                        child: _buildActiveRoutineCard(
-                          routinesAsync.valueOrNull!.firstWhere(
-                            (routine) => routine.isCurrentlyActive(),
-                          ),
+                        child: _buildRoutineScheduleCard(
+                          context,
+                          routinesAsync.valueOrNull!,
                         ),
                       ),
                     ),
@@ -1114,49 +1131,95 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen>
     );
   }
 
-  Widget _buildActiveRoutineCard(RoutineModel routine) {
+  Widget _buildRoutineScheduleCard(
+    BuildContext context,
+    List<RoutineModel> routines,
+  ) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F766E),
+        color: _cardBg,
         borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _cardBorder),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(routine.templateType.icon, color: Colors.white, size: 24),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Current routine',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  routine.name,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                if (routine.description?.isNotEmpty == true)
-                  Text(
-                    routine.description!,
-                    style: const TextStyle(color: Colors.white70, fontSize: 12),
-                  ),
-              ],
+          Text(
+            'Family routines',
+            style: TextStyle(
+              color: _colors.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
             ),
           ),
+          const SizedBox(height: 8),
+          for (var index = 0; index < routines.length; index++) ...[
+            if (index > 0) const Divider(height: 16),
+            Row(
+              children: [
+                Icon(
+                  routines[index].templateType.icon,
+                  color: routines[index].templateType.color,
+                  size: 22,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        routines[index].name,
+                        style: TextStyle(
+                          color: _colors.textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${routines[index].startTime.format(context)} – '
+                        '${routines[index].endTime.format(context)} · '
+                        '${_routineDaysLabel(routines[index].daysOfWeek)}',
+                        style: TextStyle(
+                          color: _colors.textSecondary,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  !routines[index].isActive
+                      ? 'Paused'
+                      : routines[index].isCurrentlyActive()
+                      ? 'Now'
+                      : 'Scheduled',
+                  style: TextStyle(
+                    color: !routines[index].isActive
+                        ? _colors.textSecondary
+                        : routines[index].isCurrentlyActive()
+                        ? _tealAccent
+                        : _colors.textSecondary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  String _routineDaysLabel(List<int> daysOfWeek) {
+    const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    return daysOfWeek
+        .where((day) => day >= 1 && day <= dayLabels.length)
+        .map((day) => dayLabels[day - 1])
+        .join(', ');
   }
 
   // ── Metric Box in Hero Card ─────────────────────────────────────────
