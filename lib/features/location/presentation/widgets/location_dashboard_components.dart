@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../../../core/models/location_model.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -111,9 +112,16 @@ class LocationPageHeader extends StatelessWidget {
 }
 
 class LocationOverviewPanel extends StatelessWidget {
-  const LocationOverviewPanel({required this.locations, super.key});
+  const LocationOverviewPanel({
+    required this.locations,
+    required this.selectedLocationId,
+    required this.onLocationSelected,
+    super.key,
+  });
 
   final List<FamilyLocation> locations;
+  final String? selectedLocationId;
+  final ValueChanged<FamilyLocation> onLocationSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -183,72 +191,10 @@ class LocationOverviewPanel extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 18),
-          Container(
-            height: 154,
-            width: double.infinity,
-            clipBehavior: Clip.antiAlias,
-            decoration: BoxDecoration(
-              color: colors.isDark
-                  ? const Color(0xFF17233A)
-                  : const Color(0xFFFAF8FF),
-              borderRadius: BorderRadius.circular(19),
-              border: Border.all(
-                color: colors.isDark
-                    ? const Color(0xFF34425A)
-                    : const Color(0xFFE3DDF2),
-              ),
-            ),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Positioned.fill(
-                  child: CustomPaint(
-                    painter: _LocationGridPainter(
-                      lineColor: colors.primary.withOpacity(
-                        colors.isDark ? 0.12 : 0.09,
-                      ),
-                    ),
-                  ),
-                ),
-                Container(
-                  width: 112,
-                  height: 112,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: colors.primary.withOpacity(0.08),
-                    border: Border.all(
-                      color: colors.primary.withOpacity(0.12),
-                      width: 1,
-                    ),
-                  ),
-                ),
-                Container(
-                  width: 72,
-                  height: 72,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: colors.primary.withOpacity(0.12),
-                  ),
-                  child: Icon(
-                    Icons.location_on_rounded,
-                    color: colors.primary,
-                    size: 42,
-                  ),
-                ),
-                Positioned(
-                  right: 13,
-                  bottom: 12,
-                  child: Text(
-                    'Select a location to open Maps',
-                    style: TextStyle(
-                      color: colors.textSecondary,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+          _LiveFamilyMap(
+            locations: locations,
+            selectedLocationId: selectedLocationId,
+            onLocationSelected: onLocationSelected,
           ),
           const SizedBox(height: 17),
           Row(
@@ -387,31 +333,294 @@ class _OverviewMetric extends StatelessWidget {
   }
 }
 
-class _LocationGridPainter extends CustomPainter {
-  const _LocationGridPainter({required this.lineColor});
+class _LiveFamilyMap extends StatefulWidget {
+  const _LiveFamilyMap({
+    required this.locations,
+    required this.selectedLocationId,
+    required this.onLocationSelected,
+  });
 
-  final Color lineColor;
+  final List<FamilyLocation> locations;
+  final String? selectedLocationId;
+  final ValueChanged<FamilyLocation> onLocationSelected;
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = lineColor
-      ..strokeWidth = 1;
+  State<_LiveFamilyMap> createState() => _LiveFamilyMapState();
+}
 
-    for (var x = -size.height; x < size.width + size.height; x += 38) {
-      canvas.drawLine(
-        Offset(x.toDouble(), 0),
-        Offset((x + size.height).toDouble(), size.height),
-        paint,
+class _LiveFamilyMapState extends State<_LiveFamilyMap> {
+  GoogleMapController? _controller;
+  String _locationFingerprint = '';
+  String? _lastSelectedLocationId;
+
+  List<FamilyLocation> get _validLocations => widget.locations
+      .where(
+        (location) =>
+            location.latitude.isFinite &&
+            location.longitude.isFinite &&
+            location.latitude >= -90 &&
+            location.latitude <= 90 &&
+            location.longitude >= -180 &&
+            location.longitude <= 180 &&
+            (location.latitude != 0 || location.longitude != 0),
+      )
+      .toList(growable: false);
+
+  String _fingerprint(List<FamilyLocation> locations) => locations
+      .map(
+        (location) =>
+            '${location.id}:${location.latitude}:${location.longitude}:'
+            '${location.timestamp.microsecondsSinceEpoch}',
+      )
+      .join('|');
+
+  @override
+  void didUpdateWidget(covariant _LiveFamilyMap oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final locations = _validLocations;
+    final fingerprint = _fingerprint(locations);
+    if (fingerprint != _locationFingerprint) {
+      _locationFingerprint = fingerprint;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showAllLocations();
+      });
+    } else if (widget.selectedLocationId != _lastSelectedLocationId) {
+      _lastSelectedLocationId = widget.selectedLocationId;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _focusSelectedLocation();
+      });
+    }
+  }
+
+  Set<Marker> _buildMarkers() {
+    return {
+      for (final location in _validLocations)
+        Marker(
+          markerId: MarkerId(
+            location.id.isNotEmpty ? location.id : location.childId,
+          ),
+          position: LatLng(location.latitude, location.longitude),
+          icon: BitmapDescriptor.defaultMarkerWithHue(
+            location.isStale ? BitmapDescriptor.hueRed : 276,
+          ),
+          infoWindow: InfoWindow(
+            title: _displayName(location),
+            snippet: location.isStale
+                ? 'Last location · ${_timeAgo(location.timestamp)}'
+                : 'Updated ${_timeAgo(location.timestamp)}',
+          ),
+          onTap: () => widget.onLocationSelected(location),
+        ),
+    };
+  }
+
+  void _onMapCreated(GoogleMapController controller) {
+    _controller = controller;
+    _locationFingerprint = _fingerprint(_validLocations);
+    _lastSelectedLocationId = widget.selectedLocationId;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _showAllLocations();
+    });
+  }
+
+  Future<void> _showAllLocations() async {
+    final controller = _controller;
+    final locations = _validLocations;
+    if (controller == null || locations.isEmpty) return;
+
+    if (locations.length == 1) {
+      final location = locations.single;
+      await controller.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(
+            target: LatLng(location.latitude, location.longitude),
+            zoom: 15,
+          ),
+        ),
       );
+      return;
     }
 
-    for (var y = 22.0; y < size.height; y += 38) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    final bounds = _boundsFor(locations);
+    await controller.animateCamera(CameraUpdate.newLatLngBounds(bounds, 54));
+  }
+
+  LatLngBounds _boundsFor(List<FamilyLocation> locations) {
+    var minLatitude = locations.first.latitude;
+    var maxLatitude = minLatitude;
+    var minLongitude = locations.first.longitude;
+    var maxLongitude = minLongitude;
+
+    for (final location in locations.skip(1)) {
+      if (location.latitude < minLatitude) minLatitude = location.latitude;
+      if (location.latitude > maxLatitude) maxLatitude = location.latitude;
+      if (location.longitude < minLongitude) {
+        minLongitude = location.longitude;
+      }
+      if (location.longitude > maxLongitude) {
+        maxLongitude = location.longitude;
+      }
+    }
+
+    if (minLatitude == maxLatitude) {
+      minLatitude = (minLatitude - 0.005).clamp(-90.0, 90.0);
+      maxLatitude = (maxLatitude + 0.005).clamp(-90.0, 90.0);
+    }
+    if (minLongitude == maxLongitude) {
+      minLongitude = (minLongitude - 0.005).clamp(-180.0, 180.0);
+      maxLongitude = (maxLongitude + 0.005).clamp(-180.0, 180.0);
+    }
+
+    return LatLngBounds(
+      southwest: LatLng(minLatitude, minLongitude),
+      northeast: LatLng(maxLatitude, maxLongitude),
+    );
+  }
+
+  Future<void> _focusSelectedLocation() async {
+    final controller = _controller;
+    final selectedId = widget.selectedLocationId;
+    if (controller == null || selectedId == null) return;
+    for (final location in _validLocations) {
+      if (location.id == selectedId || location.childId == selectedId) {
+        await controller.animateCamera(
+          CameraUpdate.newCameraPosition(
+            CameraPosition(
+              target: LatLng(location.latitude, location.longitude),
+              zoom: 16,
+            ),
+          ),
+        );
+        return;
+      }
     }
   }
 
   @override
-  bool shouldRepaint(covariant _LocationGridPainter oldDelegate) =>
-      oldDelegate.lineColor != lineColor;
+  Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
+    final locations = _validLocations;
+    final initialTarget = locations.isEmpty
+        ? const LatLng(0, 0)
+        : LatLng(locations.first.latitude, locations.first.longitude);
+
+    return Container(
+      height: 220,
+      width: double.infinity,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: colors.surfaceHighlight,
+        borderRadius: BorderRadius.circular(19),
+        border: Border.all(color: colors.border),
+      ),
+      child: Stack(
+        children: [
+          GoogleMap(
+            initialCameraPosition: CameraPosition(
+              target: initialTarget,
+              zoom: locations.isEmpty ? 2 : 14,
+            ),
+            markers: _buildMarkers(),
+            onMapCreated: _onMapCreated,
+            mapType: MapType.normal,
+            mapToolbarEnabled: false,
+            compassEnabled: true,
+            zoomControlsEnabled: false,
+            myLocationButtonEnabled: false,
+            rotateGesturesEnabled: true,
+            tiltGesturesEnabled: false,
+          ),
+          Positioned(
+            top: 12,
+            left: 12,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+              decoration: BoxDecoration(
+                color: colors.surface.withOpacity(0.96),
+                borderRadius: BorderRadius.circular(30),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.12),
+                    blurRadius: 12,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.location_on_rounded,
+                    size: 16,
+                    color: colors.primary,
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    '${locations.length} ${locations.length == 1 ? 'child' : 'children'}',
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (locations.isEmpty)
+            Center(
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 48),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: colors.surface.withOpacity(0.96),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Text(
+                  'Shared child locations will appear here',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: colors.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          Positioned(
+            right: 12,
+            bottom: 12,
+            child: Material(
+              color: colors.surface,
+              borderRadius: BorderRadius.circular(12),
+              elevation: 3,
+              child: IconButton(
+                tooltip: 'Show all children',
+                onPressed: _showAllLocations,
+                icon: Icon(Icons.center_focus_strong, color: colors.primary),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _displayName(FamilyLocation location) {
+    final name = location.childName?.trim();
+    if (name != null && name.isNotEmpty) return name;
+    final id = location.childId;
+    return 'Child (${id.length > 6 ? id.substring(0, 6) : id})';
+  }
+
+  String _timeAgo(DateTime timestamp) {
+    final age = DateTime.now().difference(timestamp);
+    if (age.inDays > 0) return '${age.inDays}d ago';
+    if (age.inHours > 0) return '${age.inHours}h ago';
+    if (age.inMinutes > 0) return '${age.inMinutes}m ago';
+    return 'just now';
+  }
 }

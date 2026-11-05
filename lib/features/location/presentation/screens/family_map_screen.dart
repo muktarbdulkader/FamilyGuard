@@ -30,6 +30,7 @@ class _FamilyMapScreenState extends ConsumerState<FamilyMapScreen> {
   bool _isLoading = true;
   String? _error;
   String? _activeFamilyId;
+  String? _selectedLocationId;
   StreamSubscription<List<FamilyLocation>>? _locationSubscription;
   Timer? _statusRefreshTimer;
 
@@ -288,7 +289,11 @@ class _FamilyMapScreenState extends ConsumerState<FamilyMapScreen> {
                     children: [
                       SizedBox(
                         width: 350,
-                        child: LocationOverviewPanel(locations: _locations),
+                        child: LocationOverviewPanel(
+                          locations: _locations,
+                          selectedLocationId: _selectedLocationId,
+                          onLocationSelected: _selectLocation,
+                        ),
                       ),
                       const SizedBox(width: 24),
                       Expanded(child: _buildLocationList()),
@@ -297,7 +302,11 @@ class _FamilyMapScreenState extends ConsumerState<FamilyMapScreen> {
                 : Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      LocationOverviewPanel(locations: _locations),
+                      LocationOverviewPanel(
+                        locations: _locations,
+                        selectedLocationId: _selectedLocationId,
+                        onLocationSelected: _selectLocation,
+                      ),
                       const SizedBox(height: 22),
                       Expanded(child: _buildLocationList()),
                     ],
@@ -334,7 +343,13 @@ class _FamilyMapScreenState extends ConsumerState<FamilyMapScreen> {
               return _LocationCard(
                 location: location,
                 colors: _colors,
-                onTap: () => _openInMaps(location),
+                isSelected:
+                    _selectedLocationId == location.id ||
+                    _selectedLocationId == location.childId,
+                onTap: () {
+                  _selectLocation(location);
+                  _openInMaps(location);
+                },
               );
             },
           ),
@@ -343,48 +358,69 @@ class _FamilyMapScreenState extends ConsumerState<FamilyMapScreen> {
     );
   }
 
+  void _selectLocation(FamilyLocation location) {
+    setState(() {
+      _selectedLocationId = location.id.isNotEmpty
+          ? location.id
+          : location.childId;
+    });
+  }
+
   Widget _buildEmptyState() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: _colors.warning.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.location_searching_rounded,
-                size: 56,
-                color: _colors.warning,
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'No Locations Yet',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: _colors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Family members need to enable location sharing in the companion app. '
-              'Locations will appear here automatically once shared.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: _colors.textSecondary,
-                fontSize: 13,
-                height: 1.5,
-              ),
-            ),
-          ],
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        LocationOverviewPanel(
+          locations: _locations,
+          selectedLocationId: _selectedLocationId,
+          onLocationSelected: _selectLocation,
         ),
-      ),
+        const SizedBox(height: 18),
+        Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: _colors.surface,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: _colors.border),
+          ),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: _colors.warning.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.location_searching_rounded,
+                  size: 40,
+                  color: _colors.warning,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'No Locations Yet',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: _colors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Family members need to enable location sharing in the companion app. '
+                'Locations will appear here automatically once shared.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: _colors.textSecondary,
+                  fontSize: 13,
+                  height: 1.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -395,11 +431,13 @@ class _LocationCard extends StatelessWidget {
   final FamilyLocation location;
   final AppColors colors;
   final VoidCallback onTap;
+  final bool isSelected;
 
   const _LocationCard({
     required this.location,
     required this.colors,
     required this.onTap,
+    required this.isSelected,
   });
 
   @override
@@ -420,7 +458,12 @@ class _LocationCard extends StatelessWidget {
           color: colors.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isStale ? colors.error.withOpacity(0.35) : colors.border,
+            color: isStale
+                ? colors.error.withOpacity(0.35)
+                : isSelected
+                ? colors.primary.withOpacity(0.75)
+                : colors.border,
+            width: isSelected ? 1.8 : 1,
           ),
           boxShadow: [
             BoxShadow(

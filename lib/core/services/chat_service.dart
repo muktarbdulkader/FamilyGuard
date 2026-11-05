@@ -61,7 +61,7 @@ class ChatService implements ChatRepository {
       return _watchParentFamilies(user.uid).asyncMap((snapshot) async {
         final contacts = <ChatContact>[];
         for (final familyDoc in snapshot) {
-          final familyData = familyDoc.data();
+          final familyData = familyDoc.data() ?? const <String, dynamic>{};
           final childIds = List<String>.from(
             familyData['childIds'] ?? familyData['childrenIds'] ?? const [],
           );
@@ -70,22 +70,28 @@ class ChatService implements ChatRepository {
               .where('familyId', isEqualTo: familyDoc.id)
               .where('role', isEqualTo: UserRole.child.value)
               .get();
-          contacts.addAll(
-            childSnapshot.docs.where((doc) => childIds.contains(doc.id)).map((
-              doc,
-            ) {
-              final data = doc.data();
-              final displayName = (data['displayName'] as String?)?.trim();
-              return ChatContact(
+          final childProfilesById = {
+            for (final doc in childSnapshot.docs) doc.id: doc.data(),
+          };
+          final childIdsToInclude = {...childIds, ...childProfilesById.keys};
+          for (final childId in childIdsToInclude) {
+            final childData =
+                childProfilesById[childId] ??
+                (await _firestore.collection('users').doc(childId).get())
+                    .data();
+            if (childData == null) continue;
+            final displayName = (childData['displayName'] as String?)?.trim();
+            contacts.add(
+              ChatContact(
                 familyId: familyDoc.id,
-                userId: doc.id,
+                userId: childId,
                 displayName: displayName != null && displayName.isNotEmpty
                     ? displayName
                     : 'Child',
                 isParent: false,
-              );
-            }),
-          );
+              ),
+            );
+          }
         }
         contacts.sort(
           (a, b) => a.displayName.toLowerCase().compareTo(
@@ -359,51 +365,45 @@ class ChatService implements ChatRepository {
         .collection('messages');
   }
 
-  Stream<List<QueryDocumentSnapshot<Map<String, dynamic>>>>
-  _watchParentFamilies(String parentId) {
-    final queries = [
-      _firestore
-          .collection('families')
-          .where('parentIds', arrayContains: parentId),
-      _firestore.collection('families').where('parentId', isEqualTo: parentId),
-    ];
-    final familyDocsByQuery =
-        List<Map<String, QueryDocumentSnapshot<Map<String, dynamic>>>>.generate(
-          queries.length,
-          (_) => {},
-        );
-    final subscriptions =
-        <StreamSubscription<QuerySnapshot<Map<String, dynamic>>>>[];
-    late final StreamController<
-      List<QueryDocumentSnapshot<Map<String, dynamic>>>
-    >
+  Stream<List<DocumentSnapshot<Map<String, dynamic>>>> _watchParentFamilies(
+    String parentId,
+  ) {
+    StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
+    userSubscription;
+    StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
+    familySubscription;
+    late final StreamController<List<DocumentSnapshot<Map<String, dynamic>>>>
     controller;
-    controller =
-        StreamController<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
-          onListen: () {
-            for (var index = 0; index < queries.length; index++) {
-              final sourceIndex = index;
-              subscriptions.add(
-                queries[index].snapshots().listen((snapshot) {
-                  familyDocsByQuery[sourceIndex] = {
-                    for (final doc in snapshot.docs) doc.id: doc,
-                  };
-                  final families =
-                      <String, QueryDocumentSnapshot<Map<String, dynamic>>>{};
-                  for (final source in familyDocsByQuery) {
-                    families.addAll(source);
-                  }
-                  controller.add(families.values.toList(growable: false));
-                }, onError: controller.addError),
-              );
-            }
-          },
-          onCancel: () async {
-            await Future.wait(
-              subscriptions.map((subscription) => subscription.cancel()),
-            );
-          },
-        );
+    controller = StreamController<List<DocumentSnapshot<Map<String, dynamic>>>>(
+      onListen: () {
+        userSubscription = _firestore
+            .collection('users')
+            .doc(parentId)
+            .snapshots()
+            .listen((userDocument) {
+              final familyId = userDocument.data()?['familyId'] as String?;
+              familySubscription?.cancel();
+              if (familyId == null || familyId.isEmpty) {
+                controller.add(const []);
+                return;
+              }
+              familySubscription = _firestore
+                  .collection('families')
+                  .doc(familyId)
+                  .snapshots()
+                  .listen(
+                    (familyDocument) => controller.add(
+                      familyDocument.exists ? [familyDocument] : const [],
+                    ),
+                    onError: controller.addError,
+                  );
+            }, onError: controller.addError);
+      },
+      onCancel: () async {
+        await userSubscription?.cancel();
+        await familySubscription?.cancel();
+      },
+    );
     return controller.stream;
   }
 }

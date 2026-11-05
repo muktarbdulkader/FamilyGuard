@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -17,14 +19,24 @@ final userFamiliesProvider = StreamProvider<List<FamilyModel>>((ref) {
       }
 
       return FirebaseFirestore.instance
-          .collection('families')
-          .where('parentIds', arrayContains: user.uid)
+          .collection('users')
+          .doc(user.uid)
           .snapshots()
-          .map(
-            (snapshot) => snapshot.docs
-                .map((doc) => FamilyModel.fromFirestore(doc))
-                .toList(),
-          );
+          .asyncExpand((userDocument) {
+            final familyId = userDocument.data()?['familyId'] as String?;
+            if (familyId == null || familyId.isEmpty) {
+              return Stream.value(const <FamilyModel>[]);
+            }
+            return FirebaseFirestore.instance
+                .collection('families')
+                .doc(familyId)
+                .snapshots()
+                .map(
+                  (familyDocument) => familyDocument.exists
+                      ? [FamilyModel.fromFirestore(familyDocument)]
+                      : const <FamilyModel>[],
+                );
+          });
     },
     loading: () => const Stream.empty(),
     error: (error, stackTrace) => Stream.error(error, stackTrace),

@@ -266,6 +266,13 @@ match /families/{familyId}/children/{childId} {
    - Place in `android/app/` directory
    - Update `android/app/build.gradle.kts` with your signing configuration
 
+4. **Enable Live Family Maps**
+   - In Google Cloud Console, enable the Maps SDK for Android and Maps SDK for iOS for your Firebase project.
+   - Restrict the Maps API key to the app's Android package/signing certificate and iOS bundle ID.
+   - For Android, add `googleMapsApiKey=YOUR_RESTRICTED_KEY` to the ignored `android/local.properties` file.
+   - For iOS, create the ignored `ios/Flutter/Local.xcconfig` file with `GOOGLE_MAPS_API_KEY = YOUR_RESTRICTED_KEY`.
+   - Rebuild the app after configuring the key. Child markers come from the family's live Firestore location data.
+
 #### Environment Variables
 ```env
 # .env file
