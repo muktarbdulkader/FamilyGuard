@@ -12,6 +12,7 @@ import '../../../../core/services/audit_service.dart';
 import '../../../../core/providers/family_provider.dart';
 import '../../../../core/providers/rules_provider.dart';
 import '../../../../core/providers/user_provider.dart';
+import '../../../../core/providers/auth_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../localization/smart_screen_time_l10n.dart';
 import '../widgets/app_rule_editor_sheet.dart';
