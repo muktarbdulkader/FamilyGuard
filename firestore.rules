@@ -461,6 +461,10 @@ service cloud.firestore {
       allow delete: if signedIn() && resource.data.userId == request.auth.uid;
     }
 
+    match /rules/{ruleId} {
+      allow read, write: if signedIn();
+    }
+
     match /rule_enforcement_logs/{logId} {
       allow read: if signedIn() &&
         resource.data.childId is string &&
