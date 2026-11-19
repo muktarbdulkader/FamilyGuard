@@ -5,6 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/models/app_info.dart';
 import '../../../../core/models/rule_model.dart';
+import '../../../../core/models/routine_model.dart';
+import '../../../../core/models/activity_log_model.dart';
+import '../../../../core/services/routine_service.dart';
+import '../../../../core/services/audit_service.dart';
 import '../../../../core/providers/family_provider.dart';
 import '../../../../core/providers/rules_provider.dart';
 import '../../../../core/providers/user_provider.dart';
@@ -881,6 +885,292 @@ class _SmartScreenTimeScreenState
     );
   }
 
+  Future<void> _showRoutineEditorSheet({
+    required String familyId,
+    RoutineModel? existing,
+    RoutineTemplate? template,
+  }) async {
+    final routineTemplate = template ?? existing?.templateType ?? RoutineTemplate.study;
+    final nameCtrl = TextEditingController(
+      text: existing?.name ?? routineTemplate.displayName,
+    );
+    final descCtrl = TextEditingController(
+      text: existing?.description ?? '',
+    );
+    TimeOfDay start = existing?.startTime ?? (routineTemplate == RoutineTemplate.dinner
+        ? const TimeOfDay(hour: 18, minute: 30)
+        : routineTemplate == RoutineTemplate.bedtime
+            ? const TimeOfDay(hour: 21, minute: 0)
+            : const TimeOfDay(hour: 16, minute: 0));
+    TimeOfDay end = existing?.endTime ?? (routineTemplate == RoutineTemplate.dinner
+        ? const TimeOfDay(hour: 19, minute: 30)
+        : routineTemplate == RoutineTemplate.bedtime
+            ? const TimeOfDay(hour: 7, minute: 0)
+            : const TimeOfDay(hour: 18, minute: 0));
+    List<int> days = List<int>.from(existing?.daysOfWeek ?? [1, 2, 3, 4, 5]);
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        final colors = AppColors.of(ctx);
+        final l10n = SmartScreenTimeL10n.of(ctx);
+        final themeColor = routineTemplate.color;
+
+        return StatefulBuilder(
+          builder: (ctx, setSheet) {
+            final candidate = RoutineModel(
+              id: existing?.id ?? '',
+              familyId: familyId,
+              childId: widget.childId,
+              name: nameCtrl.text.trim(),
+              templateType: routineTemplate,
+              startTime: start,
+              endTime: end,
+              daysOfWeek: days,
+              isActive: true,
+              createdAt: DateTime.now(),
+              updatedAt: DateTime.now(),
+            );
+            final existingRoutines = ref.watch(childRoutinesProvider((familyId: familyId, childId: widget.childId))).value ?? [];
+            final conflicts = RoutineModel.findConflicts(candidate, existingRoutines);
+
+            return Container(
+              decoration: BoxDecoration(
+                color: colors.surface,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                border: Border.all(color: colors.border),
+              ),
+              padding: EdgeInsets.fromLTRB(24, 20, 24, MediaQuery.of(ctx).viewInsets.bottom + 28),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: colors.textSecondary.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: themeColor.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(routineTemplate.icon, color: themeColor, size: 22),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            existing == null ? 'Create Routine' : 'Edit Routine',
+                            style: TextStyle(
+                              color: colors.textPrimary,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: nameCtrl,
+                      style: TextStyle(color: colors.textPrimary),
+                      decoration: InputDecoration(
+                        labelText: 'Routine Name',
+                        labelStyle: TextStyle(color: colors.textSecondary),
+                        filled: true,
+                        fillColor: colors.surfaceHighlight,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _timePickerCard(
+                            label: 'Start Time',
+                            icon: Icons.play_arrow_rounded,
+                            color: themeColor,
+                            time: start,
+                            colors: colors,
+                            onTap: () async {
+                              final t = await showTimePicker(context: ctx, initialTime: start);
+                              if (t != null) setSheet(() => start = t);
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _timePickerCard(
+                            label: 'End Time',
+                            icon: Icons.stop_rounded,
+                            color: themeColor,
+                            time: end,
+                            colors: colors,
+                            onTap: () async {
+                              final t = await showTimePicker(context: ctx, initialTime: end);
+                              if (t != null) setSheet(() => end = t);
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Active Days',
+                      style: TextStyle(color: colors.textPrimary, fontSize: 13, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    _daySelector(
+                      selected: days,
+                      colors: colors,
+                      l10n: l10n,
+                      onToggle: (d) => setSheet(() {
+                        if (days.contains(d)) {
+                          if (days.length > 1) days.remove(d);
+                        } else {
+                          days.add(d);
+                        }
+                      }),
+                    ),
+                    if (conflicts.isNotEmpty) ...[
+                      const SizedBox(height: 14),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEF4444).withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFEF4444).withOpacity(0.4)),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444), size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                conflicts.first,
+                                style: const TextStyle(color: Color(0xFFEF4444), fontSize: 12, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        if (existing != null) ...[
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () async {
+                                Navigator.pop(ctx);
+                                await RoutineService.instance.deleteRoutine(
+                                  familyId: familyId,
+                                  routineId: existing.id,
+                                );
+                                await AuditService.instance.logEvent(
+                                  familyId: familyId,
+                                  childId: widget.childId,
+                                  childName: widget.childName,
+                                  actorId: ref.read(authStateProvider).value?.uid ?? '',
+                                  actorName: ref.read(authStateProvider).value?.displayName ?? 'Parent',
+                                  type: ActivityType.routineToggle,
+                                  title: 'Deleted Routine',
+                                  description: 'Deleted routine "${existing.name}"',
+                                );
+                                _snack('Routine removed.');
+                              },
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: const Color(0xFFEF4444),
+                                side: const BorderSide(color: Color(0xFFEF4444)),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                              ),
+                              child: const Text('Delete'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                        ],
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () async {
+                              final name = nameCtrl.text.trim();
+                              if (name.isEmpty) return;
+                              Navigator.pop(ctx);
+
+                              final model = RoutineModel(
+                                id: existing?.id ?? '',
+                                familyId: familyId,
+                                childId: widget.childId,
+                                name: name,
+                                templateType: routineTemplate,
+                                startTime: start,
+                                endTime: end,
+                                daysOfWeek: days,
+                                isActive: existing?.isActive ?? true,
+                                description: descCtrl.text.trim(),
+                                createdAt: existing?.createdAt ?? DateTime.now(),
+                                updatedAt: DateTime.now(),
+                              );
+
+                              if (existing == null) {
+                                await RoutineService.instance.createRoutine(
+                                  familyId: familyId,
+                                  routine: model,
+                                );
+                              } else {
+                                await RoutineService.instance.updateRoutine(
+                                  familyId: familyId,
+                                  routine: model,
+                                );
+                              }
+
+                              await AuditService.instance.logEvent(
+                                familyId: familyId,
+                                childId: widget.childId,
+                                childName: widget.childName,
+                                actorId: ref.read(authStateProvider).value?.uid ?? '',
+                                actorName: ref.read(authStateProvider).value?.displayName ?? 'Parent',
+                                type: ActivityType.routineToggle,
+                                title: existing == null ? 'Created Routine' : 'Updated Routine',
+                                description: 'Configured routine "$name" (${_fmtAmPm(start)} - ${_fmtAmPm(end)})',
+                              );
+
+                              _snack(conflicts.isEmpty ? 'Routine saved successfully.' : 'Routine saved with schedule warning.');
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: themeColor,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            ),
+                            child: const Text('Save Routine', style: TextStyle(fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   // ─────────────────────────────────────────────────────────────
   // BUILD
   // ─────────────────────────────────────────────────────────────
@@ -1198,6 +1488,14 @@ class _SmartScreenTimeScreenState
                       child: _buildFocusRuleCard(r, colors, l10n),
                     ),
                   ),
+                const SizedBox(height: 20),
+
+                // ── Section: Family Routines ───────────────────
+                _buildRoutinesSection(
+                  familyId: familyId,
+                  colors: colors,
+                  l10n: l10n,
+                ),
                 const SizedBox(height: 20),
 
                 // ── Section: App Time Limits ───────────────────
@@ -1838,6 +2136,166 @@ class _SmartScreenTimeScreenState
           ],
         ],
       ),
+    );
+  }
+
+  // ── Family Routines Section ──────────────────────────────────
+  Widget _buildRoutinesSection({
+    required String familyId,
+    required AppColors colors,
+    required SmartScreenTimeL10n l10n,
+  }) {
+    final routinesAsync = ref.watch(childRoutinesProvider((familyId: familyId, childId: widget.childId)));
+    final purple = const Color(0xFF8B5CF6);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionHeader(
+          'Family Routines',
+          Icons.schedule_rounded,
+          purple,
+          trailing: GestureDetector(
+            onTap: () => _showRoutineEditorSheet(familyId: familyId),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: purple.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.add, color: purple, size: 14),
+                  const SizedBox(width: 3),
+                  Text(
+                    l10n.addAction,
+                    style: TextStyle(
+                      color: purple,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        // Template chips row
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              _routineTemplatePill(RoutineTemplate.study, familyId, colors),
+              const SizedBox(width: 8),
+              _routineTemplatePill(RoutineTemplate.dinner, familyId, colors),
+              const SizedBox(width: 8),
+              _routineTemplatePill(RoutineTemplate.bedtime, familyId, colors),
+              const SizedBox(width: 8),
+              _routineTemplatePill(RoutineTemplate.play, familyId, colors),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        routinesAsync.when(
+          loading: () => const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator(strokeWidth: 2))),
+          error: (e, _) => Text('Error loading routines: $e', style: const TextStyle(color: Colors.red, fontSize: 12)),
+          data: (routines) {
+            if (routines.isEmpty) {
+              return _buildEmptyCard(
+                icon: Icons.schedule_outlined,
+                color: purple,
+                title: 'No routines scheduled',
+                subtitle: 'Set up study hours, dinner time, or bedtime routines.',
+                onAdd: () => _showRoutineEditorSheet(familyId: familyId),
+                addLabel: 'Add Routine',
+                colors: colors,
+              );
+            }
+            return Column(
+              children: routines.map((routine) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _buildRoutineCard(routine, familyId, colors, l10n),
+              )).toList(),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _routineTemplatePill(RoutineTemplate template, String familyId, AppColors colors) {
+    return GestureDetector(
+      onTap: () => _showRoutineEditorSheet(familyId: familyId, template: template),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: template.color.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: template.color.withOpacity(0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(template.icon, size: 14, color: template.color),
+            const SizedBox(width: 6),
+            Text(
+              template.displayName,
+              style: TextStyle(
+                color: template.color,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRoutineCard(RoutineModel routine, String familyId, AppColors colors, SmartScreenTimeL10n l10n) {
+    final template = routine.templateType;
+    final color = template.color;
+    final labels = l10n.dayLabelsShort;
+    final daysLabel = routine.daysOfWeek.length == 7
+        ? l10n.everyDay
+        : (List<int>.from(routine.daysOfWeek)..sort())
+            .map((d) => (d - 1 >= 0 && d - 1 < labels.length) ? labels[d - 1] : '')
+            .join(' ');
+
+    final timeRange = '${_fmtAmPm(routine.startTime)} – ${_fmtAmPm(routine.endTime)}';
+
+    return _ruleCard(
+      color: color,
+      icon: template.icon,
+      title: routine.name,
+      subtitle: '$timeRange · $daysLabel',
+      statusColor: routine.isActive ? color : colors.textSecondary,
+      statusLabel: routine.isActive ? l10n.activeStatus : l10n.pausedStatus,
+      colors: colors,
+      trailing: Switch(
+        value: routine.isActive,
+        activeColor: color,
+        onChanged: (val) async {
+          await RoutineService.instance.toggleRoutine(
+            familyId: familyId,
+            routineId: routine.id,
+            isActive: val,
+          );
+          await AuditService.instance.logEvent(
+            familyId: familyId,
+            childId: widget.childId,
+            childName: widget.childName,
+            actorId: ref.read(authStateProvider).value?.uid ?? '',
+            actorName: ref.read(authStateProvider).value?.displayName ?? 'Parent',
+            type: ActivityType.routineToggle,
+            title: val ? 'Enabled Routine' : 'Paused Routine',
+            description: '${val ? "Enabled" : "Paused"} routine "${routine.name}"',
+          );
+        },
+      ),
+      onTap: () => _showRoutineEditorSheet(familyId: familyId, existing: routine),
     );
   }
 }
