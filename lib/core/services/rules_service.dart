@@ -105,6 +105,12 @@ class RulesService {
               .toList();
           rules.sort((a, b) => b.createdAt.compareTo(a.createdAt));
           return rules;
+        })
+        .handleError((error) {
+          if (kDebugMode) {
+            print('Error fetching rules for child: $error');
+          }
+          return <RuleModel>[];
         });
   }
 
@@ -120,6 +126,12 @@ class RulesService {
               .toList();
           rules.sort((a, b) => b.createdAt.compareTo(a.createdAt));
           return rules;
+        })
+        .handleError((error) {
+          if (kDebugMode) {
+            print('Error fetching rules for family: $error');
+          }
+          return <RuleModel>[];
         });
   }
 
@@ -136,6 +148,12 @@ class RulesService {
               .toList();
           rules.sort((a, b) => b.createdAt.compareTo(a.createdAt));
           return rules;
+        })
+        .handleError((error) {
+          if (kDebugMode) {
+            print('Error fetching active rules for child: $error');
+          }
+          return <RuleModel>[];
         });
   }
 
