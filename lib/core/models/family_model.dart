@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../utils/firestore_parsers.dart';
 
 /// Enum for app rule types
 enum AppRuleType {
@@ -180,34 +181,17 @@ class ChildModel {
   factory ChildModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
 
-    DateTime parseTimestamp(dynamic value, DateTime fallback) {
-      if (value == null) return fallback;
-      if (value is Timestamp) return value.toDate();
-      if (value is DateTime) return value;
-      if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
-      if (value is String) return DateTime.tryParse(value) ?? fallback;
-      return fallback;
-    }
-
-    DateTime? parseOptionalTimestamp(dynamic value) {
-      if (value is Timestamp) return value.toDate();
-      if (value is DateTime) return value;
-      if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
-      if (value is String) return DateTime.tryParse(value);
-      return null;
-    }
-
-    final lastSeen = parseOptionalTimestamp(data['lastSeen']);
-    final lastSyncTimestamp = parseOptionalTimestamp(data['lastSyncTimestamp'] ?? data['lastHeartbeat']);
-    final lastPermissionCheck = parseOptionalTimestamp(data['lastPermissionCheck']);
+    final lastSeen = FirestoreParsers.parseOptionalDateTime(data['lastSeen']);
+    final lastSyncTimestamp = FirestoreParsers.parseOptionalDateTime(data['lastSyncTimestamp'] ?? data['lastHeartbeat']);
+    final lastPermissionCheck = FirestoreParsers.parseOptionalDateTime(data['lastPermissionCheck']);
 
     return ChildModel(
       id: doc.id,
       displayName: data['displayName'] ?? data['name'] ?? data['email']?.toString().split('@').first ?? 'Child',
       email: data['email'] ?? '',
       familyId: data['familyId'] ?? '',
-      joinedAt: parseTimestamp(data['joinedAt'] ?? data['createdAt'], DateTime.fromMillisecondsSinceEpoch(0)),
-      lastActiveAt: parseTimestamp(data['lastActiveAt'] ?? lastSeen ?? data['updatedAt'], DateTime.fromMillisecondsSinceEpoch(0)),
+      joinedAt: FirestoreParsers.parseDateTime(data['joinedAt'] ?? data['createdAt'], fallback: DateTime.fromMillisecondsSinceEpoch(0)),
+      lastActiveAt: FirestoreParsers.parseDateTime(data['lastActiveAt'] ?? lastSeen ?? data['updatedAt'], fallback: DateTime.fromMillisecondsSinceEpoch(0)),
       isOnline: lastSeen == null
           ? false
           : isOnlineAt(lastSeen),
