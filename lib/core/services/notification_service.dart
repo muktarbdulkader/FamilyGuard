@@ -873,6 +873,49 @@ class NotificationService {
         });
   }
 
+  /// Shared helper to write a notification to both the global `notifications`
+  /// collection and the family-scoped `families/{familyId}/notifications` subcollection.
+  Future<void> dispatchFamilyNotification({
+    required String familyId,
+    required String childId,
+    required String childName,
+    required String type,
+    required String title,
+    required String body,
+    String priority = 'normal',
+    Map<String, dynamic> data = const {},
+  }) async {
+    if (familyId.isEmpty) return;
+    final now = DateTime.now();
+    final notifData = <String, dynamic>{
+      'familyId': familyId,
+      'childId': childId,
+      'childName': childName,
+      'type': type,
+      'priority': priority,
+      'title': title,
+      'body': body,
+      'data': data,
+      'createdAt': Timestamp.fromDate(now),
+      'isRead': false,
+    };
+
+    try {
+      await _firestore.collection('notifications').add(notifData);
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error writing global notification: $e');
+      }
+    }
+    try {
+      await _firestore
+          .collection('families')
+          .doc(familyId)
+          .collection('notifications')
+          .add(notifData);
+    } catch (_) {}
+  }
+
   Future<void> dispose() async {
     await _foregroundSubscription?.cancel();
     await _tokenRefreshSubscription?.cancel();

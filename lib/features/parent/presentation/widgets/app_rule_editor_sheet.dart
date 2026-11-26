@@ -1,8 +1,8 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/providers/family_provider.dart';
 import '../../../../core/models/app_info.dart';
+import '../../../../core/widgets/app_icon_widget.dart';
 
 class AppRuleEditorSheet extends ConsumerStatefulWidget {
   final AppWithUsage appWithUsage;
@@ -81,39 +81,13 @@ class _AppRuleEditorSheetState extends ConsumerState<AppRuleEditorSheet> {
             // Header
             Row(
               children: [
-                if (widget.appWithUsage.app.iconBase64 != null)
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.memory(
-                        base64Decode(widget.appWithUsage.app.iconBase64!),
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => Container(
-                          color: Colors.grey[300],
-                          child: const Icon(Icons.android, color: Colors.grey),
-                        ),
-                      ),
-                    ),
-                  )
-                else
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.android,
-                      color: Colors.grey,
-                      size: 24,
-                    ),
-                  ),
+                AppIconWidget(
+                  iconBase64: widget.appWithUsage.app.iconBase64,
+                  size: 48,
+                  borderRadius: 12,
+                  fallbackIcon: Icons.android,
+                  fallbackColor: Colors.grey,
+                ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(

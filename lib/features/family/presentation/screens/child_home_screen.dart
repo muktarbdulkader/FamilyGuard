@@ -21,6 +21,7 @@ import '../../../../core/services/notification_service.dart';
 import '../../../../core/services/emergency_service.dart';
 import '../../../../core/services/routine_service.dart';
 import '../../../../core/models/emergency_sos_model.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../../../core/providers/locale_provider.dart';
 import '../../../../l10n/app_localizations.dart';
 
@@ -1180,7 +1181,7 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen>
                       Text(
                         '${routines[index].startTime.format(context)} – '
                         '${routines[index].endTime.format(context)} · '
-                        '${_routineDaysLabel(routines[index].daysOfWeek)}',
+                        '${AppFormatters.formatDaysList(routines[index].daysOfWeek, separator: ', ')}',
                         style: TextStyle(
                           color: _colors.textSecondary,
                           fontSize: 12,
@@ -1212,14 +1213,6 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen>
         ],
       ),
     );
-  }
-
-  String _routineDaysLabel(List<int> daysOfWeek) {
-    const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    return daysOfWeek
-        .where((day) => day >= 1 && day <= dayLabels.length)
-        .map((day) => dayLabels[day - 1])
-        .join(', ');
   }
 
   // ── Metric Box in Hero Card ─────────────────────────────────────────

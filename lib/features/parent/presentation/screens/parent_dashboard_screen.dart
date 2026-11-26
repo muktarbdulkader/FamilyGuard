@@ -2146,21 +2146,19 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
   }
 
   Widget _buildAppDashboardIcon(AppInfo app) {
-    if (app.iconBase64 != null && app.iconBase64!.isNotEmpty) {
-      try {
-        final bytes = base64Decode(app.iconBase64!);
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: Image.memory(
-            bytes,
-            width: 42,
-            height: 42,
-            fit: BoxFit.cover,
-            gaplessPlayback: true,
-            errorBuilder: (_, __, ___) => _buildDashboardFallbackIcon(app),
-          ),
-        );
-      } catch (_) {}
+    final bytes = AppIconWidget.decodeCached(app.iconBase64);
+    if (bytes != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: Image.memory(
+          bytes,
+          width: 42,
+          height: 42,
+          fit: BoxFit.cover,
+          gaplessPlayback: true,
+          errorBuilder: (_, __, ___) => _buildDashboardFallbackIcon(app),
+        ),
+      );
     }
     return _buildDashboardFallbackIcon(app);
   }
@@ -3302,7 +3300,7 @@ class _EmergencyAlertBanner extends ConsumerWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              'Sent: ${_relativeTime(alert.timestamp)}',
+              'Sent: ${AppFormatters.formatRelativeTime(alert.timestamp)}',
               style: const TextStyle(color: Colors.white54, fontSize: 12),
             ),
           ],
@@ -3346,14 +3344,6 @@ class _EmergencyAlertBanner extends ConsumerWidget {
       ),
     );
   }
-
-  String _relativeTime(DateTime dt) {
-    final diff = DateTime.now().difference(dt);
-    if (diff.inSeconds < 60) return 'Just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    return '${diff.inDays}d ago';
-  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -3394,16 +3384,6 @@ class _ActivityHistoryTabState extends ConsumerState<_ActivityHistoryTab> {
   void initState() {
     super.initState();
     _filterChildId = widget.childId;
-  }
-
-  String _relativeTime(DateTime dt) {
-    final diff = DateTime.now().difference(dt);
-    if (diff.inSeconds < 60) return 'Just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) {
-      return '${diff.inHours}h ${diff.inMinutes % 60}m ago';
-    }
-    return '${dt.month}/${dt.day} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
   }
 
   @override
@@ -3540,7 +3520,15 @@ class _ActivityHistoryTabState extends ConsumerState<_ActivityHistoryTab> {
                 itemCount: logs.length,
                 itemBuilder: (ctx, i) {
                   final log = logs[i];
-                  return _ActivityLogCard(log: log, relativeTime: _relativeTime(log.timestamp), isDark: isDark);
+                  return _ActivityLogCard(
+                    log: log,
+                    relativeTime: AppFormatters.formatRelativeTime(
+                      log.timestamp,
+                      includeHoursMinutesInDay: true,
+                      fallbackToDateTime: true,
+                    ),
+                    isDark: isDark,
+                  );
                 },
               );
             },

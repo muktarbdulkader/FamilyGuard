@@ -10,6 +10,7 @@ import '../models/educational_task_model.dart';
 import '../models/educational_material_model.dart';
 import '../models/quiz_model.dart';
 import '../constants/app_constants.dart';
+import 'notification_service.dart';
 
 final educationServiceProvider = Provider<EducationService>((ref) {
   return EducationService();
@@ -340,32 +341,20 @@ class EducationService {
         final matTitle = matDoc.data()?['title'] ?? 'Educational Material';
         final resolvedName = childName ?? 'Your child';
 
-        final notifData = {
-          'familyId': familyId,
-          'childId': childId,
-          'childName': resolvedName,
-          'type': 'educational_completed',
-          'priority': 'normal',
-          'title': '🌟 $resolvedName completed a lesson!',
-          'body': '$resolvedName finished studying "$matTitle". Great work!',
-          'data': {
+        await NotificationService.instance.dispatchFamilyNotification(
+          familyId: familyId,
+          childId: childId,
+          childName: resolvedName,
+          type: 'educational_completed',
+          title: '🌟 $resolvedName completed a lesson!',
+          body: '$resolvedName finished studying "$matTitle". Great work!',
+          data: {
             'type': 'educational_completed',
             'materialId': materialId,
             'title': matTitle,
             'childId': childId,
           },
-          'createdAt': Timestamp.fromDate(now),
-          'isRead': false,
-        };
-
-        await _firestore.collection('notifications').add(notifData);
-        try {
-          await _firestore
-              .collection(AppConstants.familiesCollection)
-              .doc(familyId)
-              .collection('notifications')
-              .add(notifData);
-        } catch (_) {}
+        );
       } catch (e) {
         debugPrint('Error writing completion notification: $e');
       }

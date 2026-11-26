@@ -1,5 +1,4 @@
 import '../../../../core/widgets/family_page_header.dart';
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,6 +8,8 @@ import '../../../../core/models/routine_model.dart';
 import '../../../../core/models/activity_log_model.dart';
 import '../../../../core/services/routine_service.dart';
 import '../../../../core/services/audit_service.dart';
+import '../../../../core/utils/formatters.dart';
+import '../../../../core/widgets/app_icon_widget.dart';
 import '../../../../core/providers/family_provider.dart';
 import '../../../../core/providers/rules_provider.dart';
 import '../../../../core/providers/user_provider.dart';
@@ -72,12 +73,7 @@ class _SmartScreenTimeScreenState
       c.isDark ? const Color(0xFFFBBF24) : const Color(0xFFD97706);
 
   // ── helpers ─────────────────────────────────────────────────
-  String _fmtAmPm(TimeOfDay t) {
-    final h = t.hourOfPeriod == 0 ? 12 : t.hourOfPeriod;
-    final m = t.minute.toString().padLeft(2, '0');
-    final p = t.period == DayPeriod.am ? 'AM' : 'PM';
-    return '$h:$m $p';
-  }
+  String _fmtAmPm(TimeOfDay t) => AppFormatters.formatTimeOfDayAmPm(t);
 
   String _fmtMins(int mins, SmartScreenTimeL10n l10n) {
     if (mins < 60) {
@@ -1868,30 +1864,15 @@ class _SmartScreenTimeScreenState
       subtitle = isRuleActive ? l10n.activeStatus : l10n.pausedStatus;
     }
 
-    Widget? leadingWidget;
-    if (app.iconBase64 != null && app.iconBase64!.isNotEmpty) {
-      try {
-        final bytes = base64Decode(app.iconBase64!);
-        leadingWidget = ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: Image.memory(
-            bytes,
-            width: 42,
-            height: 42,
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: rose.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(Icons.apps_rounded, color: rose, size: 20),
-            ),
-          ),
-        );
-      } catch (_) {}
-    }
+    final Widget? leadingWidget =
+        (app.iconBase64 != null && app.iconBase64!.isNotEmpty)
+        ? AppIconWidget(
+            iconBase64: app.iconBase64,
+            size: 42,
+            borderRadius: 10,
+            fallbackColor: rose,
+          )
+        : null;
 
     return _ruleCard(
       color: rose,
