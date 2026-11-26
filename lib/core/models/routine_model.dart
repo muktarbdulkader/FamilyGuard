@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../utils/firestore_parsers.dart';
+import '../utils/formatters.dart';
 
 enum RoutineTemplate {
   study,
@@ -145,7 +147,8 @@ class RoutineModel {
         if (overlaps) break;
       }
       if (overlaps) {
-        final timeStr = '${_fmt(other.startTime)} - ${_fmt(other.endTime)}';
+        final timeStr =
+            '${AppFormatters.formatTimeOfDayAmPm(other.startTime)} - ${AppFormatters.formatTimeOfDayAmPm(other.endTime)}';
         conflicts.add('Overlaps with "${other.name}" ($timeStr)');
       }
     }
@@ -170,29 +173,8 @@ class RoutineModel {
     return intervals;
   }
 
-  static String _fmt(TimeOfDay t) {
-    final h = t.hourOfPeriod == 0 ? 12 : t.hourOfPeriod;
-    final m = t.minute.toString().padLeft(2, '0');
-    final p = t.period == DayPeriod.am ? 'AM' : 'PM';
-    return '$h:$m $p';
-  }
-
   factory RoutineModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>? ?? {};
-
-    TimeOfDay parseTime(Map<String, dynamic>? map, TimeOfDay fallback) {
-      if (map == null) return fallback;
-      return TimeOfDay(
-        hour: (map['hour'] as num?)?.toInt() ?? fallback.hour,
-        minute: (map['minute'] as num?)?.toInt() ?? fallback.minute,
-      );
-    }
-
-    DateTime parseTimestamp(dynamic val) {
-      if (val is Timestamp) return val.toDate();
-      if (val is DateTime) return val;
-      return DateTime.now();
-    }
 
     return RoutineModel(
       id: doc.id,
@@ -200,21 +182,21 @@ class RoutineModel {
       childId: data['childId'] as String? ?? '',
       name: data['name'] as String? ?? 'Routine',
       templateType: RoutineTemplate.fromString(data['templateType'] as String?),
-      startTime: parseTime(
-        data['startTime'] as Map<String, dynamic>?,
-        const TimeOfDay(hour: 8, minute: 0),
+      startTime: FirestoreParsers.parseTimeOfDay(
+        data['startTime'],
+        fallback: const TimeOfDay(hour: 8, minute: 0),
       ),
-      endTime: parseTime(
-        data['endTime'] as Map<String, dynamic>?,
-        const TimeOfDay(hour: 9, minute: 0),
+      endTime: FirestoreParsers.parseTimeOfDay(
+        data['endTime'],
+        fallback: const TimeOfDay(hour: 9, minute: 0),
       ),
       daysOfWeek: List<int>.from(data['daysOfWeek'] ?? [1, 2, 3, 4, 5, 6, 7]),
       isActive: data['isActive'] as bool? ?? true,
       description: data['description'] as String?,
       allowedCategories: List<String>.from(data['allowedCategories'] ?? []),
       blockedCategories: List<String>.from(data['blockedCategories'] ?? []),
-      createdAt: parseTimestamp(data['createdAt']),
-      updatedAt: parseTimestamp(data['updatedAt']),
+      createdAt: FirestoreParsers.parseDateTime(data['createdAt']),
+      updatedAt: FirestoreParsers.parseDateTime(data['updatedAt']),
     );
   }
 

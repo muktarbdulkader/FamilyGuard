@@ -96,27 +96,12 @@ class EmergencyAlert {
       };
     }
 
-    DateTime parseTimestamp(dynamic val) {
-      if (val is Timestamp) return val.toDate();
-      if (val is DateTime) return val;
-      if (val is int) return DateTime.fromMillisecondsSinceEpoch(val);
-      return DateTime.now();
-    }
-
-    DateTime? parseOptional(dynamic val) {
-      if (val == null) return null;
-      if (val is Timestamp) return val.toDate();
-      if (val is DateTime) return val;
-      if (val is int) return DateTime.fromMillisecondsSinceEpoch(val);
-      return null;
-    }
-
     return EmergencyAlert(
       id: doc.id,
       familyId: data['familyId'] as String? ?? '',
       childId: data['childId'] as String? ?? '',
       childName: data['childName'] as String? ?? 'Child',
-      timestamp: parseTimestamp(data['timestamp'] ?? data['createdAt']),
+      timestamp: FirestoreParsers.parseDateTime(data['timestamp'] ?? data['createdAt']),
       latitude: (data['latitude'] as num?)?.toDouble(),
       longitude: (data['longitude'] as num?)?.toDouble(),
       address: data['address'] as String?,
@@ -124,9 +109,9 @@ class EmergencyAlert {
       type: AlertType.fromString(data['type'] as String?),
       message: data['message'] as String?,
       acknowledgedBy: data['acknowledgedBy'] as String?,
-      acknowledgedAt: parseOptional(data['acknowledgedAt']),
+      acknowledgedAt: FirestoreParsers.parseOptionalDateTime(data['acknowledgedAt']),
       resolvedBy: data['resolvedBy'] as String?,
-      resolvedAt: parseOptional(data['resolvedAt']),
+      resolvedAt: FirestoreParsers.parseOptionalDateTime(data['resolvedAt']),
       resolutionNotes: data['resolutionNotes'] as String?,
     );
   }

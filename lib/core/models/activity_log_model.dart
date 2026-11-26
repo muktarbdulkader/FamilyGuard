@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../utils/firestore_parsers.dart';
 
 enum ActivityType {
   ruleChange,
@@ -95,12 +96,6 @@ class ActivityLogModel {
   factory ActivityLogModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>? ?? {};
 
-    DateTime parseTimestamp(dynamic val) {
-      if (val is Timestamp) return val.toDate();
-      if (val is DateTime) return val;
-      return DateTime.now();
-    }
-
     return ActivityLogModel(
       id: doc.id,
       familyId: data['familyId'] as String? ?? '',
@@ -112,7 +107,7 @@ class ActivityLogModel {
       type: ActivityType.fromString(data['type'] as String?),
       title: data['title'] as String? ?? 'Activity Log',
       description: data['description'] as String? ?? '',
-      timestamp: parseTimestamp(data['timestamp'] ?? data['createdAt']),
+      timestamp: FirestoreParsers.parseDateTime(data['timestamp'] ?? data['createdAt']),
       metadata: Map<String, dynamic>.from(data['metadata'] ?? {}),
     );
   }
