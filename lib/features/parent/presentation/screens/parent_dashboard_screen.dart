@@ -1,5 +1,4 @@
 import '../../../../core/widgets/family_page_header.dart';
-import 'dart:convert';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -16,6 +15,8 @@ import '../../../../core/services/location_service.dart';
 import '../../../../core/services/geocoding_service.dart';
 import '../../../../core/services/emergency_service.dart';
 import '../../../../core/services/audit_service.dart';
+import '../../../../core/utils/formatters.dart';
+import '../../../../core/widgets/app_icon_widget.dart';
 import '../widgets/app_usage_indicator.dart';
 import '../widgets/app_rule_editor_sheet.dart';
 import '../../../apps/presentation/screens/parent_app_management_screen.dart';
