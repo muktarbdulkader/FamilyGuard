@@ -334,6 +334,8 @@ class _ChildAppsScreenState extends ConsumerState<ChildAppsScreen> {
                       leading: _buildAppIcon(app),
                       title: Text(
                         app.appName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(fontWeight: FontWeight.w500),
                       ),
                       subtitle: Column(
@@ -341,6 +343,8 @@ class _ChildAppsScreenState extends ConsumerState<ChildAppsScreen> {
                         children: [
                           Text(
                             app.packageName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.grey[600],
@@ -370,11 +374,15 @@ class _ChildAppsScreenState extends ConsumerState<ChildAppsScreen> {
                                 ),
                                 const SizedBox(width: 4),
                               ],
-                              Text(
-                                'v${app.version}',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.grey[500],
+                              Flexible(
+                                child: Text(
+                                  'v${app.version}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey[500],
+                                  ),
                                 ),
                               ),
                             ],
