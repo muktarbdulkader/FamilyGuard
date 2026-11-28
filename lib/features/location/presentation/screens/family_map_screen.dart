@@ -163,7 +163,9 @@ class _FamilyMapScreenState extends ConsumerState<FamilyMapScreen> {
 
     return Scaffold(
       backgroundColor: _colors.background,
+      extendBody: true,
       body: SafeArea(
+        bottom: false,
         child: Column(
           children: [
             LocationPageHeader(
@@ -279,48 +281,60 @@ class _FamilyMapScreenState extends ConsumerState<FamilyMapScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isWide = constraints.maxWidth >= 900;
-        final content = ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1180),
-          child: Padding(
-            padding: EdgeInsets.all(isWide ? 24 : 16),
-            child: isWide
-                ? Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(
-                        width: 350,
+        if (isWide) {
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1180),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 24, 24, 108),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: 350,
+                      child: SingleChildScrollView(
                         child: LocationOverviewPanel(
                           locations: _locations,
                           selectedLocationId: _selectedLocationId,
                           onLocationSelected: _selectLocation,
                         ),
                       ),
-                      const SizedBox(width: 24),
-                      Expanded(child: _buildLocationList()),
-                    ],
-                  )
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      LocationOverviewPanel(
-                        locations: _locations,
-                        selectedLocationId: _selectedLocationId,
-                        onLocationSelected: _selectLocation,
-                      ),
-                      const SizedBox(height: 22),
-                      Expanded(child: _buildLocationList()),
-                    ],
-                  ),
-          ),
-        );
+                    ),
+                    const SizedBox(width: 24),
+                    Expanded(child: _buildLocationList()),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
 
-        return Align(
-          alignment: Alignment.topCenter,
-          child: SizedBox(
-            width: double.infinity,
-            height: constraints.maxHeight,
-            child: content,
-          ),
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 112),
+          children: [
+            LocationOverviewPanel(
+              locations: _locations,
+              selectedLocationId: _selectedLocationId,
+              onLocationSelected: _selectLocation,
+            ),
+            const SizedBox(height: 20),
+            LocationSectionHeading(
+              title: 'Shared locations',
+              count: _locations.length,
+            ),
+            for (final location in _locations)
+              _LocationCard(
+                location: location,
+                colors: _colors,
+                isSelected:
+                    _selectedLocationId == location.id ||
+                    _selectedLocationId == location.childId,
+                onTap: () {
+                  _selectLocation(location);
+                  _openInMaps(location);
+                },
+              ),
+          ],
         );
       },
     );
@@ -368,7 +382,7 @@ class _FamilyMapScreenState extends ConsumerState<FamilyMapScreen> {
 
   Widget _buildEmptyState() {
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 112),
       children: [
         LocationOverviewPanel(
           locations: _locations,

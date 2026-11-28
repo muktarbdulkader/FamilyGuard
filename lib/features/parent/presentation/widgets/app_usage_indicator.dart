@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/theme/app_colors.dart';
 
 /// Widget that shows app usage progress against daily limit
 class AppUsageIndicator extends StatelessWidget {
@@ -15,19 +16,21 @@ class AppUsageIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final percentage = (usedMinutes / limitMinutes).clamp(0.0, 1.0);
-    final isOverLimit = usedMinutes >= limitMinutes;
-    final remainingMinutes = limitMinutes - usedMinutes;
+    final colors = AppColors.of(context);
+    final safeLimit = limitMinutes > 0 ? limitMinutes : 120;
+    final percentage = (usedMinutes / safeLimit).clamp(0.0, 1.0);
+    final isOverLimit = usedMinutes >= safeLimit;
+    final remainingMinutes = (safeLimit - usedMinutes).clamp(0, safeLimit);
 
     Color progressColor;
     if (isOverLimit) {
-      progressColor = Colors.red;
+      progressColor = colors.error;
     } else if (percentage > 0.8) {
-      progressColor = Colors.orange;
+      progressColor = colors.warning;
     } else if (percentage > 0.5) {
-      progressColor = Colors.amber;
+      progressColor = const Color(0xFFF59E0B);
     } else {
-      progressColor = Colors.green;
+      progressColor = colors.success;
     }
 
     return Column(
@@ -39,11 +42,11 @@ class AppUsageIndicator extends StatelessWidget {
             children: [
               Flexible(
                 child: Text(
-                  _formatUsageText(),
+                  _formatUsageText(safeLimit),
                   style: TextStyle(
                     fontSize: 11,
                     color: progressColor,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w600,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -53,18 +56,19 @@ class AppUsageIndicator extends StatelessWidget {
                   '${_formatMinutes(remainingMinutes)} left',
                   style: TextStyle(
                     fontSize: 11,
-                    color: Colors.grey[600],
+                    color: colors.textSecondary,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 5),
         ],
         ClipRRect(
           borderRadius: BorderRadius.circular(4),
           child: LinearProgressIndicator(
             value: percentage,
-            backgroundColor: Colors.grey[200],
+            backgroundColor: colors.border,
             valueColor: AlwaysStoppedAnimation<Color>(progressColor),
             minHeight: 6,
           ),
@@ -73,11 +77,11 @@ class AppUsageIndicator extends StatelessWidget {
     );
   }
 
-  String _formatUsageText() {
+  String _formatUsageText(int safeLimit) {
     final usedFormatted = _formatMinutes(usedMinutes);
-    final limitFormatted = _formatMinutes(limitMinutes);
-    
-    if (usedMinutes >= limitMinutes) {
+    final limitFormatted = _formatMinutes(safeLimit);
+
+    if (usedMinutes >= safeLimit) {
       return '$usedFormatted / $limitFormatted (Limit exceeded)';
     } else {
       return '$usedFormatted / $limitFormatted';
@@ -112,16 +116,18 @@ class CompactUsageIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final percentage = (usedMinutes / limitMinutes).clamp(0.0, 1.0);
-    final isOverLimit = usedMinutes >= limitMinutes;
+    final colors = AppColors.of(context);
+    final safeLimit = limitMinutes > 0 ? limitMinutes : 120;
+    final percentage = (usedMinutes / safeLimit).clamp(0.0, 1.0);
+    final isOverLimit = usedMinutes >= safeLimit;
 
     Color color;
     if (isOverLimit) {
-      color = Colors.red;
+      color = colors.error;
     } else if (percentage > 0.8) {
-      color = Colors.orange;
+      color = colors.warning;
     } else {
-      color = Colors.green;
+      color = colors.success;
     }
 
     return SizedBox(
@@ -142,7 +148,7 @@ class CompactUsageIndicator extends StatelessWidget {
             borderRadius: BorderRadius.circular(2),
             child: LinearProgressIndicator(
               value: percentage,
-              backgroundColor: Colors.grey[300],
+              backgroundColor: colors.border,
               valueColor: AlwaysStoppedAnimation<Color>(color),
               minHeight: 3,
             ),

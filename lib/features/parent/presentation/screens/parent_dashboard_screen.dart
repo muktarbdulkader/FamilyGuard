@@ -25,6 +25,7 @@ import '../../../../core/models/educational_material_model.dart';
 import '../../../../core/services/education_service.dart';
 import '../../../../core/providers/auth_provider.dart';
 import '../../../../core/providers/theme_provider.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/family_bottom_navigation.dart';
 import '../../../../l10n/app_localizations.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -870,6 +871,7 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
     required String childId,
     required ChildModel? child,
   }) {
+    final colors = AppColors.of(context);
     final childName = child?.displayName ?? 'Child';
     final appsAsync = ref.watch(
       familyChildAppsProvider(
@@ -896,7 +898,7 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
         );
       },
       child: ListView(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 108),
         children: [
           if (child != null) _buildDeviceHealthCard(child),
           if (child != null) const SizedBox(height: 16),
@@ -905,21 +907,24 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
             loading: () => Container(
               height: 140,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: colors.surface,
                 borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: colors.border),
               ),
-              child: const Center(child: CircularProgressIndicator()),
+              child: Center(
+                child: CircularProgressIndicator(color: colors.primary),
+              ),
             ),
             error: (err, _) => Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.red[50],
+                color: colors.error.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.red[200]!),
+                border: Border.all(color: colors.error.withOpacity(0.35)),
               ),
               child: Text(
                 'Could not load usage data: $err',
-                style: TextStyle(color: Colors.red[700]),
+                style: TextStyle(color: colors.error),
               ),
             ),
             data: (usageMap) {
@@ -935,14 +940,29 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                 (sum, u) => sum + u.openCount,
               );
 
+              DateTime? latestUsageSync;
+              for (final u in usageMap.values) {
+                if (latestUsageSync == null ||
+                    u.lastUsed.isAfter(latestUsageSync)) {
+                  latestUsageSync = u.lastUsed;
+                }
+              }
+              latestUsageSync ??= child?.lastSyncTimestamp ?? child?.lastSeen;
+              final syncLabel = latestUsageSync != null
+                  ? AppFormatters.formatRelativeTime(latestUsageSync)
+                  : 'Waiting';
+
               final hours = totalMinutesToday ~/ 60;
               final minutes = totalMinutesToday % 60;
               final timeString = hours > 0
                   ? '${hours}h ${minutes}m'
                   : '${minutes}m';
 
-              // Standard guideline allowance: 120 minutes daily
-              const targetAllowanceMinutes = 120;
+              final prefLimit =
+                  (child?.preferences['dailyScreenTimeLimitMinutes'] as num?)
+                      ?.toInt() ??
+                  0;
+              final targetAllowanceMinutes = prefLimit > 0 ? prefLimit : 120;
               final allowanceRatio =
                   (totalMinutesToday / targetAllowanceMinutes).clamp(0.0, 1.0);
 
@@ -1118,8 +1138,8 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                         const SizedBox(width: 8),
                         _buildUsageStatPill(
                           icon: Icons.sync_rounded,
-                          label: 'Live Sync',
-                          value: '30s',
+                          label: 'Last Sync',
+                          value: syncLabel,
                         ),
                       ],
                     ),
@@ -1155,7 +1175,7 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                   style: TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.bold,
-                    color: Colors.grey[900],
+                    color: colors.textPrimary,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1165,7 +1185,7 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                 icon: const Icon(Icons.settings_suggest_rounded, size: 16),
                 label: const Text('Manage Rules'),
                 style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFF4F46E5),
+                  foregroundColor: colors.primary,
                   textStyle: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
@@ -1195,23 +1215,24 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                     return Container(
                       padding: const EdgeInsets.all(28),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: colors.surface,
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.grey[200]!),
+                        border: Border.all(color: colors.border),
                       ),
                       child: Column(
                         children: [
                           Icon(
                             Icons.devices_other_rounded,
                             size: 48,
-                            color: Colors.blue[300],
+                            color: colors.primary,
                           ),
                           const SizedBox(height: 12),
                           Text(
                             "Waiting for $childName's Device",
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
+                              color: colors.textPrimary,
                             ),
                           ),
                           const SizedBox(height: 6),
@@ -1219,7 +1240,7 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                             "Once the companion app runs on $childName's phone, installed apps and usage reports will sync here in real time.",
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              color: Colors.grey[600],
+                              color: colors.textSecondary,
                               fontSize: 13,
                             ),
                           ),
@@ -1963,29 +1984,33 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
     required String childId,
     required Map<String, AppUsageModel> usageMap,
   }) {
+    final colors = AppColors.of(context);
     final isBlocked = app.rule == AppControlRule.block;
     final isLimited = app.rule == AppControlRule.timeLimited;
     final limitMinutes = app.dailyLimitMinutes ?? 60;
+    final usageLabel = usedMinutes == 0
+        ? 'No usage today'
+        : usedMinutes < 60
+        ? '${usedMinutes}m used today'
+        : '${usedMinutes ~/ 60}h ${usedMinutes % 60}m used today';
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isBlocked
-              ? Colors.red.withOpacity(0.3)
-              : const Color(0xFFE2E8F0),
+          color: isBlocked ? colors.error.withOpacity(0.4) : colors.border,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+            color: Colors.black.withOpacity(colors.isDark ? 0.14 : 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         onTap: () {
           showModalBottomSheet(
             context: context,
@@ -1999,7 +2024,7 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
           );
         },
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -2013,46 +2038,50 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                       children: [
                         Text(
                           app.name,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 15,
-                            color: Color(0xFF1E293B),
+                            color: colors.textPrimary,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 4),
                         Row(
                           children: [
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
+                                horizontal: 7,
+                                vertical: 2.5,
                               ),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFEEF2FF),
-                                borderRadius: BorderRadius.circular(4),
+                                color: usedMinutes > 0
+                                    ? colors.primary.withOpacity(0.12)
+                                    : colors.surfaceHighlight,
+                                borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
-                                usedMinutes > 0
-                                    ? '${usedMinutes}m used today'
-                                    : 'No usage today',
+                                usageLabel,
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
                                   color: usedMinutes > 0
-                                      ? const Color(0xFF4338CA)
-                                      : Colors.grey[600],
+                                      ? colors.primary
+                                      : colors.textSecondary,
                                 ),
                               ),
                             ),
                             if (opens > 0) ...[
                               const SizedBox(width: 6),
-                              Text(
-                                '• $opens opens',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.grey[600],
+                              Flexible(
+                                child: Text(
+                                  '• $opens opens',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: colors.textSecondary,
+                                  ),
                                 ),
                               ),
                             ],
@@ -2063,10 +2092,10 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                   ),
                   _buildRuleStatusBadge(app.rule, app.dailyLimitMinutes),
                   IconButton(
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.tune_rounded,
                       size: 18,
-                      color: Color(0xFF64748B),
+                      color: colors.textSecondary,
                     ),
                     tooltip: 'Edit Rule',
                     onPressed: () {
@@ -2085,7 +2114,7 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
                 ],
               ),
               if (isLimited || usedMinutes > 0) ...[
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 AppUsageIndicator(
                   usedMinutes: usedMinutes,
                   limitMinutes: isLimited ? limitMinutes : 120,

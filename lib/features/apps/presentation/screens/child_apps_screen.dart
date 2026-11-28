@@ -521,12 +521,16 @@ class _AppTile extends StatelessWidget {
             ),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                _AppIconFromBytes(bytes: app.iconBytes, size: 50, colors: colors),
+                // ── App icon ──────────────────────────────────────────────
+                _AppIconFromBytes(bytes: app.iconBytes, size: 48, colors: colors),
                 const SizedBox(width: 12),
+                // ── App name + package + badge row ────────────────────────
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         app.appName,
@@ -545,12 +549,16 @@ class _AppTile extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(fontSize: 11, color: colors.textMuted),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 5),
+                      // Badge + version — both constrained so no overflow
                       Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           _Badge(
                             label: app.isSystemApp ? 'System' : 'App',
-                            color: app.isSystemApp ? colors.textSecondary : colors.success,
+                            color: app.isSystemApp
+                                ? colors.textSecondary
+                                : colors.success,
                           ),
                           const SizedBox(width: 6),
                           Flexible(
@@ -558,7 +566,10 @@ class _AppTile extends StatelessWidget {
                               'v${app.version}',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(fontSize: 11, color: colors.textMuted),
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: colors.textMuted,
+                              ),
                             ),
                           ),
                         ],
@@ -566,17 +577,28 @@ class _AppTile extends StatelessWidget {
                     ],
                   ),
                 ),
+                // ── Right side: chevron + install date ───────────────────
                 const SizedBox(width: 8),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Icon(Icons.chevron_right_rounded, color: colors.border, size: 20),
-                    const SizedBox(height: 4),
-                    Text(
-                      installLabel,
-                      style: TextStyle(fontSize: 10, color: colors.textMuted),
-                    ),
-                  ],
+                // SizedBox constrains the right column so the Expanded
+                // in the middle always gets the leftover space.
+                SizedBox(
+                  width: 60,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.chevron_right_rounded,
+                          color: colors.border, size: 20),
+                      const SizedBox(height: 2),
+                      Text(
+                        installLabel,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.end,
+                        style: TextStyle(fontSize: 10, color: colors.textMuted),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),

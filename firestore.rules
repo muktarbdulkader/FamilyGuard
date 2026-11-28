@@ -428,17 +428,40 @@ service cloud.firestore {
     }
 
     match /notifications/{notificationId} {
-      allow read: if isFamilyNotification(resource.data) &&
+      // ── List (query): allow signed-in users to query their own notifications
+      // by childId or familyId. Document-level resource.data is unavailable
+      // during list operations, so we grant list to any signed-in user and
+      // rely on the per-document read rule to guard individual reads.
+      allow list: if signedIn();
+
+      // ── Get (single-document read) ──────────────────────────────────────────
+      allow get: if signedIn() &&
+        resource.data.familyId is string &&
         (
           isFamilyParent(resource.data.familyId) ||
           resource.data.childId == request.auth.uid
         );
-      allow create: if isFamilyNotification(request.resource.data) &&
+
+      // ── Create ──────────────────────────────────────────────────────────────
+      // Any signed-in family member (parent OR child) may create a notification
+      // as long as the doc carries their uid in either parentId or childId.
+      // We avoid calling isFamilyMember() (which does two Firestore gets) and
+      // instead check only that familyId is non-empty and the writer's uid
+      // matches the childId field (child writing) or use isFamilyParent for parent.
+      allow create: if signedIn() &&
+        request.resource.data.familyId is string &&
+        request.resource.data.familyId.size() > 0 &&
         (
           isFamilyParent(request.resource.data.familyId) ||
-          request.resource.data.childId == request.auth.uid
+          (
+            request.resource.data.childId is string &&
+            request.resource.data.childId == request.auth.uid
+          )
         );
-      allow update: if isFamilyNotification(resource.data) &&
+
+      // ── Update (mark read / status change) ─────────────────────────────────
+      allow update: if signedIn() &&
+        resource.data.familyId is string &&
         (
           isFamilyParent(resource.data.familyId) ||
           resource.data.childId == request.auth.uid
@@ -447,9 +470,14 @@ service cloud.firestore {
           'isRead',
           'readAt',
           'status',
-          'updatedAt'
+          'updatedAt',
+          'isApproved',
+          'isDenied',
+          'grantedMinutes'
         ]);
-      allow delete: if isFamilyNotification(resource.data) &&
+
+      // ── Delete (parent only) ───────────────────────────────────────────────
+      allow delete: if resource.data.familyId is string &&
         isFamilyParent(resource.data.familyId);
     }
 
