@@ -47,7 +47,13 @@ class ParentHomeScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: _colors(context).background,
+      extendBody: true,
+      bottomNavigationBar: const FamilyBottomNavigation(
+        isParent: true,
+        selected: FamilyNavDestination.home,
+      ),
       body: SafeArea(
+        bottom: false,
         child: userData.when(
           loading: () => const Center(
             child: CircularProgressIndicator(
@@ -397,19 +403,8 @@ class ParentHomeScreen extends ConsumerWidget {
                   ),
 
                   // Bottom padding to leave room for the floating bottom navigation bar
-                  const SliverToBoxAdapter(child: SizedBox(height: 100)),
+                  const SliverToBoxAdapter(child: SizedBox(height: 110)),
                 ],
-              ),
-
-              // Floating Bottom Navigation Bar
-              Positioned(
-                bottom: 16,
-                left: 14,
-                right: 14,
-                child: const FamilyBottomNavigation(
-                  isParent: true,
-                  selected: FamilyNavDestination.home,
-                ),
               ),
             ],
           ),

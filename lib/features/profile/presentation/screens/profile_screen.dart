@@ -66,7 +66,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     return Scaffold(
       backgroundColor: _bgDark,
+      extendBody: true,
+      bottomNavigationBar: FamilyBottomNavigation(
+        isParent: isParent,
+        selected: FamilyNavDestination.profile,
+        familyId: user?.familyId,
+        childId: user?.uid,
+        childName: user?.displayName,
+      ),
       body: SafeArea(
+        bottom: false,
         child: userAsync.when(
           loading: () => Center(
             child: CircularProgressIndicator(
@@ -241,20 +250,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     // Bottom spacing for the floating navigation bar
                     const SliverToBoxAdapter(child: SizedBox(height: 110)),
                   ],
-                ),
-
-                // Floating Bottom Navigation Bar (Profile selected)
-                Positioned(
-                  bottom: 16,
-                  left: 14,
-                  right: 14,
-                  child: FamilyBottomNavigation(
-                    isParent: isParent,
-                    selected: FamilyNavDestination.profile,
-                    familyId: currentUser?.familyId,
-                    childId: currentUser?.uid,
-                    childName: currentUser?.displayName,
-                  ),
                 ),
               ],
             );

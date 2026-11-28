@@ -19,6 +19,8 @@ enum FamilyNavDestination {
   setup,
 }
 
+/// Unified floating bottom navigation bar used consistently across all
+/// parent and child screens.
 class FamilyBottomNavigation extends ConsumerWidget {
   const FamilyBottomNavigation({
     required this.isParent,
@@ -37,7 +39,7 @@ class FamilyBottomNavigation extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colors = AppColors.of(context);
+    final colors = ref.watch(appColorsProvider);
     final l10n = AppLocalizations.of(context);
     final unreadCount = isParent
         ? ref.watch(unreadNotificationCountProvider)
@@ -121,37 +123,47 @@ class FamilyBottomNavigation extends ConsumerWidget {
             ),
           ];
 
-    return Container(
-      margin: const EdgeInsets.fromLTRB(14, 8, 14, 12),
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 6),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: colors.border),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(colors.isDark ? 0.28 : 0.09),
-            blurRadius: 22,
-            offset: const Offset(0, 7),
+    return SafeArea(
+      top: false,
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(14, 4, 14, 10),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(
+            color: colors.border.withOpacity(colors.isDark ? 0.85 : 0.9),
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          for (final item in destinations)
-            Expanded(
-              child: _NavigationButton(
-                item: item,
-                isSelected: item.destination == selected,
-                unreadCount:
-                    item.destination == FamilyNavDestination.notifications
-                    ? unreadCount
-                    : 0,
-                colors: colors,
-                onTap: () => _navigate(context, item),
-              ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(colors.isDark ? 0.34 : 0.08),
+              blurRadius: 24,
+              offset: const Offset(0, 8),
             ),
-        ],
+            BoxShadow(
+              color: colors.primary.withOpacity(colors.isDark ? 0.08 : 0.04),
+              blurRadius: 12,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            for (final item in destinations)
+              Expanded(
+                child: _NavigationButton(
+                  item: item,
+                  isSelected: item.destination == selected,
+                  unreadCount:
+                      item.destination == FamilyNavDestination.notifications
+                      ? unreadCount
+                      : 0,
+                  colors: colors,
+                  onTap: () => _navigate(context, item),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -210,76 +222,102 @@ class _NavigationButton extends StatelessWidget {
       label: item.label,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 2),
-        child: Material(
-          color: isSelected
-              ? colors.primary.withOpacity(colors.isDark ? 0.16 : 0.09)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
-          child: InkWell(
-            onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          decoration: BoxDecoration(
+            color: isSelected
+                ? colors.primary.withOpacity(colors.isDark ? 0.18 : 0.11)
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(20),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 2),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    height: 23,
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        Icon(item.icon, color: foreground, size: 21),
-                        if (unreadCount > 0)
-                          Positioned(
-                            right: -8,
-                            top: -5,
-                            child: Container(
-                              constraints: const BoxConstraints(
-                                minWidth: 15,
-                                minHeight: 15,
-                              ),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 4,
-                                vertical: 1,
-                              ),
-                              decoration: BoxDecoration(
-                                color: colors.error,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: colors.surface,
-                                  width: 1.5,
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(20),
+              splashColor: colors.primary.withOpacity(0.14),
+              highlightColor: colors.primary.withOpacity(0.08),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 2),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 220),
+                      curve: Curves.easeOutCubic,
+                      width: isSelected ? 16 : 0,
+                      height: 2.5,
+                      margin: const EdgeInsets.only(bottom: 3),
+                      decoration: BoxDecoration(
+                        color: colors.primary,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    SizedBox(
+                      height: 22,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          AnimatedScale(
+                            scale: isSelected ? 1.08 : 1.0,
+                            duration: const Duration(milliseconds: 200),
+                            curve: Curves.easeOutCubic,
+                            child: Icon(item.icon, color: foreground, size: 21),
+                          ),
+                          if (unreadCount > 0)
+                            Positioned(
+                              right: -8,
+                              top: -5,
+                              child: Container(
+                                constraints: const BoxConstraints(
+                                  minWidth: 15,
+                                  minHeight: 15,
                                 ),
-                              ),
-                              child: Text(
-                                unreadCount > 99 ? '99+' : '$unreadCount',
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 8,
-                                  fontWeight: FontWeight.w800,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                  vertical: 1,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: colors.error,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: colors.surface,
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: Text(
+                                  unreadCount > 99 ? '99+' : '$unreadCount',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.w800,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      item.label,
-                      maxLines: 1,
-                      style: TextStyle(
-                        color: foreground,
-                        fontSize: 9.5,
-                        fontWeight: isSelected
-                            ? FontWeight.w800
-                            : FontWeight.w600,
+                        ],
                       ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 3),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        item.label,
+                        maxLines: 1,
+                        style: TextStyle(
+                          color: foreground,
+                          fontSize: 9.5,
+                          fontWeight: isSelected
+                              ? FontWeight.w800
+                              : FontWeight.w600,
+                          letterSpacing: isSelected ? 0.1 : 0,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

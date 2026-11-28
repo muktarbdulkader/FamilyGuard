@@ -641,7 +641,16 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen>
 
     return Scaffold(
       backgroundColor: _bgDark,
+      extendBody: true,
+      bottomNavigationBar: FamilyBottomNavigation(
+        isParent: false,
+        selected: FamilyNavDestination.home,
+        familyId: currentUser?.familyId,
+        childId: currentUser?.uid,
+        childName: currentUser?.displayName,
+      ),
       body: SafeArea(
+        bottom: false,
         child: userData.when(
           loading: () => const Center(
             child: CircularProgressIndicator(
@@ -1108,22 +1117,8 @@ class _ChildHomeScreenState extends ConsumerState<ChildHomeScreen>
                   ),
 
                   // Bottom padding for the floating navigation bar
-                  const SliverToBoxAdapter(child: SizedBox(height: 100)),
+                  const SliverToBoxAdapter(child: SizedBox(height: 110)),
                 ],
-              ),
-
-              // Floating Bottom Navigation Bar
-              Positioned(
-                bottom: 16,
-                left: 18,
-                right: 18,
-                child: FamilyBottomNavigation(
-                  isParent: false,
-                  selected: FamilyNavDestination.home,
-                  familyId: user?.familyId,
-                  childId: user?.uid,
-                  childName: user?.displayName,
-                ),
               ),
             ],
           ),
