@@ -235,7 +235,9 @@ class _PermissionOnboardingScreenState
         foregroundColor: Colors.white,
         automaticallyImplyLeading: _currentPage > 0,
       ),
-      body: Column(
+      body: SafeArea(
+        bottom: false,
+        child: Column(
         children: [
           // Progress indicator
           Container(
@@ -475,7 +477,12 @@ class _PermissionOnboardingScreenState
 
           // Navigation buttons
           Container(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.fromLTRB(
+              24,
+              16,
+              24,
+              100 + MediaQuery.paddingOf(context).bottom,
+            ),
             child: Row(
               children: [
                 // Previous button
@@ -536,6 +543,7 @@ class _PermissionOnboardingScreenState
             ),
           ),
         ],
+      ),
       ),
       bottomNavigationBar: FamilyBottomNavigation(
         isParent: false,
