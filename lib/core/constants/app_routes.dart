@@ -19,6 +19,7 @@ class AppRoutes {
   static const String parentEducation = '/parent-education';
   static const String routinePlanner = '/routine-planner';
   static const String aboutApp = '/about-app';
+  static const String childUsage = '/child-usage';
   static const String smartScreenTime = '/smart-screen-time';
 
   // Child routes

@@ -29,8 +29,8 @@ class RuleSyncService(
     private var approvalListener: ListenerRegistration? = null
     private var requestListener: ListenerRegistration? = null
     
-    /** Callback invoked whenever an app's temporary approval is added or updated */
-    var onApprovalChanged: ((String) -> Unit)? = null
+    /** Callback invoked whenever an app's temporary approval is added or updated: (packageName, grantedMinutes, expiryEpochMs) */
+    var onApprovalChanged: ((String, Int, Long) -> Unit)? = null
 
     /** Callback invoked whenever an app's rule is added or updated */
     var onRuleChanged: ((String, RuleEngine.RuleType) -> Unit)? = null

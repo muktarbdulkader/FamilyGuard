@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_study_app/features/chat/presentation/widgets/chat_home_card.dart';
-import 'package:flutter_study_app/features/about/presentation/widgets/about_app_home_card.dart';
+import 'package:flutter_study_app/features/parent/presentation/widgets/child_usage_home_card.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/constants/app_routes.dart';
 import '../../../../core/models/family_model.dart';
@@ -319,11 +319,11 @@ class ParentHomeScreen extends ConsumerWidget {
                     ),
                   ),
 
-                  // 2.5 Default About the App Card
+                  // 2.5 Child App Usage Summary Card
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                      child: const AboutAppHomeCard(),
+                      child: const ChildUsageHomeCard(),
                     ),
                   ),
 

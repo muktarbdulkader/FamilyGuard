@@ -357,7 +357,7 @@ class EnforcementManager(
 
                 val childName = getCachedChildName()
                 val firestore = FirebaseFirestore.getInstance()
-                val reqId = "${childId}_${packageName.replace(".", "_")}"
+                val reqId = "${childId}_${packageName.replace(".", "_")}_${System.currentTimeMillis()}"
                 val now = Timestamp.now()
                 val expiresAt = Timestamp(java.util.Date(System.currentTimeMillis() + 86400000L)) // 24 hours
 
@@ -446,7 +446,8 @@ class EnforcementManager(
 
                 // 3. Directly listen for instant approval on this specific request document
                 launch(Dispatchers.Main) {
-                    firestore.collection("families")
+                    var reg: com.google.firebase.firestore.ListenerRegistration? = null
+                    reg = firestore.collection("families")
                         .document(familyId)
                         .collection("requests")
                         .document(reqId)
@@ -455,7 +456,12 @@ class EnforcementManager(
                             val status = snapshot.getString("status")
                             if (status != null && status.equals("approved", ignoreCase = true)) {
                                 val mins = snapshot.getLong("grantedMinutes")?.toInt() ?: 30
-                                onAppApproved(packageName, mins)
+                                val accessExpiresAt = snapshot.getTimestamp("accessExpiresAt")?.toDate()?.time
+                                reg?.remove()
+                                onAppApproved(packageName, mins, accessExpiresAt)
+                            } else if (status != null && (status.equals("denied", ignoreCase = true) || status.equals("rejected", ignoreCase = true))) {
+                                pendingRequestPackages.remove(packageName)
+                                reg?.remove()
                             }
                         }
                 }
@@ -641,21 +647,36 @@ class EnforcementManager(
      * stores an in-memory expiry so the monitoring loop won't re-block during the grant,
      * and launches the app.
      */
-    fun onAppApproved(packageName: String, grantedMinutes: Int? = null) {
+    fun onAppApproved(packageName: String, grantedMinutes: Int? = null, expiryEpochMs: Long? = null) {
         pendingRequestPackages.remove(packageName)
         val mins = grantedMinutes ?: 30
+        val nowMs = System.currentTimeMillis()
+        val targetExpiryMs = expiryEpochMs ?: (nowMs + mins * 60_000L)
+
+        // Ignore already-expired approvals
+        if (targetExpiryMs <= nowMs) {
+            approvalExpiry.remove(packageName)
+            return
+        }
+
+        // Deduplicate: if we already have this approval active (within 5s), don't re-launch or spam notifications
+        val existingExpiry = approvalExpiry[packageName] ?: 0L
+        if (existingExpiry >= targetExpiryMs - 5_000L) {
+            removeOverlayIfPresent(packageName)
+            return
+        }
 
         // 1. Store in-memory approval expiry — this is checked FIRST in enforceRuleForApp
         //    so the monitoring loop never re-blocks the app during the grant period.
-        val expiryMs = System.currentTimeMillis() + mins * 60_000L
-        approvalExpiry[packageName] = expiryMs
-        android.util.Log.d("EnforcementManager", "In-memory approval set for $packageName until +${mins}min")
+        approvalExpiry[packageName] = targetExpiryMs
+        val remainingMins = ((targetExpiryMs - nowMs) / 60_000L).toInt().coerceAtLeast(1)
+        android.util.Log.d("EnforcementManager", "In-memory approval set for $packageName until +${remainingMins}min")
 
         // 2. Persist to local database so it survives the in-memory map being cleared
         val temporaryApproval = RuleEngine.TemporaryApproval(
             packageName = packageName,
             approvedAt = LocalDateTime.now(),
-            durationMinutes = mins,
+            durationMinutes = remainingMins,
             approvedBy = "parent"
         )
         database.insertTemporaryApproval(temporaryApproval)

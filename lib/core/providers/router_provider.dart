@@ -24,6 +24,7 @@ import '../../features/child/presentation/screens/child_education_screen.dart';
 import '../../features/chat/presentation/screens/chat_inbox_screen.dart';
 import '../../features/chat/presentation/screens/chat_conversation_screen.dart';
 import '../../features/about/presentation/screens/about_app_screen.dart';
+import '../../features/parent/presentation/screens/app_usage_overview_screen.dart';
 import '../../features/parent/presentation/screens/smart_screen_time_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/profile/presentation/pages/language_settings_page.dart';
@@ -274,6 +275,17 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const AboutAppScreen(),
       ),
 
+      // Child App Usage Overview Route
+      GoRoute(
+        path: '${AppRoutes.childUsage}/:childId/:childName',
+        name: 'child-usage',
+        builder: (context, state) => AppUsageOverviewScreen(
+          familyId: state.uri.queryParameters['familyId'] ?? '',
+          childId: state.pathParameters['childId']!,
+          childName: state.pathParameters['childName'] ?? 'Child',
+        ),
+      ),
+
       GoRoute(
         path: AppRoutes.childEducation,
         name: 'child-education',
@@ -447,5 +459,6 @@ bool _isParentRoute(String location) {
   ];
 
   return parentRoutes.any((route) => location.startsWith(route)) ||
-      location.startsWith('/parent-apps/');
+      location.startsWith('/parent-apps/') ||
+      location.startsWith('${AppRoutes.childUsage}/');
 }
