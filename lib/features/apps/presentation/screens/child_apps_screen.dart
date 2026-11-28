@@ -152,6 +152,7 @@ class _ChildAppsScreenState extends ConsumerState<ChildAppsScreen>
     final sysCount = _filtered.where((a) => a.isSystemApp).length;
 
     return Scaffold(
+      extendBody: true,
       backgroundColor: colors.background,
       appBar: _buildAppBar(l10n, colors),
       body: Column(

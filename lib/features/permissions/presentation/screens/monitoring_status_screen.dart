@@ -119,6 +119,7 @@ class _MonitoringStatusScreenState extends ConsumerState<MonitoringStatusScreen>
 
     final user = userData.value;
     return Scaffold(
+      extendBody: true,
       appBar: AppBar(
         title: const Text('Monitoring Status'),
         backgroundColor: statusColor,

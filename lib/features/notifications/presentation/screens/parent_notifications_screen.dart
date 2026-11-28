@@ -55,6 +55,7 @@ class _ParentNotificationsScreenState
     final colors = AppColors.of(context);
 
     return Scaffold(
+      extendBody: true,
       backgroundColor: colors.background,
       appBar: AppBar(
         elevation: 0,

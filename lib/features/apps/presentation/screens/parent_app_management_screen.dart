@@ -949,10 +949,12 @@ class _ParentAppManagementScreenState
         : 'Child Application Rules & Limits';
 
     return Scaffold(
+      extendBody: true,
       backgroundColor: isDark
           ? const Color(0xFF0C1829)
           : const Color(0xFFF8FAFC),
       body: SafeArea(
+        bottom: false,
         child: Column(
           children: [
             FamilyPageHeader(

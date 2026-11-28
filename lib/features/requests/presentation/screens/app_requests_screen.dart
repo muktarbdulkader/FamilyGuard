@@ -42,6 +42,7 @@ class _AppRequestsScreenState extends ConsumerState<AppRequestsScreen>
     final colors = ref.watch(appColorsProvider);
 
     return Scaffold(
+      extendBody: true,
       backgroundColor: colors.background,
       appBar: _buildAppBar(l10n, colors),
       body: userAsync.when(

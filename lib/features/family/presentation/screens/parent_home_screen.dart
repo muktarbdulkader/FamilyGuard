@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_study_app/features/chat/presentation/widgets/chat_home_card.dart';
-import 'package:flutter_study_app/features/parent/presentation/widgets/meta_guardian_home_card.dart';
+import 'package:flutter_study_app/features/about/presentation/widgets/about_app_home_card.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/constants/app_routes.dart';
 import '../../../../core/models/family_model.dart';
@@ -319,11 +319,11 @@ class ParentHomeScreen extends ConsumerWidget {
                     ),
                   ),
 
-                  // 2.5 Meta AI Guardian Copilot Hero Card (Meta Global AI Hackathon)
+                  // 2.5 Default About the App Card
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                      child: const MetaGuardianHomeCard(),
+                      child: const AboutAppHomeCard(),
                     ),
                   ),
 

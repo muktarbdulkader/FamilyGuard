@@ -72,6 +72,7 @@ class _ChildEducationScreenState extends ConsumerState<ChildEducationScreen>
 
     if (familyId.isEmpty || childId.isEmpty) {
       return Scaffold(
+        extendBody: true,
         appBar: AppBar(
           title: Text(l10n.myLearning),
           leading: IconButton(
@@ -109,6 +110,7 @@ class _ChildEducationScreenState extends ConsumerState<ChildEducationScreen>
     );
 
     return Scaffold(
+      extendBody: true,
       backgroundColor: theme.colorScheme.surface,
       appBar: AppBar(
         elevation: 0,

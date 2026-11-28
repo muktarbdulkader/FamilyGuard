@@ -23,7 +23,7 @@ import '../../features/parent/presentation/screens/routine_planner_screen.dart';
 import '../../features/child/presentation/screens/child_education_screen.dart';
 import '../../features/chat/presentation/screens/chat_inbox_screen.dart';
 import '../../features/chat/presentation/screens/chat_conversation_screen.dart';
-import '../../features/parent/presentation/screens/meta_guardian_ai_screen.dart';
+import '../../features/about/presentation/screens/about_app_screen.dart';
 import '../../features/parent/presentation/screens/smart_screen_time_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/profile/presentation/pages/language_settings_page.dart';
@@ -267,11 +267,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
 
-      // Meta AI Guardian Route (Meta Global AI Developer Hackathon)
+      // Default About the App Route
       GoRoute(
-        path: AppRoutes.metaAiGuardian,
-        name: 'meta-ai-guardian',
-        builder: (context, state) => const MetaGuardianAiScreen(),
+        path: AppRoutes.aboutApp,
+        name: 'about-app',
+        builder: (context, state) => const AboutAppScreen(),
       ),
 
       GoRoute(
@@ -423,6 +423,7 @@ bool _isChildRoute(String location) {
     AppRoutes.childPermissions,
     AppRoutes.childStatus,
     AppRoutes.childApps,
+    AppRoutes.childEducation,
     AppRoutes.joinFamily,
     AppRoutes.permissionOnboarding,
     AppRoutes.monitoringStatus,
@@ -439,6 +440,8 @@ bool _isParentRoute(String location) {
     AppRoutes.parentLocation,
     AppRoutes.parentRequests,
     AppRoutes.parentEducation,
+    AppRoutes.routinePlanner,
+    AppRoutes.smartScreenTime,
     AppRoutes.familySetup,
     '/notifications',
   ];

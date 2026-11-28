@@ -262,8 +262,10 @@ class _ParentDashboardScreenState extends ConsumerState<ParentDashboardScreen>
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
+      extendBody: true,
       backgroundColor: isDark ? const Color(0xFF0C1829) : Colors.grey[50],
       body: SafeArea(
+        bottom: false,
         child: Column(
           children: [
             // ── Reusable Top Page Header with Dynamic Subtitle & Family Switcher ──

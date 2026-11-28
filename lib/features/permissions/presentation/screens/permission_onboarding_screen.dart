@@ -228,6 +228,7 @@ class _PermissionOnboardingScreenState
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserDataProvider).value;
     return Scaffold(
+      extendBody: true,
       appBar: AppBar(
         title: const Text('Device Setup'),
         backgroundColor: Colors.orange,

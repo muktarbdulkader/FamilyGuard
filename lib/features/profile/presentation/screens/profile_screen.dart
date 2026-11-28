@@ -697,24 +697,38 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ),
         const Divider(color: Color(0xFF1E3554), height: 20),
 
-        // App Version
-        const Row(
-          children: [
-            Icon(
-              Icons.info_outline_rounded,
-              size: 16,
-              color: Color(0xFF64748B),
+        // App Version -> opens About App screen
+        InkWell(
+          onTap: () => context.push(AppRoutes.aboutApp),
+          borderRadius: BorderRadius.circular(8),
+          child: const Padding(
+            padding: EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.info_outline_rounded,
+                  size: 16,
+                  color: Color(0xFF64748B),
+                ),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'FamilyGuard v1.2.0 (Build 42) · About App',
+                    style: TextStyle(
+                      color: Color(0xFF64748B),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 16,
+                  color: Color(0xFF64748B),
+                ),
+              ],
             ),
-            SizedBox(width: 8),
-            Text(
-              'FamilyGuard v1.2.0 (Build 42) · Up to date',
-              style: TextStyle(
-                color: Color(0xFF64748B),
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
+          ),
         ),
       ],
     );
