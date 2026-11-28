@@ -729,19 +729,6 @@ class _ParentEducationScreenState extends ConsumerState<ParentEducationScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 12),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: OutlinedButton.icon(
-                            onPressed: () => QuizManagementSheet.show(
-                              context,
-                              familyId: familyId,
-                              material: material,
-                            ),
-                            icon: const Icon(Icons.quiz_outlined),
-                            label: const Text('Manage quizzes'),
-                          ),
-                        ),
                       ],
                     ),
                   ),
@@ -761,7 +748,9 @@ class _ParentEducationScreenState extends ConsumerState<ParentEducationScreen> {
                 ),
               ],
 
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
+              _ParentQuizRow(familyId: familyId, material: material),
+              const SizedBox(height: 12),
               const Divider(height: 1),
               const SizedBox(height: 12),
 
@@ -962,5 +951,87 @@ class _ParentEducationScreenState extends ConsumerState<ParentEducationScreen> {
       default:
         return Icons.insert_drive_file;
     }
+  }
+}
+
+class _ParentQuizRow extends ConsumerWidget {
+  final String familyId;
+  final EducationalMaterial material;
+
+  const _ParentQuizRow({
+    required this.familyId,
+    required this.material,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final quizzesAsync = ref.watch(
+      materialQuizzesProvider((familyId: familyId, materialId: material.id)),
+    );
+
+    final count = quizzesAsync.valueOrNull?.length ?? 0;
+    final hasQuizzes = count > 0;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: hasQuizzes
+            ? theme.colorScheme.primaryContainer.withOpacity(0.35)
+            : theme.colorScheme.surfaceContainerHighest.withOpacity(0.45),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: hasQuizzes
+              ? theme.colorScheme.primary.withOpacity(0.3)
+              : theme.colorScheme.outlineVariant.withOpacity(0.4),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.quiz_outlined,
+            size: 18,
+            color: hasQuizzes
+                ? theme.colorScheme.primary
+                : theme.colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              quizzesAsync.isLoading
+                  ? 'Checking quizzes...'
+                  : hasQuizzes
+                  ? '$count ${count == 1 ? 'Quiz' : 'Quizzes'} attached'
+                  : 'No quizzes yet',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: hasQuizzes
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          FilledButton.tonalIcon(
+            onPressed: () => QuizManagementSheet.show(
+              context,
+              familyId: familyId,
+              material: material,
+            ),
+            style: FilledButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            ),
+            icon: Icon(
+              hasQuizzes ? Icons.tune_rounded : Icons.add_rounded,
+              size: 16,
+            ),
+            label: Text(hasQuizzes ? 'Manage' : 'Add Quiz'),
+          ),
+        ],
+      ),
+    );
   }
 }

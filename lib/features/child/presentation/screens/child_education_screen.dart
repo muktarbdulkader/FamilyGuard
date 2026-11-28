@@ -642,63 +642,186 @@ class _ChildEducationScreenState extends ConsumerState<ChildEducationScreen>
               ],
 
               quizzesAsync.when(
-                loading: () => const SizedBox.shrink(),
-                error: (_, __) => Padding(
+                loading: () => Padding(
                   padding: const EdgeInsets.only(top: 10),
                   child: Row(
                     children: [
-                      const Icon(Icons.cloud_off_outlined, size: 18),
-                      const SizedBox(width: 8),
-                      const Expanded(
-                        child: Text('Quizzes unavailable from Firebase.'),
-                      ),
-                      IconButton(
-                        tooltip: 'Retry',
-                        onPressed: () => ref.invalidate(
-                          materialQuizzesProvider((
-                            familyId: familyId,
-                            materialId: material.id,
-                          )),
+                      SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: theme.colorScheme.primary,
                         ),
-                        icon: const Icon(Icons.refresh),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Checking quizzes...',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),
                 ),
-                data: (quizzes) => Padding(
+                error: (_, __) => Padding(
                   padding: const EdgeInsets.only(top: 10),
-                  child: quizzes.isEmpty
-                      ? Row(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.errorContainer.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.cloud_off_outlined,
+                          size: 16,
+                          color: theme.colorScheme.error,
+                        ),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Text(
+                            'Quizzes unavailable right now.',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Retry',
+                          visualDensity: VisualDensity.compact,
+                          onPressed: () => ref.invalidate(
+                            materialQuizzesProvider((
+                              familyId: familyId,
+                              materialId: material.id,
+                            )),
+                          ),
+                          icon: const Icon(Icons.refresh, size: 18),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                data: (quizzes) {
+                  if (quizzes.isEmpty) {
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 10),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 7,
+                        ),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surfaceContainerHighest
+                              .withOpacity(0.45),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
                           children: [
                             Icon(
                               Icons.quiz_outlined,
-                              size: 18,
+                              size: 16,
                               color: theme.colorScheme.onSurfaceVariant,
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              'No quizzes for this lesson yet.',
-                              style: theme.textTheme.bodySmall,
+                              'No quizzes for this lesson yet',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
                             ),
                           ],
-                        )
-                      : Align(
-                          alignment: Alignment.centerLeft,
-                          child: OutlinedButton.icon(
+                        ),
+                      ),
+                    );
+                  }
+
+                  final maxReward = quizzes.fold<int>(
+                    0,
+                    (best, q) => q.rewardExtraScreenTimeMinutes > best
+                        ? q.rewardExtraScreenTimeMinutes
+                        : best,
+                  );
+
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 10),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 9,
+                      ),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primaryContainer.withOpacity(
+                          0.35,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: theme.colorScheme.primary.withOpacity(0.3),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.quiz_rounded,
+                            size: 20,
+                            color: theme.colorScheme.primary,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${quizzes.length} ${quizzes.length == 1 ? 'Quiz' : 'Quizzes'} Available',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.labelMedium?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                ),
+                                if (maxReward > 0)
+                                  Text(
+                                    'Pass to earn up to +$maxReward min screen time',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          FilledButton.tonalIcon(
                             onPressed: () => _openQuizPicker(
                               quizzes: quizzes,
                               familyId: familyId,
                               childId: childId,
                               childName: childName,
                             ),
-                            icon: const Icon(Icons.quiz_outlined),
+                            style: FilledButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                            ),
+                            icon: const Icon(
+                              Icons.play_arrow_rounded,
+                              size: 18,
+                            ),
                             label: Text(
-                              'Take quiz${quizzes.length == 1 ? '' : 's'} '
-                              '(${quizzes.length})',
+                              quizzes.length == 1 ? 'Take Quiz' : 'Quizzes',
                             ),
                           ),
-                        ),
-                ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
 
               const SizedBox(height: 12),
