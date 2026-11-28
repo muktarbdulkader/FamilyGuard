@@ -333,15 +333,19 @@ service cloud.firestore {
       }
 
       match /notifications/{notificationId} {
-        allow read: if isFamilyMember(familyId) &&
+        allow list: if isFamilyMember(familyId);
+        allow get: if isFamilyMember(familyId) &&
           (
             isFamilyParent(familyId) ||
             resource.data.childId == request.auth.uid
           );
-        allow create: if isFamilyMember(familyId) &&
+        allow create: if signedIn() &&
           (
             isFamilyParent(familyId) ||
-            request.resource.data.childId == request.auth.uid
+            (
+              isFamilyChild(familyId) &&
+              request.resource.data.childId == request.auth.uid
+            )
           );
         allow update: if isFamilyMember(familyId) &&
           (isFamilyParent(familyId) || resource.data.childId == request.auth.uid) &&
@@ -349,7 +353,10 @@ service cloud.firestore {
             'isRead',
             'readAt',
             'status',
-            'updatedAt'
+            'updatedAt',
+            'isApproved',
+            'isDenied',
+            'grantedMinutes'
           ]);
         allow delete: if isFamilyParent(familyId);
       }
