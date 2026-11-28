@@ -57,6 +57,11 @@ class MonitoringService : Service() {
     private var activeUsagePackage: String? = null
     private var usageSecondRemainder = 0L
     private val checkIntervalMs = 1000L // Check every 1 second for fast blocking
+
+    // Track when overlay was last manually dismissed (by tapping Close/X) so we
+    // don't immediately re-show it on the next monitoring tick (grace period: 4s).
+    private val overlayDismissedAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
+    private val OVERLAY_GRACE_MS = 4_000L  // 4-second grace after manual dismiss
     
     // For notification tracking
     private var currentFamilyId: String? = null
@@ -72,6 +77,11 @@ class MonitoringService : Service() {
             if (intent?.action == "com.example.flutter_study_app.CLEAR_OVERLAY") {
                 enforcementManager.removeCurrentOverlay()
                 android.util.Log.d("MonitoringService", "Cleared overlay on app resume")
+            }
+            if (intent?.action == "com.example.flutter_study_app.OVERLAY_DISMISSED") {
+                val pkg = intent.getStringExtra("packageName") ?: return
+                overlayDismissedAt[pkg] = System.currentTimeMillis()
+                android.util.Log.d("MonitoringService", "Grace period started for $pkg after dismiss")
             }
         }
     }
@@ -136,7 +146,9 @@ class MonitoringService : Service() {
         initializeUserContext()
 
         // Register receiver to clear overlay instantly when this app comes to foreground
-        val filter = IntentFilter("com.example.flutter_study_app.CLEAR_OVERLAY")
+        val filter = IntentFilter("com.example.flutter_study_app.CLEAR_OVERLAY").apply {
+            addAction("com.example.flutter_study_app.OVERLAY_DISMISSED")
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(clearOverlayReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
         } else {
@@ -339,17 +351,22 @@ class MonitoringService : Service() {
             if (foregroundApp != null && foregroundApp == applicationContext.packageName) {
                 enforcementManager.removeCurrentOverlay()
             } else if (foregroundApp != null && !isSystemApp(foregroundApp)) {
-                val rule = database.getRule(foregroundApp)
-                val temporaryApproval = database.getActiveTemporaryApproval(foregroundApp)
-                val isTemporarilyApproved = temporaryApproval != null && !temporaryApproval.isExpired(currentTime)
+                // Skip enforcement if the overlay was recently dismissed (grace period)
+                val dismissedAt = overlayDismissedAt[foregroundApp] ?: 0L
+                val inGracePeriod = System.currentTimeMillis() - dismissedAt < OVERLAY_GRACE_MS
+                if (!inGracePeriod) {
+                    val rule = database.getRule(foregroundApp)
+                    val temporaryApproval = database.getActiveTemporaryApproval(foregroundApp)
+                    val isTemporarilyApproved = temporaryApproval != null && !temporaryApproval.isExpired(currentTime)
 
-                // Only notify parent of blocked app attempt if NOT temporarily approved
-                if (rule?.type == RuleEngine.RuleType.BLOCKED && !isTemporarilyApproved) {
-                    val appName = getAppInfo(foregroundApp)?.name ?: foregroundApp
-                    sendBlockedAppNotification(foregroundApp, appName)
+                    // Only notify parent of blocked app attempt if NOT temporarily approved
+                    if (rule?.type == RuleEngine.RuleType.BLOCKED && !isTemporarilyApproved) {
+                        val appName = getAppInfo(foregroundApp)?.name ?: foregroundApp
+                        sendBlockedAppNotification(foregroundApp, appName)
+                    }
+
+                    enforcementManager.enforceRuleForApp(foregroundApp, currentTime)
                 }
-                
-                enforcementManager.enforceRuleForApp(foregroundApp, currentTime)
             }
             
         } catch (e: SecurityException) {
@@ -484,29 +501,42 @@ class MonitoringService : Service() {
     }
     
     /**
-     * Check if package is a system app that should be ignored
+     * Check if package is a system app that should be ignored.
+     *
+     * IMPORTANT: Many Google apps (Chrome, Maps, Gmail, YouTube) are pre-installed
+     * system apps (FLAG_SYSTEM is set) on stock Android. We must still enforce rules
+     * on them when the parent has explicitly set a rule. We therefore only skip a
+     * package if:
+     *   1. It is an Android OS / launcher / SystemUI package (always excluded), OR
+     *   2. It has FLAG_SYSTEM **and** no parent rule is stored locally.
+     * This ensures Google apps, Samsung apps, and other pre-installed apps are
+     * blockable once the parent configures a rule for them.
      */
     private fun isSystemApp(packageName: String): Boolean {
-        // System packages to ignore
-        val systemPackages = setOf(
+        // Always-excluded OS / launcher packages — never block these
+        val alwaysExcluded = setOf(
             "com.android.systemui",
             "com.android.launcher",
+            "com.android.launcher2",
             "com.android.launcher3",
-            "com.google.android.googlequicksearchbox",
+            "com.google.android.googlequicksearchbox",  // Google Search / Assistant voice overlay
             "com.android.settings",
+            "android",
             applicationContext.packageName // Our own app
         )
-        
-        if (systemPackages.contains(packageName)) {
-            return true
-        }
-        
+        if (alwaysExcluded.contains(packageName)) return true
+
+        // If the parent has explicitly set a rule → always treat as enforceable (not system)
         try {
-            val packageInfo = packageManager.getPackageInfo(packageName, 0)
-            val applicationInfo = packageInfo.applicationInfo
-            return ((applicationInfo?.flags ?: 0) and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
+            if (database.getRule(packageName) != null) return false
+        } catch (_: Exception) {}
+
+        // No rule exists: skip pre-installed system apps to avoid blocking unintended apps
+        return try {
+            val ai = packageManager.getApplicationInfo(packageName, 0)
+            (ai.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
         } catch (e: PackageManager.NameNotFoundException) {
-            return true // If we can't find the package, treat as system
+            false // Unknown package → enforce it
         }
     }
     

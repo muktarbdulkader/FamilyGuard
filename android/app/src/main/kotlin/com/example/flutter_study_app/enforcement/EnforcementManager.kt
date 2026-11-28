@@ -58,6 +58,20 @@ class EnforcementManager(
     private val pendingRequestPackages = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
     private val notifiedApprovalPackages = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
     private val enforcementNotificationStates = java.util.concurrent.ConcurrentHashMap<String, String>()
+
+    /**
+     * Packages whose overlay was manually dismissed by the child (tapping Close / X).
+     * We suppress re-showing the overlay for DISMISS_GRACE_MS to avoid it flickering
+     * back immediately on the next 1-second monitoring tick.
+     */
+    private val dismissedAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
+    private val DISMISS_GRACE_MS = 5_000L  // 5 seconds of quiet after user taps "Close"
+
+    /**
+     * Packages that have been approved and their approval expiry epoch-ms.
+     * As long as System.currentTimeMillis() < approvalExpiryMs, we ALLOW silently.
+     */
+    private val approvalExpiry = java.util.concurrent.ConcurrentHashMap<String, Long>()
     
     companion object {
         private const val NOTIFICATION_CHANNEL_ENFORCEMENT = "enforcement_notifications"
@@ -66,48 +80,68 @@ class EnforcementManager(
     }
     
     /**
-     * Main enforcement entry point - evaluates and enforces rules for an app
+     * Main enforcement entry point - evaluates and enforces rules for an app.
+     *
+     * Guards added:
+     *   1. If the child just dismissed the overlay (< DISMISS_GRACE_MS ago), skip.
+     *   2. If we have an in-memory approval that hasn't expired yet, skip blocking.
      */
     suspend fun enforceRuleForApp(packageName: String, currentTime: LocalDateTime) = withContext(Dispatchers.Main) {
         try {
+            // Guard 1: dismiss grace period — don't re-show overlay right after child taps "Close"
+            val lastDismiss = dismissedAt[packageName] ?: 0L
+            if (System.currentTimeMillis() - lastDismiss < DISMISS_GRACE_MS) {
+                return@withContext
+            }
+
+            // Guard 2: in-memory approval (set by onAppApproved) has priority over DB lookup
+            val memExpiry = approvalExpiry[packageName] ?: 0L
+            if (System.currentTimeMillis() < memExpiry) {
+                removeOverlayIfPresent(packageName)
+                return@withContext
+            } else if (memExpiry > 0L) {
+                // Approval just expired — clear the entry and fall through to enforce
+                approvalExpiry.remove(packageName)
+            }
+
             // Get rule and usage data
             val rule = database.getRule(packageName)
             val usage = database.getUsage(packageName)
             val temporaryApproval = database.getActiveTemporaryApproval(packageName)
-            
+
             // Evaluate rule
             val result = ruleEngine.evaluate(packageName, currentTime, rule, usage, temporaryApproval)
-            
+
             // Apply enforcement based on result
             when (result) {
                 RuleEngine.EvaluationResult.ALLOW -> {
                     removeOverlayIfPresent(packageName)
                 }
-                
+
                 RuleEngine.EvaluationResult.BLOCK -> {
                     showBlockedAppOverlay(packageName, rule)
                 }
-                
+
                 RuleEngine.EvaluationResult.REQUEST -> {
                     showAskParentOverlay(packageName, rule)
                 }
-                
+
                 RuleEngine.EvaluationResult.TIME_EXPIRED -> {
                     val remaining = ruleEngine.getRemainingMinutes(rule, usage, currentTime)
                     showTimeExpiredOverlay(packageName, rule, remaining ?: 0)
                 }
-                
+
                 RuleEngine.EvaluationResult.OUTSIDE_ALLOWED_WINDOW -> {
                     val minutesUntilAllowed = ruleEngine.getMinutesUntilAllowed(rule, currentTime)
                     showTimeWindowOverlay(packageName, rule, minutesUntilAllowed)
                 }
-                
+
                 RuleEngine.EvaluationResult.TEMPORARY_APPROVAL -> {
                     removeOverlayIfPresent(packageName)
                     showTemporaryApprovalNotification(packageName, temporaryApproval!!)
                 }
             }
-            
+
         } catch (e: Exception) {
             android.util.Log.e("EnforcementManager", "Error enforcing rule for $packageName", e)
         }
@@ -275,6 +309,7 @@ class EnforcementManager(
         secondaryBtn?.apply {
             text = secondaryActionText
             setOnClickListener {
+                recordDismiss(packageName)
                 removeCurrentOverlay()
                 showAppSwitcher()
             }
@@ -282,6 +317,7 @@ class EnforcementManager(
         
         // Top-right close button
         closeBtn?.setOnClickListener {
+            recordDismiss(packageName)
             removeCurrentOverlay()
             showAppSwitcher()
         }
@@ -512,6 +548,20 @@ class EnforcementManager(
     }
     
     /**
+     * Record that the child dismissed the overlay for a package.
+     * Broadcasts OVERLAY_DISMISSED so MonitoringService also knows.
+     */
+    private fun recordDismiss(packageName: String) {
+        dismissedAt[packageName] = System.currentTimeMillis()
+        try {
+            val intent = android.content.Intent("com.example.flutter_study_app.OVERLAY_DISMISSED").apply {
+                putExtra("packageName", packageName)
+            }
+            context.sendBroadcast(intent)
+        } catch (_: Exception) {}
+    }
+
+    /**
      * Remove current overlay if it belongs to the specified package
      */
     fun removeOverlayIfPresent(packageName: String) {
@@ -587,13 +637,21 @@ class EnforcementManager(
     
     /**
      * Called when an app is approved by a parent in real time.
-     * Updates overlay to show approved message, persists temporary approval to local DB, and launches app.
+     * Updates overlay to show approved message, persists temporary approval to local DB,
+     * stores an in-memory expiry so the monitoring loop won't re-block during the grant,
+     * and launches the app.
      */
     fun onAppApproved(packageName: String, grantedMinutes: Int? = null) {
         pendingRequestPackages.remove(packageName)
         val mins = grantedMinutes ?: 30
-        
-        // Ensure local database immediately has the active temporary approval
+
+        // 1. Store in-memory approval expiry — this is checked FIRST in enforceRuleForApp
+        //    so the monitoring loop never re-blocks the app during the grant period.
+        val expiryMs = System.currentTimeMillis() + mins * 60_000L
+        approvalExpiry[packageName] = expiryMs
+        android.util.Log.d("EnforcementManager", "In-memory approval set for $packageName until +${mins}min")
+
+        // 2. Persist to local database so it survives the in-memory map being cleared
         val temporaryApproval = RuleEngine.TemporaryApproval(
             packageName = packageName,
             approvedAt = LocalDateTime.now(),
@@ -603,7 +661,7 @@ class EnforcementManager(
         database.insertTemporaryApproval(temporaryApproval)
         android.util.Log.d("EnforcementManager", "Inserted fresh temporary approval locally for $packageName ($mins min)")
 
-        // Show Approved status on overlay if currently showing
+        // 3. Show "Approved" status on overlay if currently visible
         if (currentOverlayPackage == packageName && currentOverlay != null) {
             try {
                 val statusContainer = currentOverlay?.findViewById<View>(R.id.overlay_status_container)
@@ -612,7 +670,7 @@ class EnforcementManager(
                 statusContainer?.setBackgroundColor(android.graphics.Color.parseColor("#D1FAE5"))
                 statusContainer?.visibility = View.VISIBLE
                 statusText?.setTextColor(android.graphics.Color.parseColor("#065F46"))
-                statusText?.text = "✅ Access Approved by parent for $mins minutes!"
+                statusText?.text = "✅ Access Approved for $mins minutes!"
                 actionBtn?.isEnabled = true
                 actionBtn?.text = "Open App"
                 actionBtn?.setOnClickListener {
@@ -623,14 +681,14 @@ class EnforcementManager(
                 android.util.Log.w("EnforcementManager", "Error updating overlay to approved: ${e.message}")
             }
         }
-        
+
         showTemporaryApprovalNotification(packageName, temporaryApproval, force = true)
 
-        // Auto-launch after brief delay so user sees "Approved" confirmation
+        // 4. Auto-dismiss overlay and open app after 1.5 s so child sees "Approved" message
         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
             removeOverlayIfPresent(packageName)
             launchApprovedApp(packageName)
-        }, 1200L)
+        }, 1500L)
     }
 
     private fun launchApprovedApp(packageName: String) {
