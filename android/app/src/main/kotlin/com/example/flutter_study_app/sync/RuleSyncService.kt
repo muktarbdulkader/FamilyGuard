@@ -152,16 +152,18 @@ class RuleSyncService(
                             )
                             val expiresAtSafe = if (doc.contains("accessExpiresAt")) {
                                 parseDateTimeSafe(doc.get("accessExpiresAt"))
-                            } else null
-                            val isExpired = if (expiresAtSafe != null) {
-                                now.isAfter(expiresAtSafe)
                             } else {
-                                approval.isExpired(now)
+                                decidedAt.plusMinutes(grantedMinutes.toLong())
                             }
+                            val isExpired = now.isAfter(expiresAtSafe)
                             if (!isExpired) {
+                                val expiryEpochMs = expiresAtSafe
+                                    .atZone(java.time.ZoneId.systemDefault())
+                                    .toInstant()
+                                    .toEpochMilli()
                                 database.insertTemporaryApproval(approval)
                                 withContext(Dispatchers.Main) {
-                                    onApprovalChanged?.invoke(pkg)
+                                    onApprovalChanged?.invoke(pkg, grantedMinutes, expiryEpochMs)
                                 }
                                 android.util.Log.d("RuleSyncService", "Auto-approved $pkg from requests update ($grantedMinutes min)")
                             }
@@ -252,8 +254,13 @@ class RuleSyncService(
 
             for (approval in firestoreApprovals) {
                 if (!approval.isExpired(currentTime)) {
+                    val expiryEpochMs = approval.approvedAt
+                        .plusMinutes(approval.durationMinutes.toLong())
+                        .atZone(java.time.ZoneId.systemDefault())
+                        .toInstant()
+                        .toEpochMilli()
                     withContext(Dispatchers.Main) {
-                        onApprovalChanged?.invoke(approval.packageName)
+                        onApprovalChanged?.invoke(approval.packageName, approval.durationMinutes, expiryEpochMs)
                     }
                     android.util.Log.d("RuleSyncService", "Updated approval for: ${approval.packageName}")
                 }

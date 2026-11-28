@@ -328,7 +328,14 @@ service cloud.firestore {
         allow create: if signedIn() &&
           isFamilyChild(familyId) &&
           request.resource.data.childId == request.auth.uid;
-        allow update: if isFamilyParent(familyId);
+        allow update: if isFamilyParent(familyId) ||
+          (
+            signedIn() &&
+            isFamilyChild(familyId) &&
+            resource.data.childId == request.auth.uid &&
+            request.resource.data.childId == request.auth.uid &&
+            request.resource.data.status == 'pending'
+          );
         allow delete: if isFamilyParent(familyId);
       }
 

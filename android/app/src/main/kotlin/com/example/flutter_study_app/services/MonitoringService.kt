@@ -211,8 +211,8 @@ class MonitoringService : Service() {
     private fun startRuleSync(familyId: String, childId: String) {
         try {
             ruleSyncService = RuleSyncService(this, database, childId).apply {
-                onApprovalChanged = { approvedPkg ->
-                    enforcementManager.onAppApproved(approvedPkg)
+                onApprovalChanged = { approvedPkg, grantedMinutes, expiryEpochMs ->
+                    enforcementManager.onAppApproved(approvedPkg, grantedMinutes, expiryEpochMs)
                 }
                 onRuleChanged = { pkg, ruleType ->
                     serviceScope.launch {
